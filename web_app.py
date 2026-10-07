@@ -1608,7 +1608,7 @@ HTML_PAGE = """<!DOCTYPE html>
 # ==============================================================================
 # خدمات الربط مع لوحة تحكم المنجر وتحديثات النظام
 # ==============================================================================
-def is_port_listening(port: int, host: str = "127.0.0.1", timeout: float = 0.4) -> bool:
+def is_port_listening(port: int, host: str = "127.0.0.1", timeout: float = 0.15) -> bool:
     """فحص ما إذا كان البورت يعمل ومستمع للاتصالات."""
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -1617,20 +1617,31 @@ def is_port_listening(port: int, host: str = "127.0.0.1", timeout: float = 0.4) 
     except Exception:
         return False
 
+_last_manager_status = None
+_last_manager_status_time = 0
+
 def get_manager_system_status() -> dict:
-    """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة."""
+    """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة مع كاش خفيف."""
+    global _last_manager_status, _last_manager_status_time
+    now = time.time()
+    if _last_manager_status and (now - _last_manager_status_time < 1.0):
+        return _last_manager_status
+
     manager_running = is_port_listening(8002)
     backend_running = is_port_listening(8000)
     frontend_running = is_port_listening(3000)
     desktop_shortcut = os.path.join(os.path.expanduser("~"), "Desktop", "لوحة تحكم المنجر.lnk")
     
-    return {
+    st = {
         "manager_running": manager_running,
         "backend_running": backend_running,
         "frontend_running": frontend_running,
         "shortcut_exists": os.path.exists(desktop_shortcut),
         "manager_url": "http://localhost:8002"
     }
+    _last_manager_status = st
+    _last_manager_status_time = now
+    return st
 
 def launch_manager_and_all_servers() -> dict:
     """تشغيل كافة سيرفرات المنجر وفتح لوحة التحكم في المتصفح."""
@@ -1754,22 +1765,50 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
     def log_message(self, format, *args):
         pass
 
+    def handle(self):
+        try:
+            super().handle()
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            pass
+        except Exception:
+            pass
+
+    def handle_one_request(self):
+        try:
+            super().handle_one_request()
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            self.close_connection = True
+        except Exception:
+            self.close_connection = True
+
     def send_cors_headers(self):
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+        try:
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+        except Exception:
+            pass
 
     def do_OPTIONS(self):
-        self.send_response(200)
-        self.send_cors_headers()
-        self.end_headers()
+        try:
+            self.send_response(200)
+            self.send_cors_headers()
+            self.end_headers()
+        except Exception:
+            pass
 
     def send_json(self, data, status=200):
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json; charset=utf-8")
-        self.send_cors_headers()
-        self.end_headers()
-        self.wfile.write(json.dumps(data, ensure_ascii=False).encode("utf-8"))
+        try:
+            payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
+            self.send_response(status)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_cors_headers()
+            self.end_headers()
+            self.wfile.write(payload)
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            pass
+        except Exception:
+            pass
 
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
@@ -2093,6 +2132,12 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 class ThreadedHTTPServer(ThreadingHTTPServer):
     allow_reuse_address = True
     daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        exc_type, _, _ = sys.exc_info()
+        if exc_type in (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
+            return  # تجاهل هادئ لانقطاع الاتصال من المتصفح دون طباعة أخطاء
+        super().handle_error(request, client_address)
 
 def run_app():
     port = 5000

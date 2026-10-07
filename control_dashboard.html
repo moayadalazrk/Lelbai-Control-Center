@@ -476,8 +476,6 @@
 
     async function init() {
       await checkServerConnection(false);
-      checkManagerStatus();
-      fetchUpdateInfo();
 
       // فحص دوري تلقائي لإعادة الاتصال ومتابعة السحب والمنجر
       setInterval(async () => {
@@ -492,7 +490,7 @@
           pollScraperStatus();
           checkManagerStatus();
         }
-      }, 3000);
+      }, 4000);
     }
 
     async function checkServerConnection(isManual = false) {
