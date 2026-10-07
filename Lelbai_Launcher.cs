@@ -26,8 +26,20 @@ namespace LelbaiLauncher
                 Console.WriteLine("\n❌ حدث خطأ غير متوقع في المشغل:");
                 Console.WriteLine(ex.Message);
                 Console.ResetColor();
-                Console.WriteLine("\nاضغط أي مفتاح للخروج...");
-                Console.ReadKey();
+                SafeWaitForKey();
+            }
+        }
+
+        static void SafeWaitForKey()
+        {
+            try
+            {
+                Console.WriteLine("\nاضغط [Enter] للمتابعة أو الخروج...");
+                Console.ReadLine();
+            }
+            catch
+            {
+                try { Console.Read(); } catch { }
             }
         }
 
@@ -70,6 +82,18 @@ namespace LelbaiLauncher
                 {
                     Console.WriteLine("      جاري تنزيل حزمة الملفات عبر HTTPS مباشرة...");
                     DownloadAndExtractZip(DefaultZipUrl, currentDir);
+                }
+
+                if (!File.Exists(Path.Combine(currentDir, "web_app.py")))
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\n❌ لم يتم العثور على ملفات النظام (web_app.py) بعد محاولة التنزيل!");
+                    Console.WriteLine("   💡 ملاحظات هامة للحل:");
+                    Console.WriteLine("   1. إذا كان مستودع GitHub مضبوطاً كـ Private (خاص)، يرجى جعله Public (عام)");
+                    Console.WriteLine("      حتى يستطيع أي جهاز تنزيل الملفات دون طلب أي مفتاح أو حساب.");
+                    Console.WriteLine("   2. أو تأكد من وجود برنامج Git على الجهاز، أو انسخ ملف Lelbai_Launcher.exe لمجلد المشروع.");
+                    SafeWaitForKey();
+                    return;
                 }
             }
             else
@@ -131,20 +155,48 @@ namespace LelbaiLauncher
         {
             try
             {
-                ProcessStartInfo psi = new ProcessStartInfo("git", "clone \"" + repoUrl + "\" .")
+                Console.WriteLine("      [+] جاري استنساخ وتحميل ملفات النظام عبر Git...");
+                string tempClone = Path.Combine(targetDir, "_temp_clone");
+                if (Directory.Exists(tempClone))
                 {
-                    UseShellExecute = false,
-                    CreateNoWindow = false,
-                    WorkingDirectory = targetDir
-                };
-                Process p = Process.Start(psi);
-                p.WaitForExit(90000);
-                return p.ExitCode == 0 && File.Exists(Path.Combine(targetDir, "web_app.py"));
+                    try { Directory.Delete(tempClone, true); } catch { }
+                }
+
+                // استنساخ المستودع في مجلد مؤقت لتفادي حجز Lelbai_Launcher.exe المشغل حالياً
+                RunCommand("git", "clone \"" + repoUrl + "\" \"" + tempClone + "\"", targetDir, 90000);
+
+                if (Directory.Exists(tempClone) && File.Exists(Path.Combine(tempClone, "web_app.py")))
+                {
+                    // نقل مجلد .git إلى targetDir للارتباط بالمستودع
+                    string gitSrc = Path.Combine(tempClone, ".git");
+                    string gitDst = Path.Combine(targetDir, ".git");
+                    if (Directory.Exists(gitSrc))
+                    {
+                        if (Directory.Exists(gitDst)) try { Directory.Delete(gitDst, true); } catch { }
+                        try { Directory.Move(gitSrc, gitDst); } catch { }
+                    }
+
+                    // نسخ كافة الملفات مع تجاوز استبدال ملف المشغل قيد التشغيل
+                    CopyDirectory(tempClone, targetDir);
+
+                    try { Directory.Delete(tempClone, true); } catch { }
+
+                    bool ok = File.Exists(Path.Combine(targetDir, "web_app.py"));
+                    if (ok)
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("      ✅ تم تنزيل واستخراج كافة ملفات النظام بنجاح عبر Git!");
+                        Console.ResetColor();
+                    }
+                    return ok;
+                }
             }
-            catch
+            catch (Exception ex)
             {
-                return false;
+                Console.WriteLine("      ℹ️ تعذر السحب عبر Git: " + ex.Message);
             }
+
+            return false;
         }
 
         static void DownloadAndExtractZip(string zipUrl, string targetDir)
@@ -172,13 +224,19 @@ namespace LelbaiLauncher
                 if (File.Exists(tempZip)) File.Delete(tempZip);
 
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("      ✅ تم تنزيل واستخراج الملفات بنجاح!");
+                Console.WriteLine("      ✅ تم تنزيل واستخراج الملفات بنجاح عبر HTTPS!");
                 Console.ResetColor();
             }
             catch (Exception ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("      ❌ تعذر تنزيل الملفات: " + ex.Message);
+                Console.WriteLine("      ❌ تعذر تنزيل الملفات عبر HTTPS: " + ex.Message);
+                if (ex.Message.Contains("404"))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("      💡 سبب الخطأ (404): مستودع GitHub مضبوط كـ Private (خاص).");
+                    Console.WriteLine("         لتنزيل الحزمة على أي جهاز دون تسجيل دخول، اجعل المستودع Public (عام).");
+                }
                 Console.ResetColor();
             }
         }
@@ -187,14 +245,26 @@ namespace LelbaiLauncher
         {
             foreach (string dir in Directory.GetDirectories(sourceDir, "*", SearchOption.AllDirectories))
             {
+                if (dir.Contains(".git")) continue;
                 string dirToCreate = dir.Replace(sourceDir, destDir);
                 if (!Directory.Exists(dirToCreate)) Directory.CreateDirectory(dirToCreate);
             }
 
             foreach (string file in Directory.GetFiles(sourceDir, "*.*", SearchOption.AllDirectories))
             {
+                if (file.Contains(".git")) continue;
+                string fileName = Path.GetFileName(file);
+                if (fileName.Equals("Lelbai_Launcher.exe", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue; // تجاوز الملف التنفيذي المشغل حالياً لتجنب خطأ الحجز
+                }
+
                 string fileToCopy = file.Replace(sourceDir, destDir);
-                File.Copy(file, fileToCopy, true);
+                try
+                {
+                    File.Copy(file, fileToCopy, true);
+                }
+                catch { }
             }
         }
 
@@ -405,8 +475,7 @@ namespace LelbaiLauncher
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("\n⚠️ توقف سيرفر بايثون (رمز الخروج: " + p.ExitCode + ")");
                     Console.ResetColor();
-                    Console.WriteLine("\nاضغط أي مفتاح للخروج...");
-                    Console.ReadKey();
+                    SafeWaitForKey();
                 }
             }
             catch (Exception ex)
@@ -415,8 +484,7 @@ namespace LelbaiLauncher
                 Console.WriteLine("  ❌ تعذر تشغيل بايثون تلقائياً: " + ex.Message);
                 Console.WriteLine("  يرجى التأكد من تثبيت Python وتضمينه في متغيرات النظام PATH.");
                 Console.ResetColor();
-                Console.WriteLine("\nاضغط أي مفتاح للخروج...");
-                Console.ReadKey();
+                SafeWaitForKey();
             }
         }
 
