@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Caches and builds
+build/
+dist/
+*.spec
+Lelbai_Control_Center.exe
+
+# Browser sessions and cookies (Playwright)
+browser_session/
+test_async_session/
+test_browser_session/
+
+# Temporary scraped images (keep folder structure)
+asstes/imgs/*
+!asstes/imgs/.gitkeep
+
+# Local logs and environments
+*.log
+.env
+venv/
+.venv/
+env/
+
+# Legacy / transfer archive
+تنزيل الاعلانات/

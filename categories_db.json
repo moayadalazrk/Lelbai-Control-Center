@@ -1,0 +1,1958 @@
+[
+  {
+    "id": 1,
+    "parent_id": null,
+    "name_ar": "السيارات",
+    "slug": "cars"
+  },
+  {
+    "id": 16,
+    "parent_id": null,
+    "name_ar": "الدراجات النارية",
+    "slug": "motorcycles"
+  },
+  {
+    "id": 29,
+    "parent_id": null,
+    "name_ar": "العقارات",
+    "slug": "real-estate"
+  },
+  {
+    "id": 44,
+    "parent_id": null,
+    "name_ar": "الطاقة البديلة والكهرباء",
+    "slug": "solar-energy"
+  },
+  {
+    "id": 69,
+    "parent_id": null,
+    "name_ar": "الإلكترونيات والشبكات",
+    "slug": "devices"
+  },
+  {
+    "id": 88,
+    "parent_id": null,
+    "name_ar": "المنزل والأثاث",
+    "slug": "furniture"
+  },
+  {
+    "id": 189,
+    "parent_id": null,
+    "name_ar": "الوظائف والأعمال",
+    "slug": "jobs"
+  },
+  {
+    "id": 202,
+    "parent_id": null,
+    "name_ar": "الخدمات",
+    "slug": "services"
+  },
+  {
+    "id": 101,
+    "parent_id": null,
+    "name_ar": "الأزياء والعناية الشخصية",
+    "slug": "fashion"
+  },
+  {
+    "id": 114,
+    "parent_id": null,
+    "name_ar": "بقالة ومواد غذائية",
+    "slug": "food"
+  },
+  {
+    "id": 127,
+    "parent_id": null,
+    "name_ar": "صحة ورياضة",
+    "slug": "health-sports"
+  },
+  {
+    "id": 140,
+    "parent_id": null,
+    "name_ar": "الحيوان ومواشي",
+    "slug": "animals"
+  },
+  {
+    "id": 155,
+    "parent_id": null,
+    "name_ar": "مناسبات وحفلات",
+    "slug": "occasions"
+  },
+  {
+    "id": 167,
+    "parent_id": null,
+    "name_ar": "وجهات سياحية ورحلات",
+    "slug": "tourism"
+  },
+  {
+    "id": 176,
+    "parent_id": null,
+    "name_ar": "مكتبة وقرطاسية",
+    "slug": "library"
+  },
+  {
+    "id": 217,
+    "parent_id": null,
+    "name_ar": "مواد البناء والمعدات",
+    "slug": "construction"
+  },
+  {
+    "id": 232,
+    "parent_id": null,
+    "name_ar": "الزراعة ومستلزمات الإنتاج",
+    "slug": "agriculture"
+  },
+  {
+    "id": 245,
+    "parent_id": null,
+    "name_ar": "السكراب والستوكات والتصفيات",
+    "slug": "scrap-stock"
+  },
+  {
+    "id": 259,
+    "parent_id": null,
+    "name_ar": "أخرى",
+    "slug": "other"
+  },
+  {
+    "id": 1143,
+    "parent_id": 1,
+    "name_ar": "سيارات للبيع",
+    "slug": "cars-for-sale"
+  },
+  {
+    "id": 1369,
+    "parent_id": 1,
+    "name_ar": "قطع غيار وإكسسوارات السيارات",
+    "slug": "auto-spare-parts"
+  },
+  {
+    "id": 1395,
+    "parent_id": 1,
+    "name_ar": "سيارات للإيجار",
+    "slug": "cars-for-rent"
+  },
+  {
+    "id": 3091,
+    "parent_id": 16,
+    "name_ar": "دراجات نارية (ميتورات)",
+    "slug": "motorcycles-gas-1787857971-557"
+  },
+  {
+    "id": 3117,
+    "parent_id": 16,
+    "name_ar": "دراجات هوائية (بسكليتات)",
+    "slug": "bicycles-1787857971-138"
+  },
+  {
+    "id": 3124,
+    "parent_id": 16,
+    "name_ar": "قطع غيار وإكسسوارات الدراجات",
+    "slug": "motorcycle-parts-accessories-1787857971-251"
+  },
+  {
+    "id": 3131,
+    "parent_id": 29,
+    "name_ar": "شقق",
+    "slug": "apartments-1787869957-600"
+  },
+  {
+    "id": 3132,
+    "parent_id": 29,
+    "name_ar": "فلل وبيوت",
+    "slug": "villas-houses-1787869957-362"
+  },
+  {
+    "id": 3133,
+    "parent_id": 29,
+    "name_ar": "أراضي ومزارع",
+    "slug": "lands-farms-1787869957-802"
+  },
+  {
+    "id": 3134,
+    "parent_id": 29,
+    "name_ar": "محلات وعقارات تجارية",
+    "slug": "commercial-shops-1787869957-710"
+  },
+  {
+    "id": 3135,
+    "parent_id": 29,
+    "name_ar": "شاليهات واستراحات",
+    "slug": "chalets-resorts-1787869957-992"
+  },
+  {
+    "id": 3136,
+    "parent_id": 44,
+    "name_ar": "ألواح ومنظومات طاقة شمسية",
+    "slug": "solar-panels-systems-1787870392-477"
+  },
+  {
+    "id": 3137,
+    "parent_id": 44,
+    "name_ar": "إنفيرترات وبطاريات",
+    "slug": "inverters-batteries-1787870392-848"
+  },
+  {
+    "id": 3138,
+    "parent_id": 44,
+    "name_ar": "مولدات ومستلزمات كهرباء",
+    "slug": "generators-electrical-supplies-1787870392-844"
+  },
+  {
+    "id": 3147,
+    "parent_id": 44,
+    "name_ar": "أخرى",
+    "slug": "solar-other-1787871067"
+  },
+  {
+    "id": 3139,
+    "parent_id": 69,
+    "name_ar": "جوالات وهواتف ذكية",
+    "slug": "smartphones-1787870649-134"
+  },
+  {
+    "id": 3140,
+    "parent_id": 69,
+    "name_ar": "أجهزة لوحية وآيباد",
+    "slug": "tablets-ipad-1787870649-806"
+  },
+  {
+    "id": 3141,
+    "parent_id": 69,
+    "name_ar": "كمبيوتر ولابتوب",
+    "slug": "computers-laptops-1787870649-515"
+  },
+  {
+    "id": 3143,
+    "parent_id": 69,
+    "name_ar": "شاشات وتلفزيونات",
+    "slug": "tv-screens-1787870649-375"
+  },
+  {
+    "id": 3144,
+    "parent_id": 69,
+    "name_ar": "ساعات ذكية وسماعات وإكسسوارات",
+    "slug": "smartwatches-accessories-1787870649-752"
+  },
+  {
+    "id": 3146,
+    "parent_id": 69,
+    "name_ar": "أخرى",
+    "slug": "electronics-other-1787871022"
+  },
+  {
+    "id": 3148,
+    "parent_id": 88,
+    "name_ar": "أثاث منزلي وغرف",
+    "slug": "home-furniture-rooms-1787871873-618"
+  },
+  {
+    "id": 3149,
+    "parent_id": 88,
+    "name_ar": "أجهزة كهربائية ومنزلية",
+    "slug": "home-electrical-appliances-1787871873-474"
+  },
+  {
+    "id": 3150,
+    "parent_id": 88,
+    "name_ar": "مطابخ وأواني",
+    "slug": "kitchens-cookware-1787871873-757"
+  },
+  {
+    "id": 3151,
+    "parent_id": 88,
+    "name_ar": "سجاد ومفروشات وستائر",
+    "slug": "carpets-curtains-textiles-1787871873-389"
+  },
+  {
+    "id": 3152,
+    "parent_id": 88,
+    "name_ar": "أثاث مكتبي وجلسات خارجية",
+    "slug": "office-outdoor-furniture-1787871873-113"
+  },
+  {
+    "id": 3153,
+    "parent_id": 88,
+    "name_ar": "أخرى",
+    "slug": "home-other-1787871873-400"
+  },
+  {
+    "id": 3166,
+    "parent_id": 101,
+    "name_ar": "ملابس رجالية",
+    "slug": "mens-clothing-1787872599-341"
+  },
+  {
+    "id": 3167,
+    "parent_id": 101,
+    "name_ar": "ملابس نسائية وفساتين",
+    "slug": "womens-clothing-dresses-1787872599-873"
+  },
+  {
+    "id": 3168,
+    "parent_id": 101,
+    "name_ar": "ملابس أطفال ومواليد",
+    "slug": "kids-baby-clothing-1787872599-790"
+  },
+  {
+    "id": 3169,
+    "parent_id": 101,
+    "name_ar": "ساعات ومجوهرات وإكسسوارات",
+    "slug": "watches-jewelry-accessories-1787872599-529"
+  },
+  {
+    "id": 3170,
+    "parent_id": 101,
+    "name_ar": "عطور ومستحضرات تجميل",
+    "slug": "perfumes-cosmetics-1787872599-856"
+  },
+  {
+    "id": 3171,
+    "parent_id": 101,
+    "name_ar": "أخرى",
+    "slug": "fashion-other-1787872599-888"
+  },
+  {
+    "id": 3172,
+    "parent_id": 114,
+    "name_ar": "مواد وأطعمة غذائية",
+    "slug": "food-groceries-1787925468-517"
+  },
+  {
+    "id": 3173,
+    "parent_id": 114,
+    "name_ar": "منظفات ومستلزمات",
+    "slug": "detergents-grocery-supplies-1787925468-663"
+  },
+  {
+    "id": 3174,
+    "parent_id": 114,
+    "name_ar": "أخرى",
+    "slug": "groceries-other-1787925468-640"
+  },
+  {
+    "id": 3175,
+    "parent_id": 127,
+    "name_ar": "أجهزة ومعدات رياضية",
+    "slug": "sports-fitness-equipment-1787925614-646"
+  },
+  {
+    "id": 3176,
+    "parent_id": 127,
+    "name_ar": "مستلزمات وأجهزة طبية",
+    "slug": "medical-equipment-supplies-1787925614-774"
+  },
+  {
+    "id": 3177,
+    "parent_id": 127,
+    "name_ar": "مكملات غذائية وفيتامينات",
+    "slug": "supplements-vitamins-1787925614-230"
+  },
+  {
+    "id": 3178,
+    "parent_id": 127,
+    "name_ar": "أخرى",
+    "slug": "health-sports-other-1787925614-977"
+  },
+  {
+    "id": 3179,
+    "parent_id": 140,
+    "name_ar": "غنم وماعز وإبل",
+    "slug": "sheep-goats-camels-1787925814-406"
+  },
+  {
+    "id": 3180,
+    "parent_id": 140,
+    "name_ar": "أبقار وعجول وخيول",
+    "slug": "cattle-horses-1787925814-818"
+  },
+  {
+    "id": 3181,
+    "parent_id": 140,
+    "name_ar": "طيور ودواجن وحمام",
+    "slug": "birds-poultry-pigeons-1787925814-324"
+  },
+  {
+    "id": 3182,
+    "parent_id": 140,
+    "name_ar": "قطط وحيوانات أليفة ومستلزماتها",
+    "slug": "pets-cats-supplies-1787925814-583"
+  },
+  {
+    "id": 3183,
+    "parent_id": 140,
+    "name_ar": "أعلاف ومستلزمات مزارع",
+    "slug": "fodder-farm-supplies-1787925814-865"
+  },
+  {
+    "id": 3184,
+    "parent_id": 140,
+    "name_ar": "أخرى",
+    "slug": "animals-other-1787925814-334"
+  },
+  {
+    "id": 3197,
+    "parent_id": 155,
+    "name_ar": "صالات وقاعات مناسبات",
+    "slug": "event-halls-venues-1787925814-597"
+  },
+  {
+    "id": 3198,
+    "parent_id": 155,
+    "name_ar": "كوش وتجهيزات حفلات وضيافة",
+    "slug": "party-setup-hospitality-1787925814-923"
+  },
+  {
+    "id": 3199,
+    "parent_id": 155,
+    "name_ar": "أخرى",
+    "slug": "events-other-1787925814-445"
+  },
+  {
+    "id": 3200,
+    "parent_id": 167,
+    "name_ar": "شاليهات ومزارع واستراحات سياحية",
+    "slug": "chalets-tourist-farms-1787925814-339"
+  },
+  {
+    "id": 3201,
+    "parent_id": 167,
+    "name_ar": "فنادق ورحلات وبرامج سياحية",
+    "slug": "hotels-trips-tourism-1787925814-143"
+  },
+  {
+    "id": 3202,
+    "parent_id": 167,
+    "name_ar": "أخرى",
+    "slug": "tourism-other-1787925814-192"
+  },
+  {
+    "id": 3203,
+    "parent_id": 176,
+    "name_ar": "كتب ومراجع ومطبوعات",
+    "slug": "books-publications-1787925814-615"
+  },
+  {
+    "id": 3204,
+    "parent_id": 176,
+    "name_ar": "قرطاسية ومستلزمات مدرسية ومكتبية",
+    "slug": "stationery-school-supplies-1787925814-309"
+  },
+  {
+    "id": 3205,
+    "parent_id": 176,
+    "name_ar": "أخرى",
+    "slug": "stationery-other-1787925814-650"
+  },
+  {
+    "id": 3154,
+    "parent_id": 189,
+    "name_ar": "وظائف شاغرة",
+    "slug": "job-vacancies-1787872151-772"
+  },
+  {
+    "id": 3155,
+    "parent_id": 189,
+    "name_ar": "باحثون عن عمل",
+    "slug": "job-seekers-1787872151-444"
+  },
+  {
+    "id": 3156,
+    "parent_id": 189,
+    "name_ar": "فرص استثمار وشراكات",
+    "slug": "investment-partnerships-1787872151-757"
+  },
+  {
+    "id": 3157,
+    "parent_id": 189,
+    "name_ar": "أخرى",
+    "slug": "jobs-other-1787872151-403"
+  },
+  {
+    "id": 3158,
+    "parent_id": 202,
+    "name_ar": "خدمات مقاولات",
+    "slug": "contracting-services-1787872334-690"
+  },
+  {
+    "id": 3159,
+    "parent_id": 202,
+    "name_ar": "خدمات التوصيل",
+    "slug": "delivery-services-1787872334-277"
+  },
+  {
+    "id": 3160,
+    "parent_id": 202,
+    "name_ar": "خدمات تعقيب",
+    "slug": "clearance-services-1787872334-910"
+  },
+  {
+    "id": 3161,
+    "parent_id": 202,
+    "name_ar": "خدمات نقل العفش",
+    "slug": "furniture-moving-services-1787872334-319"
+  },
+  {
+    "id": 3162,
+    "parent_id": 202,
+    "name_ar": "خدمات نظافة",
+    "slug": "cleaning-services-1787872334-215"
+  },
+  {
+    "id": 3163,
+    "parent_id": 202,
+    "name_ar": "خدمات قانونية",
+    "slug": "legal-services-1787872334-237"
+  },
+  {
+    "id": 3164,
+    "parent_id": 202,
+    "name_ar": "خدمات محاسبية ومالية",
+    "slug": "accounting-financial-services-1787872334-249"
+  },
+  {
+    "id": 3165,
+    "parent_id": 202,
+    "name_ar": "خدمات أخرى",
+    "slug": "other-services-1787872334-777"
+  },
+  {
+    "id": 3185,
+    "parent_id": 217,
+    "name_ar": "مواد بناء وأسمنت وحديد",
+    "slug": "building-materials-cement-steel-1787925814-912"
+  },
+  {
+    "id": 3186,
+    "parent_id": 217,
+    "name_ar": "عدد وأدوات مهنية وكهربائية",
+    "slug": "tools-hardware-1787925814-709"
+  },
+  {
+    "id": 3187,
+    "parent_id": 217,
+    "name_ar": "آليات ومعدات ثقيلة",
+    "slug": "heavy-machinery-equipment-1787925814-135"
+  },
+  {
+    "id": 3188,
+    "parent_id": 217,
+    "name_ar": "سيراميك وأدوات صحية وأبواب",
+    "slug": "sanitary-ceramics-doors-1787925814-104"
+  },
+  {
+    "id": 3189,
+    "parent_id": 217,
+    "name_ar": "أخرى",
+    "slug": "construction-other-1787925814-238"
+  },
+  {
+    "id": 3190,
+    "parent_id": 232,
+    "name_ar": "أشجار وأشتال وبذور",
+    "slug": "trees-seedlings-seeds-1787925814-271"
+  },
+  {
+    "id": 3191,
+    "parent_id": 232,
+    "name_ar": "أسمدة ومبيدات زراعية",
+    "slug": "fertilizers-pesticides-1787925814-762"
+  },
+  {
+    "id": 3192,
+    "parent_id": 232,
+    "name_ar": "مضخات وشبكات ري وآليات زراعية",
+    "slug": "pumps-irrigation-tractors-1787925814-538"
+  },
+  {
+    "id": 3193,
+    "parent_id": 232,
+    "name_ar": "أخرى",
+    "slug": "agriculture-other-1787925814-265"
+  },
+  {
+    "id": 3194,
+    "parent_id": 245,
+    "name_ar": "سكراب ومعادن وخردة",
+    "slug": "scrap-metals-junk-1787925814-876"
+  },
+  {
+    "id": 3195,
+    "parent_id": 245,
+    "name_ar": "ستوكات وتصفيات بضائع ومستودعات",
+    "slug": "stock-clearance-wholesale-1787925814-524"
+  },
+  {
+    "id": 3196,
+    "parent_id": 245,
+    "name_ar": "أخرى",
+    "slug": "scrap-other-1787925814-786"
+  },
+  {
+    "id": 3206,
+    "parent_id": 259,
+    "name_ar": "نوادر ومقتنيات وتحف قديمة",
+    "slug": "antiques-collectibles-1787925814-388"
+  },
+  {
+    "id": 3207,
+    "parent_id": 259,
+    "name_ar": "أصناف عامة ومتنوعة",
+    "slug": "general-misc-1787925814-280"
+  },
+  {
+    "id": 1144,
+    "parent_id": 1143,
+    "name_ar": "هيونداي",
+    "slug": "hyundai-sale"
+  },
+  {
+    "id": 1155,
+    "parent_id": 1143,
+    "name_ar": "كيا",
+    "slug": "kia-sale"
+  },
+  {
+    "id": 1166,
+    "parent_id": 1143,
+    "name_ar": "تويوتا",
+    "slug": "toyota-sale"
+  },
+  {
+    "id": 1176,
+    "parent_id": 1143,
+    "name_ar": "مازدا",
+    "slug": "mazda-sale"
+  },
+  {
+    "id": 1184,
+    "parent_id": 1143,
+    "name_ar": "نيسان",
+    "slug": "nissan-sale"
+  },
+  {
+    "id": 1193,
+    "parent_id": 1143,
+    "name_ar": "سايبا",
+    "slug": "saipa-sale"
+  },
+  {
+    "id": 1199,
+    "parent_id": 1143,
+    "name_ar": "سيامكو / شام",
+    "slug": "siamco-sale"
+  },
+  {
+    "id": 1205,
+    "parent_id": 1143,
+    "name_ar": "دايو",
+    "slug": "daewoo-sale"
+  },
+  {
+    "id": 1212,
+    "parent_id": 1143,
+    "name_ar": "سوزوكي",
+    "slug": "suzuki-sale"
+  },
+  {
+    "id": 1219,
+    "parent_id": 1143,
+    "name_ar": "ميتسوبيشي",
+    "slug": "mitsubishi-sale"
+  },
+  {
+    "id": 1226,
+    "parent_id": 1143,
+    "name_ar": "مرسيدس-بنز",
+    "slug": "mercedes-sale"
+  },
+  {
+    "id": 1235,
+    "parent_id": 1143,
+    "name_ar": "بي إم دبليو",
+    "slug": "bmw-sale"
+  },
+  {
+    "id": 1242,
+    "parent_id": 1143,
+    "name_ar": "بيجو",
+    "slug": "peugeot-sale"
+  },
+  {
+    "id": 1251,
+    "parent_id": 1143,
+    "name_ar": "فولكس فاجن",
+    "slug": "volkswagen-sale"
+  },
+  {
+    "id": 1259,
+    "parent_id": 1143,
+    "name_ar": "رينو",
+    "slug": "renault-sale"
+  },
+  {
+    "id": 1266,
+    "parent_id": 1143,
+    "name_ar": "بي واي دي",
+    "slug": "byd-sale"
+  },
+  {
+    "id": 1274,
+    "parent_id": 1143,
+    "name_ar": "جيلي",
+    "slug": "geely-sale"
+  },
+  {
+    "id": 1282,
+    "parent_id": 1143,
+    "name_ar": "شيري",
+    "slug": "chery-sale"
+  },
+  {
+    "id": 1288,
+    "parent_id": 1143,
+    "name_ar": "شانجان",
+    "slug": "changan-sale"
+  },
+  {
+    "id": 1295,
+    "parent_id": 1143,
+    "name_ar": "شيفروليه",
+    "slug": "chevrolet-sale"
+  },
+  {
+    "id": 1303,
+    "parent_id": 1143,
+    "name_ar": "أوبل",
+    "slug": "opel-sale"
+  },
+  {
+    "id": 1310,
+    "parent_id": 1143,
+    "name_ar": "فورد",
+    "slug": "ford-sale"
+  },
+  {
+    "id": 1318,
+    "parent_id": 1143,
+    "name_ar": "هوندا",
+    "slug": "honda-sale"
+  },
+  {
+    "id": 1324,
+    "parent_id": 1143,
+    "name_ar": "إم جي",
+    "slug": "mg-sale"
+  },
+  {
+    "id": 1330,
+    "parent_id": 1143,
+    "name_ar": "لادا",
+    "slug": "lada-sale"
+  },
+  {
+    "id": 1336,
+    "parent_id": 1143,
+    "name_ar": "أودي",
+    "slug": "audi-sale"
+  },
+  {
+    "id": 1343,
+    "parent_id": 1143,
+    "name_ar": "سكودا",
+    "slug": "skoda-sale"
+  },
+  {
+    "id": 1349,
+    "parent_id": 1143,
+    "name_ar": "فيات",
+    "slug": "fiat-sale"
+  },
+  {
+    "id": 1356,
+    "parent_id": 1143,
+    "name_ar": "لاند روفر",
+    "slug": "land-rover-sale"
+  },
+  {
+    "id": 1363,
+    "parent_id": 1143,
+    "name_ar": "هونشي ودونغ فينغ وفاو",
+    "slug": "hongqi-dfm-faw-sale"
+  },
+  {
+    "id": 1832,
+    "parent_id": 1143,
+    "name_ar": "ماركات أخرى",
+    "slug": "other-car-brands-sale"
+  },
+  {
+    "id": 1145,
+    "parent_id": 1144,
+    "name_ar": "أكسنت / فيرنا",
+    "slug": "hyundai-aksnt-fyrna-sale"
+  },
+  {
+    "id": 1146,
+    "parent_id": 1144,
+    "name_ar": "إلنترا / أفانتي",
+    "slug": "hyundai-alntra-afanty-sale"
+  },
+  {
+    "id": 1147,
+    "parent_id": 1144,
+    "name_ar": "توسان",
+    "slug": "hyundai-tosan-sale"
+  },
+  {
+    "id": 1148,
+    "parent_id": 1144,
+    "name_ar": "سنتافي",
+    "slug": "hyundai-sntafy-sale"
+  },
+  {
+    "id": 1149,
+    "parent_id": 1144,
+    "name_ar": "سوناتا",
+    "slug": "hyundai-sonata-sale"
+  },
+  {
+    "id": 1150,
+    "parent_id": 1144,
+    "name_ar": "جيتز / i10 / ماتريكس",
+    "slug": "hyundai-gytz-i10-matryks-sale"
+  },
+  {
+    "id": 1151,
+    "parent_id": 1144,
+    "name_ar": "أزيرا",
+    "slug": "hyundai-azyra-sale"
+  },
+  {
+    "id": 1152,
+    "parent_id": 1144,
+    "name_ar": "كريتا / فينيو",
+    "slug": "hyundai-kryta-fynyo-sale"
+  },
+  {
+    "id": 1153,
+    "parent_id": 1144,
+    "name_ar": "H1 / ستاريا",
+    "slug": "hyundai-h1-starya-sale"
+  },
+  {
+    "id": 1802,
+    "parent_id": 1144,
+    "name_ar": "موديلات أخرى",
+    "slug": "hyundai-sale-other-models"
+  },
+  {
+    "id": 1156,
+    "parent_id": 1155,
+    "name_ar": "ريو",
+    "slug": "kia-ryo-sale"
+  },
+  {
+    "id": 1157,
+    "parent_id": 1155,
+    "name_ar": "سيراتو / فورتي",
+    "slug": "kia-syrato-forty-sale"
+  },
+  {
+    "id": 1158,
+    "parent_id": 1155,
+    "name_ar": "بيكانتو",
+    "slug": "kia-bykanto-sale"
+  },
+  {
+    "id": 1159,
+    "parent_id": 1155,
+    "name_ar": "سبورتاج",
+    "slug": "kia-sbortag-sale"
+  },
+  {
+    "id": 1160,
+    "parent_id": 1155,
+    "name_ar": "أوبتيما / K5",
+    "slug": "kia-aobtyma-k5-sale"
+  },
+  {
+    "id": 1161,
+    "parent_id": 1155,
+    "name_ar": "سورينتو",
+    "slug": "kia-sorynto-sale"
+  },
+  {
+    "id": 1162,
+    "parent_id": 1155,
+    "name_ar": "كارينز",
+    "slug": "kia-karynz-sale"
+  },
+  {
+    "id": 1163,
+    "parent_id": 1155,
+    "name_ar": "كارنيفال",
+    "slug": "kia-karnyfal-sale"
+  },
+  {
+    "id": 1164,
+    "parent_id": 1155,
+    "name_ar": "كادينزا / K7",
+    "slug": "kia-kadynza-k7-sale"
+  },
+  {
+    "id": 1803,
+    "parent_id": 1155,
+    "name_ar": "موديلات أخرى",
+    "slug": "kia-sale-other-models"
+  },
+  {
+    "id": 1167,
+    "parent_id": 1166,
+    "name_ar": "كورولا",
+    "slug": "toyota-korola-sale"
+  },
+  {
+    "id": 1168,
+    "parent_id": 1166,
+    "name_ar": "يارس / إيكو",
+    "slug": "toyota-yars-ayko-sale"
+  },
+  {
+    "id": 1169,
+    "parent_id": 1166,
+    "name_ar": "هايلوكس",
+    "slug": "toyota-hayloks-sale"
+  },
+  {
+    "id": 1170,
+    "parent_id": 1166,
+    "name_ar": "لاند كروزر",
+    "slug": "toyota-land-krozr-sale"
+  },
+  {
+    "id": 1171,
+    "parent_id": 1166,
+    "name_ar": "كامري",
+    "slug": "toyota-kamry-sale"
+  },
+  {
+    "id": 1172,
+    "parent_id": 1166,
+    "name_ar": "برادو",
+    "slug": "toyota-brado-sale"
+  },
+  {
+    "id": 1173,
+    "parent_id": 1166,
+    "name_ar": "راف 4",
+    "slug": "toyota-raf-4-sale"
+  },
+  {
+    "id": 1174,
+    "parent_id": 1166,
+    "name_ar": "بريوس / هايبرد",
+    "slug": "toyota-bryos-haybrd-sale"
+  },
+  {
+    "id": 1804,
+    "parent_id": 1166,
+    "name_ar": "موديلات أخرى",
+    "slug": "toyota-sale-other-models"
+  },
+  {
+    "id": 1177,
+    "parent_id": 1176,
+    "name_ar": "مازدا 3",
+    "slug": "mazda-mazda-3-sale"
+  },
+  {
+    "id": 1178,
+    "parent_id": 1176,
+    "name_ar": "مازدا 323",
+    "slug": "mazda-mazda-323-sale"
+  },
+  {
+    "id": 1179,
+    "parent_id": 1176,
+    "name_ar": "مازدا 6",
+    "slug": "mazda-mazda-6-sale"
+  },
+  {
+    "id": 1180,
+    "parent_id": 1176,
+    "name_ar": "CX-5 / CX-9",
+    "slug": "mazda-cx-5-cx-9-sale"
+  },
+  {
+    "id": 1181,
+    "parent_id": 1176,
+    "name_ar": "929 / 626 الكلاسيكية",
+    "slug": "mazda-929-626-alklasyky-sale"
+  },
+  {
+    "id": 1182,
+    "parent_id": 1176,
+    "name_ar": "مازدا 2",
+    "slug": "mazda-mazda-2-sale"
+  },
+  {
+    "id": 1805,
+    "parent_id": 1176,
+    "name_ar": "موديلات أخرى",
+    "slug": "mazda-sale-other-models"
+  },
+  {
+    "id": 1185,
+    "parent_id": 1184,
+    "name_ar": "صني",
+    "slug": "nissan-sny-sale"
+  },
+  {
+    "id": 1186,
+    "parent_id": 1184,
+    "name_ar": "تيدا",
+    "slug": "nissan-tyda-sale"
+  },
+  {
+    "id": 1187,
+    "parent_id": 1184,
+    "name_ar": "باترول",
+    "slug": "nissan-batrol-sale"
+  },
+  {
+    "id": 1188,
+    "parent_id": 1184,
+    "name_ar": "قشقاي",
+    "slug": "nissan-kshkay-sale"
+  },
+  {
+    "id": 1189,
+    "parent_id": 1184,
+    "name_ar": "ألتيما / ماكسيما",
+    "slug": "nissan-altyma-maksyma-sale"
+  },
+  {
+    "id": 1190,
+    "parent_id": 1184,
+    "name_ar": "داتسون / نافارا بيك آب",
+    "slug": "nissan-datson-nafara-byk-ab-sale"
+  },
+  {
+    "id": 1191,
+    "parent_id": 1184,
+    "name_ar": "إكس تريل",
+    "slug": "nissan-aks-tryl-sale"
+  },
+  {
+    "id": 1806,
+    "parent_id": 1184,
+    "name_ar": "موديلات أخرى",
+    "slug": "nissan-sale-other-models"
+  },
+  {
+    "id": 1194,
+    "parent_id": 1193,
+    "name_ar": "صبا / برايد",
+    "slug": "saipa-sba-brayd-sale"
+  },
+  {
+    "id": 1195,
+    "parent_id": 1193,
+    "name_ar": "تيبا",
+    "slug": "saipa-tyba-sale"
+  },
+  {
+    "id": 1196,
+    "parent_id": 1193,
+    "name_ar": "كويك",
+    "slug": "saipa-koyk-sale"
+  },
+  {
+    "id": 1197,
+    "parent_id": 1193,
+    "name_ar": "ساينا",
+    "slug": "saipa-sayna-sale"
+  },
+  {
+    "id": 1807,
+    "parent_id": 1193,
+    "name_ar": "موديلات أخرى",
+    "slug": "saipa-sale-other-models"
+  },
+  {
+    "id": 1200,
+    "parent_id": 1199,
+    "name_ar": "شام (Sham)",
+    "slug": "siamco-sham-sham-sale"
+  },
+  {
+    "id": 1201,
+    "parent_id": 1199,
+    "name_ar": "شمرا (Shamra)",
+    "slug": "siamco-shmra-shamra-sale"
+  },
+  {
+    "id": 1202,
+    "parent_id": 1199,
+    "name_ar": "شهباء (Shahba)",
+    "slug": "siamco-shhbaaa-shahba-sale"
+  },
+  {
+    "id": 1203,
+    "parent_id": 1199,
+    "name_ar": "سيريا بالميرا (Palmyra)",
+    "slug": "siamco-syrya-balmyra-palmyra-sale"
+  },
+  {
+    "id": 1808,
+    "parent_id": 1199,
+    "name_ar": "موديلات أخرى",
+    "slug": "siamco-sale-other-models"
+  },
+  {
+    "id": 1206,
+    "parent_id": 1205,
+    "name_ar": "لاسيتي",
+    "slug": "daewoo-lasyty-sale"
+  },
+  {
+    "id": 1207,
+    "parent_id": 1205,
+    "name_ar": "لانوس",
+    "slug": "daewoo-lanos-sale"
+  },
+  {
+    "id": 1208,
+    "parent_id": 1205,
+    "name_ar": "نوبيرا",
+    "slug": "daewoo-nobyra-sale"
+  },
+  {
+    "id": 1209,
+    "parent_id": 1205,
+    "name_ar": "ماتيز",
+    "slug": "daewoo-matyz-sale"
+  },
+  {
+    "id": 1210,
+    "parent_id": 1205,
+    "name_ar": "سيلو / ريسر",
+    "slug": "daewoo-sylo-rysr-sale"
+  },
+  {
+    "id": 1809,
+    "parent_id": 1205,
+    "name_ar": "موديلات أخرى",
+    "slug": "daewoo-sale-other-models"
+  },
+  {
+    "id": 1213,
+    "parent_id": 1212,
+    "name_ar": "ماروتي / ألتو",
+    "slug": "suzuki-maroty-alto-sale"
+  },
+  {
+    "id": 1214,
+    "parent_id": 1212,
+    "name_ar": "سويفت",
+    "slug": "suzuki-soyft-sale"
+  },
+  {
+    "id": 1215,
+    "parent_id": 1212,
+    "name_ar": "جراند فيتارا",
+    "slug": "suzuki-grand-fytara-sale"
+  },
+  {
+    "id": 1216,
+    "parent_id": 1212,
+    "name_ar": "جيمني",
+    "slug": "suzuki-gymny-sale"
+  },
+  {
+    "id": 1217,
+    "parent_id": 1212,
+    "name_ar": "كاري / دبابات",
+    "slug": "suzuki-kary-dbabat-sale"
+  },
+  {
+    "id": 1810,
+    "parent_id": 1212,
+    "name_ar": "موديلات أخرى",
+    "slug": "suzuki-sale-other-models"
+  },
+  {
+    "id": 1220,
+    "parent_id": 1219,
+    "name_ar": "لانسر",
+    "slug": "mitsubishi-lansr-sale"
+  },
+  {
+    "id": 1221,
+    "parent_id": 1219,
+    "name_ar": "باجيرو",
+    "slug": "mitsubishi-bagyro-sale"
+  },
+  {
+    "id": 1222,
+    "parent_id": 1219,
+    "name_ar": "L200 (بيك آب)",
+    "slug": "mitsubishi-l200-byk-ab-sale"
+  },
+  {
+    "id": 1223,
+    "parent_id": 1219,
+    "name_ar": "أوتلاندر",
+    "slug": "mitsubishi-aotlandr-sale"
+  },
+  {
+    "id": 1224,
+    "parent_id": 1219,
+    "name_ar": "كانتر (شاحنات)",
+    "slug": "mitsubishi-kantr-shahnat-sale"
+  },
+  {
+    "id": 1811,
+    "parent_id": 1219,
+    "name_ar": "موديلات أخرى",
+    "slug": "mitsubishi-sale-other-models"
+  },
+  {
+    "id": 1227,
+    "parent_id": 1226,
+    "name_ar": "الفئة E (E-Class)",
+    "slug": "mercedes-alfy-e-e-class-sale"
+  },
+  {
+    "id": 1228,
+    "parent_id": 1226,
+    "name_ar": "الفئة C (C-Class)",
+    "slug": "mercedes-alfy-c-c-class-sale"
+  },
+  {
+    "id": 1229,
+    "parent_id": 1226,
+    "name_ar": "الفئة S (S-Class)",
+    "slug": "mercedes-alfy-s-s-class-sale"
+  },
+  {
+    "id": 1230,
+    "parent_id": 1226,
+    "name_ar": "الكلاسيكية (W123 / لف)",
+    "slug": "mercedes-alklasyky-w123-lf-sale"
+  },
+  {
+    "id": 1231,
+    "parent_id": 1226,
+    "name_ar": "ML / GLE / GL",
+    "slug": "mercedes-ml-gle-gl-sale"
+  },
+  {
+    "id": 1232,
+    "parent_id": 1226,
+    "name_ar": "الفئة G (G-Class)",
+    "slug": "mercedes-alfy-g-g-class-sale"
+  },
+  {
+    "id": 1233,
+    "parent_id": 1226,
+    "name_ar": "شاحنات وباصات",
+    "slug": "mercedes-shahnat-obasat-sale"
+  },
+  {
+    "id": 1812,
+    "parent_id": 1226,
+    "name_ar": "موديلات أخرى",
+    "slug": "mercedes-sale-other-models"
+  },
+  {
+    "id": 1236,
+    "parent_id": 1235,
+    "name_ar": "الفئة الثالثة (3 Series)",
+    "slug": "bmw-alfy-althalth-3-series-sale"
+  },
+  {
+    "id": 1237,
+    "parent_id": 1235,
+    "name_ar": "الفئة الخامسة (5 Series)",
+    "slug": "bmw-alfy-alkhams-5-series-sale"
+  },
+  {
+    "id": 1238,
+    "parent_id": 1235,
+    "name_ar": "جيبات X5",
+    "slug": "bmw-gybat-x5-sale"
+  },
+  {
+    "id": 1239,
+    "parent_id": 1235,
+    "name_ar": "الفئة السابعة (7 Series)",
+    "slug": "bmw-alfy-alsabaa-7-series-sale"
+  },
+  {
+    "id": 1240,
+    "parent_id": 1235,
+    "name_ar": "جيبات X6 / X3",
+    "slug": "bmw-gybat-x6-x3-sale"
+  },
+  {
+    "id": 1813,
+    "parent_id": 1235,
+    "name_ar": "موديلات أخرى",
+    "slug": "bmw-sale-other-models"
+  },
+  {
+    "id": 1243,
+    "parent_id": 1242,
+    "name_ar": "206",
+    "slug": "peugeot-206-sale"
+  },
+  {
+    "id": 1244,
+    "parent_id": 1242,
+    "name_ar": "207 / 208",
+    "slug": "peugeot-207-208-sale"
+  },
+  {
+    "id": 1245,
+    "parent_id": 1242,
+    "name_ar": "307 / 308",
+    "slug": "peugeot-307-308-sale"
+  },
+  {
+    "id": 1246,
+    "parent_id": 1242,
+    "name_ar": "405 / 406 / 407",
+    "slug": "peugeot-405-406-407-sale"
+  },
+  {
+    "id": 1247,
+    "parent_id": 1242,
+    "name_ar": "301",
+    "slug": "peugeot-301-sale"
+  },
+  {
+    "id": 1248,
+    "parent_id": 1242,
+    "name_ar": "3008 / 5008",
+    "slug": "peugeot-3008-5008-sale"
+  },
+  {
+    "id": 1249,
+    "parent_id": 1242,
+    "name_ar": "بارتنر (Partner)",
+    "slug": "peugeot-bartnr-partner-sale"
+  },
+  {
+    "id": 1814,
+    "parent_id": 1242,
+    "name_ar": "موديلات أخرى",
+    "slug": "peugeot-sale-other-models"
+  },
+  {
+    "id": 1252,
+    "parent_id": 1251,
+    "name_ar": "جولف (Golf)",
+    "slug": "volkswagen-golf-golf-sale"
+  },
+  {
+    "id": 1253,
+    "parent_id": 1251,
+    "name_ar": "باسات (Passat)",
+    "slug": "volkswagen-basat-passat-sale"
+  },
+  {
+    "id": 1254,
+    "parent_id": 1251,
+    "name_ar": "بولو (Polo)",
+    "slug": "volkswagen-bolo-polo-sale"
+  },
+  {
+    "id": 1255,
+    "parent_id": 1251,
+    "name_ar": "تيجوان (Tiguan)",
+    "slug": "volkswagen-tygoan-tiguan-sale"
+  },
+  {
+    "id": 1256,
+    "parent_id": 1251,
+    "name_ar": "طوارق (Touareg)",
+    "slug": "volkswagen-toark-touareg-sale"
+  },
+  {
+    "id": 1257,
+    "parent_id": 1251,
+    "name_ar": "جيتا / بيتل",
+    "slug": "volkswagen-gyta-bytl-sale"
+  },
+  {
+    "id": 1815,
+    "parent_id": 1251,
+    "name_ar": "موديلات أخرى",
+    "slug": "volkswagen-sale-other-models"
+  },
+  {
+    "id": 1260,
+    "parent_id": 1259,
+    "name_ar": "ميجان (Megane)",
+    "slug": "renault-mygan-megane-sale"
+  },
+  {
+    "id": 1261,
+    "parent_id": 1259,
+    "name_ar": "داستر (Duster)",
+    "slug": "renault-dastr-duster-sale"
+  },
+  {
+    "id": 1262,
+    "parent_id": 1259,
+    "name_ar": "كليو (Clio)",
+    "slug": "renault-klyo-clio-sale"
+  },
+  {
+    "id": 1263,
+    "parent_id": 1259,
+    "name_ar": "لوجان / سيمبول",
+    "slug": "renault-logan-symbol-sale"
+  },
+  {
+    "id": 1264,
+    "parent_id": 1259,
+    "name_ar": "فلوانس (Fluence)",
+    "slug": "renault-floans-fluence-sale"
+  },
+  {
+    "id": 1816,
+    "parent_id": 1259,
+    "name_ar": "موديلات أخرى",
+    "slug": "renault-sale-other-models"
+  },
+  {
+    "id": 1267,
+    "parent_id": 1266,
+    "name_ar": "F3",
+    "slug": "byd-f3-sale"
+  },
+  {
+    "id": 1268,
+    "parent_id": 1266,
+    "name_ar": "سونج بلس (Song Plus)",
+    "slug": "byd-song-bls-song-plus-sale"
+  },
+  {
+    "id": 1269,
+    "parent_id": 1266,
+    "name_ar": "هان (Han EV)",
+    "slug": "byd-han-han-ev-sale"
+  },
+  {
+    "id": 1270,
+    "parent_id": 1266,
+    "name_ar": "يوان بلس (Yuan Plus)",
+    "slug": "byd-yoan-bls-yuan-plus-sale"
+  },
+  {
+    "id": 1271,
+    "parent_id": 1266,
+    "name_ar": "تانغ (Tang)",
+    "slug": "byd-tangh-tang-sale"
+  },
+  {
+    "id": 1272,
+    "parent_id": 1266,
+    "name_ar": "تشين (Qin Plus)",
+    "slug": "byd-tshyn-qin-plus-sale"
+  },
+  {
+    "id": 1817,
+    "parent_id": 1266,
+    "name_ar": "موديلات أخرى",
+    "slug": "byd-sale-other-models"
+  },
+  {
+    "id": 1275,
+    "parent_id": 1274,
+    "name_ar": "إمجراند (Emgrand 7/EC7)",
+    "slug": "geely-amgrand-emgrand-7ec7-sale"
+  },
+  {
+    "id": 1276,
+    "parent_id": 1274,
+    "name_ar": "كولراي (Coolray)",
+    "slug": "geely-kolray-coolray-sale"
+  },
+  {
+    "id": 1277,
+    "parent_id": 1274,
+    "name_ar": "GC6 / CK / MK",
+    "slug": "geely-gc6-ck-mk-sale"
+  },
+  {
+    "id": 1278,
+    "parent_id": 1274,
+    "name_ar": "توجيلا / أزكارا",
+    "slug": "geely-togyla-azkara-sale"
+  },
+  {
+    "id": 1279,
+    "parent_id": 1274,
+    "name_ar": "مونجارو",
+    "slug": "geely-mongaro-sale"
+  },
+  {
+    "id": 1280,
+    "parent_id": 1274,
+    "name_ar": "باندا",
+    "slug": "geely-banda-sale"
+  },
+  {
+    "id": 1818,
+    "parent_id": 1274,
+    "name_ar": "موديلات أخرى",
+    "slug": "geely-sale-other-models"
+  },
+  {
+    "id": 1283,
+    "parent_id": 1282,
+    "name_ar": "كيو كيو (QQ)",
+    "slug": "chery-kyo-kyo-qq-sale"
+  },
+  {
+    "id": 1284,
+    "parent_id": 1282,
+    "name_ar": "تيجو (Tiggo 7 / 8 / 4)",
+    "slug": "chery-tygo-tiggo-7-8-4-sale"
+  },
+  {
+    "id": 1285,
+    "parent_id": 1282,
+    "name_ar": "أريزو (Arrizo)",
+    "slug": "chery-aryzo-arrizo-sale"
+  },
+  {
+    "id": 1286,
+    "parent_id": 1282,
+    "name_ar": "A11 / A15 / كوين",
+    "slug": "chery-a11-a15-koyn-sale"
+  },
+  {
+    "id": 1819,
+    "parent_id": 1282,
+    "name_ar": "موديلات أخرى",
+    "slug": "chery-sale-other-models"
+  },
+  {
+    "id": 1289,
+    "parent_id": 1288,
+    "name_ar": "CS35 Plus",
+    "slug": "changan-cs35-plus-sale"
+  },
+  {
+    "id": 1290,
+    "parent_id": 1288,
+    "name_ar": "CS75 / CS85 / CS95",
+    "slug": "changan-cs75-cs85-cs95-sale"
+  },
+  {
+    "id": 1291,
+    "parent_id": 1288,
+    "name_ar": "السفن (Alsvin)",
+    "slug": "changan-alsfn-alsvin-sale"
+  },
+  {
+    "id": 1292,
+    "parent_id": 1288,
+    "name_ar": "إيدو (Eado)",
+    "slug": "changan-aydo-eado-sale"
+  },
+  {
+    "id": 1293,
+    "parent_id": 1288,
+    "name_ar": "يوني (UNI-T / UNI-K)",
+    "slug": "changan-yony-uni-t-uni-k-sale"
+  },
+  {
+    "id": 1820,
+    "parent_id": 1288,
+    "name_ar": "موديلات أخرى",
+    "slug": "changan-sale-other-models"
+  },
+  {
+    "id": 1296,
+    "parent_id": 1295,
+    "name_ar": "أوبترا (Optra)",
+    "slug": "chevrolet-aobtra-optra-sale"
+  },
+  {
+    "id": 1297,
+    "parent_id": 1295,
+    "name_ar": "أفيو (Aveo)",
+    "slug": "chevrolet-afyo-aveo-sale"
+  },
+  {
+    "id": 1298,
+    "parent_id": 1295,
+    "name_ar": "كروز (Cruze)",
+    "slug": "chevrolet-kroz-cruze-sale"
+  },
+  {
+    "id": 1299,
+    "parent_id": 1295,
+    "name_ar": "تاهو / سوبربان",
+    "slug": "chevrolet-taho-sobrban-sale"
+  },
+  {
+    "id": 1300,
+    "parent_id": 1295,
+    "name_ar": "كابتيفا (Captiva)",
+    "slug": "chevrolet-kabtyfa-captiva-sale"
+  },
+  {
+    "id": 1301,
+    "parent_id": 1295,
+    "name_ar": "ماليبو / سبارك",
+    "slug": "chevrolet-malybo-sbark-sale"
+  },
+  {
+    "id": 1821,
+    "parent_id": 1295,
+    "name_ar": "موديلات أخرى",
+    "slug": "chevrolet-sale-other-models"
+  },
+  {
+    "id": 1304,
+    "parent_id": 1303,
+    "name_ar": "أسترا (Astra)",
+    "slug": "opel-astra-astra-sale"
+  },
+  {
+    "id": 1305,
+    "parent_id": 1303,
+    "name_ar": "فيكترا (Vectra)",
+    "slug": "opel-fyktra-vectra-sale"
+  },
+  {
+    "id": 1306,
+    "parent_id": 1303,
+    "name_ar": "كورسا (Corsa)",
+    "slug": "opel-korsa-corsa-sale"
+  },
+  {
+    "id": 1307,
+    "parent_id": 1303,
+    "name_ar": "إنسيجنيا (Insignia)",
+    "slug": "opel-ansygnya-insignia-sale"
+  },
+  {
+    "id": 1308,
+    "parent_id": 1303,
+    "name_ar": "زافيرا / أوميغا",
+    "slug": "opel-zafyra-aomygha-sale"
+  },
+  {
+    "id": 1822,
+    "parent_id": 1303,
+    "name_ar": "موديلات أخرى",
+    "slug": "opel-sale-other-models"
+  },
+  {
+    "id": 1311,
+    "parent_id": 1310,
+    "name_ar": "فيوجن (Fusion)",
+    "slug": "ford-fyogn-fusion-sale"
+  },
+  {
+    "id": 1312,
+    "parent_id": 1310,
+    "name_ar": "فوكس (Focus)",
+    "slug": "ford-foks-focus-sale"
+  },
+  {
+    "id": 1313,
+    "parent_id": 1310,
+    "name_ar": "إكسبلورر (Explorer)",
+    "slug": "ford-aksblorr-explorer-sale"
+  },
+  {
+    "id": 1314,
+    "parent_id": 1310,
+    "name_ar": "F-150 / رينجر",
+    "slug": "ford-f-150-ryngr-sale"
+  },
+  {
+    "id": 1315,
+    "parent_id": 1310,
+    "name_ar": "إسكيب / إيدج",
+    "slug": "ford-askyb-aydg-sale"
+  },
+  {
+    "id": 1316,
+    "parent_id": 1310,
+    "name_ar": "موستنج",
+    "slug": "ford-mostng-sale"
+  },
+  {
+    "id": 1823,
+    "parent_id": 1310,
+    "name_ar": "موديلات أخرى",
+    "slug": "ford-sale-other-models"
+  },
+  {
+    "id": 1319,
+    "parent_id": 1318,
+    "name_ar": "سيفيك (Civic)",
+    "slug": "honda-syfyk-civic-sale"
+  },
+  {
+    "id": 1320,
+    "parent_id": 1318,
+    "name_ar": "أكورد (Accord)",
+    "slug": "honda-akord-accord-sale"
+  },
+  {
+    "id": 1321,
+    "parent_id": 1318,
+    "name_ar": "CR-V",
+    "slug": "honda-cr-v-sale"
+  },
+  {
+    "id": 1322,
+    "parent_id": 1318,
+    "name_ar": "سيتي / بايلوت",
+    "slug": "honda-syty-baylot-sale"
+  },
+  {
+    "id": 1824,
+    "parent_id": 1318,
+    "name_ar": "موديلات أخرى",
+    "slug": "honda-sale-other-models"
+  },
+  {
+    "id": 1325,
+    "parent_id": 1324,
+    "name_ar": "MG 5",
+    "slug": "mg-mg-5-sale"
+  },
+  {
+    "id": 1326,
+    "parent_id": 1324,
+    "name_ar": "MG ZS",
+    "slug": "mg-mg-zs-sale"
+  },
+  {
+    "id": 1327,
+    "parent_id": 1324,
+    "name_ar": "MG 6 / GT",
+    "slug": "mg-mg-6-gt-sale"
+  },
+  {
+    "id": 1328,
+    "parent_id": 1324,
+    "name_ar": "MG RX5 / HS",
+    "slug": "mg-mg-rx5-hs-sale"
+  },
+  {
+    "id": 1825,
+    "parent_id": 1324,
+    "name_ar": "موديلات أخرى",
+    "slug": "mg-sale-other-models"
+  },
+  {
+    "id": 1331,
+    "parent_id": 1330,
+    "name_ar": "2107 / 2105 (ريفا)",
+    "slug": "lada-2107-2105-ryfa-sale"
+  },
+  {
+    "id": 1332,
+    "parent_id": 1330,
+    "name_ar": "نيفا (Niva 4x4)",
+    "slug": "lada-nyfa-niva-4x4-sale"
+  },
+  {
+    "id": 1333,
+    "parent_id": 1330,
+    "name_ar": "سمارا (Samara)",
+    "slug": "lada-smara-samara-sale"
+  },
+  {
+    "id": 1334,
+    "parent_id": 1330,
+    "name_ar": "كالينا / غرانتا",
+    "slug": "lada-kalyna-ghranta-sale"
+  },
+  {
+    "id": 1826,
+    "parent_id": 1330,
+    "name_ar": "موديلات أخرى",
+    "slug": "lada-sale-other-models"
+  },
+  {
+    "id": 1337,
+    "parent_id": 1336,
+    "name_ar": "A4",
+    "slug": "audi-a4-sale"
+  },
+  {
+    "id": 1338,
+    "parent_id": 1336,
+    "name_ar": "A6",
+    "slug": "audi-a6-sale"
+  },
+  {
+    "id": 1339,
+    "parent_id": 1336,
+    "name_ar": "Q7",
+    "slug": "audi-q7-sale"
+  },
+  {
+    "id": 1340,
+    "parent_id": 1336,
+    "name_ar": "Q5 / Q3",
+    "slug": "audi-q5-q3-sale"
+  },
+  {
+    "id": 1341,
+    "parent_id": 1336,
+    "name_ar": "A8 / A3",
+    "slug": "audi-a8-a3-sale"
+  },
+  {
+    "id": 1827,
+    "parent_id": 1336,
+    "name_ar": "موديلات أخرى",
+    "slug": "audi-sale-other-models"
+  },
+  {
+    "id": 1344,
+    "parent_id": 1343,
+    "name_ar": "أوكتافيا (Octavia)",
+    "slug": "skoda-aoktafya-octavia-sale"
+  },
+  {
+    "id": 1345,
+    "parent_id": 1343,
+    "name_ar": "فابيا (Fabia)",
+    "slug": "skoda-fabya-fabia-sale"
+  },
+  {
+    "id": 1346,
+    "parent_id": 1343,
+    "name_ar": "سوبيرب (Superb)",
+    "slug": "skoda-sobyrb-superb-sale"
+  },
+  {
+    "id": 1347,
+    "parent_id": 1343,
+    "name_ar": "كودياك / كاروك",
+    "slug": "skoda-kodyak-karok-sale"
+  },
+  {
+    "id": 1828,
+    "parent_id": 1343,
+    "name_ar": "موديلات أخرى",
+    "slug": "skoda-sale-other-models"
+  },
+  {
+    "id": 1350,
+    "parent_id": 1349,
+    "name_ar": "بونتو (Punto)",
+    "slug": "fiat-bonto-punto-sale"
+  },
+  {
+    "id": 1351,
+    "parent_id": 1349,
+    "name_ar": "تيبو (Tipo)",
+    "slug": "fiat-tybo-tipo-sale"
+  },
+  {
+    "id": 1352,
+    "parent_id": 1349,
+    "name_ar": "أونو (Uno)",
+    "slug": "fiat-aono-uno-sale"
+  },
+  {
+    "id": 1353,
+    "parent_id": 1349,
+    "name_ar": "سيينا / لينيا",
+    "slug": "fiat-syyna-lynya-sale"
+  },
+  {
+    "id": 1354,
+    "parent_id": 1349,
+    "name_ar": "فيات 500",
+    "slug": "fiat-fyat-500-sale"
+  },
+  {
+    "id": 1829,
+    "parent_id": 1349,
+    "name_ar": "موديلات أخرى",
+    "slug": "fiat-sale-other-models"
+  },
+  {
+    "id": 1357,
+    "parent_id": 1356,
+    "name_ar": "رنج روفر فوغ",
+    "slug": "land-rover-rng-rofr-fogh-sale"
+  },
+  {
+    "id": 1358,
+    "parent_id": 1356,
+    "name_ar": "رنج روفر سبورت",
+    "slug": "land-rover-rng-rofr-sbort-sale"
+  },
+  {
+    "id": 1359,
+    "parent_id": 1356,
+    "name_ar": "ديفندر",
+    "slug": "land-rover-dyfndr-sale"
+  },
+  {
+    "id": 1360,
+    "parent_id": 1356,
+    "name_ar": "إيفوك / فيلار",
+    "slug": "land-rover-ayfok-fylar-sale"
+  },
+  {
+    "id": 1361,
+    "parent_id": 1356,
+    "name_ar": "ديسكفري",
+    "slug": "land-rover-dyskfry-sale"
+  },
+  {
+    "id": 1830,
+    "parent_id": 1356,
+    "name_ar": "موديلات أخرى",
+    "slug": "land-rover-sale-other-models"
+  },
+  {
+    "id": 1364,
+    "parent_id": 1363,
+    "name_ar": "هونشي (H5/HS5/H9)",
+    "slug": "hongqi-dfm-faw-honshy-h5hs5h9-sale"
+  },
+  {
+    "id": 1365,
+    "parent_id": 1363,
+    "name_ar": "دونغ فينغ (A30/T5)",
+    "slug": "hongqi-dfm-faw-dongh-fyngh-a30t5-sale"
+  },
+  {
+    "id": 1366,
+    "parent_id": 1363,
+    "name_ar": "بيستون (Bestune)",
+    "slug": "hongqi-dfm-faw-byston-bestune-sale"
+  },
+  {
+    "id": 1367,
+    "parent_id": 1363,
+    "name_ar": "فانات وشاحنات صينية",
+    "slug": "hongqi-dfm-faw-fanat-oshahnat-syny-sale"
+  },
+  {
+    "id": 1831,
+    "parent_id": 1363,
+    "name_ar": "موديلات أخرى",
+    "slug": "hongqi-dfm-faw-sale-other-models"
+  }
+]

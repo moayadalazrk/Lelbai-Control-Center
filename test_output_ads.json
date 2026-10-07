@@ -1,0 +1,53 @@
+[
+  {
+    "ad_url": "https://facebook.com/groups/syriagroup/posts/1010101",
+    "phone_number": "0933123456",
+    "description": "شقة مفروشة للإيجار في دمشق حي المزة فيلات غربية، 3 غرف وصالون إكساء سوبر ديلوكس، طابق ثاني مع مصعد وكهرباء 24 ساعة. السعر: 3 مليون ل.س شهرياً. للتواصل والاستفسار يرجى الاتصال على الرقم: 0933123456",
+    "images dowlod": [
+      "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=500"
+    ],
+    "nimages": [
+      "4a7f823c-e7a5-4b4d-a348-c5fc562ba1a9.webp"
+    ],
+    "id-citie": 1,
+    "id-sub_districts": 1,
+    "city_name": "دمشق",
+    "sub_district_name": "المزة",
+    "location_detected": "دمشق (المزة)",
+    "extracted_at": "2026-08-28 22:31:32"
+  },
+  {
+    "ad_url": "https://facebook.com/groups/syriagroup/posts/3030303",
+    "phone_number": "0944889900",
+    "description": "محل تجاري للبيع في حلب - الفرقان شارع المشفى العمالي مساحة 40 متر جاهز مع سند تمليك. للتواصل اتصال أو واتس: ٠٩٤٤٨٨٩٩٠٠",
+    "images dowlod": [
+      "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=500"
+    ],
+    "nimages": [
+      "0c490c99-2f8c-46e3-b3bf-9937a89a9788.webp"
+    ],
+    "id-citie": 3,
+    "id-sub_districts": 66,
+    "city_name": "حلب",
+    "sub_district_name": "الفرقان",
+    "location_detected": "حلب (الفرقان)",
+    "extracted_at": "2026-08-28 22:31:33"
+  },
+  {
+    "ad_url": "https://facebook.com/groups/syriagroup/posts/5050505",
+    "phone_number": "0988223344",
+    "description": "مزرعة للإيجار السياحي في اللاذقية - مشقيتا مطلة على البحيرة مع مسبح خاص. للحجز والاستفسار: +963 988 223 344",
+    "images dowlod": [
+      "https://images.unsplash.com/photo-1500382017468-9049fed747ef?w=500"
+    ],
+    "nimages": [
+      "df37a691-bf8e-40ec-b8d9-8d6fe2762439.webp"
+    ],
+    "id-citie": 8,
+    "id-sub_districts": 224,
+    "city_name": "اللاذقية",
+    "sub_district_name": "مشقيتا",
+    "location_detected": "اللاذقية (مشقيتا)",
+    "extracted_at": "2026-08-28 22:31:34"
+  }
+]

@@ -1,0 +1,1162 @@
+{
+  "1144": {
+    "name": "هيونداي",
+    "other_id": 1802,
+    "models": [
+      {
+        "id": 1145,
+        "name": "أكسنت / فيرنا",
+        "slug": "hyundai-aksnt-fyrna-sale"
+      },
+      {
+        "id": 1146,
+        "name": "إلنترا / أفانتي",
+        "slug": "hyundai-alntra-afanty-sale"
+      },
+      {
+        "id": 1147,
+        "name": "توسان",
+        "slug": "hyundai-tosan-sale"
+      },
+      {
+        "id": 1148,
+        "name": "سنتافي",
+        "slug": "hyundai-sntafy-sale"
+      },
+      {
+        "id": 1149,
+        "name": "سوناتا",
+        "slug": "hyundai-sonata-sale"
+      },
+      {
+        "id": 1150,
+        "name": "جيتز / i10 / ماتريكس",
+        "slug": "hyundai-gytz-i10-matryks-sale"
+      },
+      {
+        "id": 1151,
+        "name": "أزيرا",
+        "slug": "hyundai-azyra-sale"
+      },
+      {
+        "id": 1152,
+        "name": "كريتا / فينيو",
+        "slug": "hyundai-kryta-fynyo-sale"
+      },
+      {
+        "id": 1153,
+        "name": "H1 / ستاريا",
+        "slug": "hyundai-h1-starya-sale"
+      },
+      {
+        "id": 1802,
+        "name": "موديلات أخرى",
+        "slug": "hyundai-sale-other-models"
+      }
+    ]
+  },
+  "1155": {
+    "name": "كيا",
+    "other_id": 1803,
+    "models": [
+      {
+        "id": 1156,
+        "name": "ريو",
+        "slug": "kia-ryo-sale"
+      },
+      {
+        "id": 1157,
+        "name": "سيراتو / فورتي",
+        "slug": "kia-syrato-forty-sale"
+      },
+      {
+        "id": 1158,
+        "name": "بيكانتو",
+        "slug": "kia-bykanto-sale"
+      },
+      {
+        "id": 1159,
+        "name": "سبورتاج",
+        "slug": "kia-sbortag-sale"
+      },
+      {
+        "id": 1160,
+        "name": "أوبتيما / K5",
+        "slug": "kia-aobtyma-k5-sale"
+      },
+      {
+        "id": 1161,
+        "name": "سورينتو",
+        "slug": "kia-sorynto-sale"
+      },
+      {
+        "id": 1162,
+        "name": "كارينز",
+        "slug": "kia-karynz-sale"
+      },
+      {
+        "id": 1163,
+        "name": "كارنيفال",
+        "slug": "kia-karnyfal-sale"
+      },
+      {
+        "id": 1164,
+        "name": "كادينزا / K7",
+        "slug": "kia-kadynza-k7-sale"
+      },
+      {
+        "id": 1803,
+        "name": "موديلات أخرى",
+        "slug": "kia-sale-other-models"
+      }
+    ]
+  },
+  "1166": {
+    "name": "تويوتا",
+    "other_id": 1804,
+    "models": [
+      {
+        "id": 1167,
+        "name": "كورولا",
+        "slug": "toyota-korola-sale"
+      },
+      {
+        "id": 1168,
+        "name": "يارس / إيكو",
+        "slug": "toyota-yars-ayko-sale"
+      },
+      {
+        "id": 1169,
+        "name": "هايلوكس",
+        "slug": "toyota-hayloks-sale"
+      },
+      {
+        "id": 1170,
+        "name": "لاند كروزر",
+        "slug": "toyota-land-krozr-sale"
+      },
+      {
+        "id": 1171,
+        "name": "كامري",
+        "slug": "toyota-kamry-sale"
+      },
+      {
+        "id": 1172,
+        "name": "برادو",
+        "slug": "toyota-brado-sale"
+      },
+      {
+        "id": 1173,
+        "name": "راف 4",
+        "slug": "toyota-raf-4-sale"
+      },
+      {
+        "id": 1174,
+        "name": "بريوس / هايبرد",
+        "slug": "toyota-bryos-haybrd-sale"
+      },
+      {
+        "id": 1804,
+        "name": "موديلات أخرى",
+        "slug": "toyota-sale-other-models"
+      }
+    ]
+  },
+  "1176": {
+    "name": "مازدا",
+    "other_id": 1805,
+    "models": [
+      {
+        "id": 1177,
+        "name": "مازدا 3",
+        "slug": "mazda-mazda-3-sale"
+      },
+      {
+        "id": 1178,
+        "name": "مازدا 323",
+        "slug": "mazda-mazda-323-sale"
+      },
+      {
+        "id": 1179,
+        "name": "مازدا 6",
+        "slug": "mazda-mazda-6-sale"
+      },
+      {
+        "id": 1180,
+        "name": "CX-5 / CX-9",
+        "slug": "mazda-cx-5-cx-9-sale"
+      },
+      {
+        "id": 1181,
+        "name": "929 / 626 الكلاسيكية",
+        "slug": "mazda-929-626-alklasyky-sale"
+      },
+      {
+        "id": 1182,
+        "name": "مازدا 2",
+        "slug": "mazda-mazda-2-sale"
+      },
+      {
+        "id": 1805,
+        "name": "موديلات أخرى",
+        "slug": "mazda-sale-other-models"
+      }
+    ]
+  },
+  "1184": {
+    "name": "نيسان",
+    "other_id": 1806,
+    "models": [
+      {
+        "id": 1185,
+        "name": "صني",
+        "slug": "nissan-sny-sale"
+      },
+      {
+        "id": 1186,
+        "name": "تيدا",
+        "slug": "nissan-tyda-sale"
+      },
+      {
+        "id": 1187,
+        "name": "باترول",
+        "slug": "nissan-batrol-sale"
+      },
+      {
+        "id": 1188,
+        "name": "قشقاي",
+        "slug": "nissan-kshkay-sale"
+      },
+      {
+        "id": 1189,
+        "name": "ألتيما / ماكسيما",
+        "slug": "nissan-altyma-maksyma-sale"
+      },
+      {
+        "id": 1190,
+        "name": "داتسون / نافارا بيك آب",
+        "slug": "nissan-datson-nafara-byk-ab-sale"
+      },
+      {
+        "id": 1191,
+        "name": "إكس تريل",
+        "slug": "nissan-aks-tryl-sale"
+      },
+      {
+        "id": 1806,
+        "name": "موديلات أخرى",
+        "slug": "nissan-sale-other-models"
+      }
+    ]
+  },
+  "1193": {
+    "name": "سايبا",
+    "other_id": 1807,
+    "models": [
+      {
+        "id": 1194,
+        "name": "صبا / برايد",
+        "slug": "saipa-sba-brayd-sale"
+      },
+      {
+        "id": 1195,
+        "name": "تيبا",
+        "slug": "saipa-tyba-sale"
+      },
+      {
+        "id": 1196,
+        "name": "كويك",
+        "slug": "saipa-koyk-sale"
+      },
+      {
+        "id": 1197,
+        "name": "ساينا",
+        "slug": "saipa-sayna-sale"
+      },
+      {
+        "id": 1807,
+        "name": "موديلات أخرى",
+        "slug": "saipa-sale-other-models"
+      }
+    ]
+  },
+  "1199": {
+    "name": "سيامكو / شام",
+    "other_id": 1808,
+    "models": [
+      {
+        "id": 1200,
+        "name": "شام (Sham)",
+        "slug": "siamco-sham-sham-sale"
+      },
+      {
+        "id": 1201,
+        "name": "شمرا (Shamra)",
+        "slug": "siamco-shmra-shamra-sale"
+      },
+      {
+        "id": 1202,
+        "name": "شهباء (Shahba)",
+        "slug": "siamco-shhbaaa-shahba-sale"
+      },
+      {
+        "id": 1203,
+        "name": "سيريا بالميرا (Palmyra)",
+        "slug": "siamco-syrya-balmyra-palmyra-sale"
+      },
+      {
+        "id": 1808,
+        "name": "موديلات أخرى",
+        "slug": "siamco-sale-other-models"
+      }
+    ]
+  },
+  "1205": {
+    "name": "دايو",
+    "other_id": 1809,
+    "models": [
+      {
+        "id": 1206,
+        "name": "لاسيتي",
+        "slug": "daewoo-lasyty-sale"
+      },
+      {
+        "id": 1207,
+        "name": "لانوس",
+        "slug": "daewoo-lanos-sale"
+      },
+      {
+        "id": 1208,
+        "name": "نوبيرا",
+        "slug": "daewoo-nobyra-sale"
+      },
+      {
+        "id": 1209,
+        "name": "ماتيز",
+        "slug": "daewoo-matyz-sale"
+      },
+      {
+        "id": 1210,
+        "name": "سيلو / ريسر",
+        "slug": "daewoo-sylo-rysr-sale"
+      },
+      {
+        "id": 1809,
+        "name": "موديلات أخرى",
+        "slug": "daewoo-sale-other-models"
+      }
+    ]
+  },
+  "1212": {
+    "name": "سوزوكي",
+    "other_id": 1810,
+    "models": [
+      {
+        "id": 1213,
+        "name": "ماروتي / ألتو",
+        "slug": "suzuki-maroty-alto-sale"
+      },
+      {
+        "id": 1214,
+        "name": "سويفت",
+        "slug": "suzuki-soyft-sale"
+      },
+      {
+        "id": 1215,
+        "name": "جراند فيتارا",
+        "slug": "suzuki-grand-fytara-sale"
+      },
+      {
+        "id": 1216,
+        "name": "جيمني",
+        "slug": "suzuki-gymny-sale"
+      },
+      {
+        "id": 1217,
+        "name": "كاري / دبابات",
+        "slug": "suzuki-kary-dbabat-sale"
+      },
+      {
+        "id": 1810,
+        "name": "موديلات أخرى",
+        "slug": "suzuki-sale-other-models"
+      }
+    ]
+  },
+  "1219": {
+    "name": "ميتسوبيشي",
+    "other_id": 1811,
+    "models": [
+      {
+        "id": 1220,
+        "name": "لانسر",
+        "slug": "mitsubishi-lansr-sale"
+      },
+      {
+        "id": 1221,
+        "name": "باجيرو",
+        "slug": "mitsubishi-bagyro-sale"
+      },
+      {
+        "id": 1222,
+        "name": "L200 (بيك آب)",
+        "slug": "mitsubishi-l200-byk-ab-sale"
+      },
+      {
+        "id": 1223,
+        "name": "أوتلاندر",
+        "slug": "mitsubishi-aotlandr-sale"
+      },
+      {
+        "id": 1224,
+        "name": "كانتر (شاحنات)",
+        "slug": "mitsubishi-kantr-shahnat-sale"
+      },
+      {
+        "id": 1811,
+        "name": "موديلات أخرى",
+        "slug": "mitsubishi-sale-other-models"
+      }
+    ]
+  },
+  "1226": {
+    "name": "مرسيدس-بنز",
+    "other_id": 1812,
+    "models": [
+      {
+        "id": 1227,
+        "name": "الفئة E (E-Class)",
+        "slug": "mercedes-alfy-e-e-class-sale"
+      },
+      {
+        "id": 1228,
+        "name": "الفئة C (C-Class)",
+        "slug": "mercedes-alfy-c-c-class-sale"
+      },
+      {
+        "id": 1229,
+        "name": "الفئة S (S-Class)",
+        "slug": "mercedes-alfy-s-s-class-sale"
+      },
+      {
+        "id": 1230,
+        "name": "الكلاسيكية (W123 / لف)",
+        "slug": "mercedes-alklasyky-w123-lf-sale"
+      },
+      {
+        "id": 1231,
+        "name": "ML / GLE / GL",
+        "slug": "mercedes-ml-gle-gl-sale"
+      },
+      {
+        "id": 1232,
+        "name": "الفئة G (G-Class)",
+        "slug": "mercedes-alfy-g-g-class-sale"
+      },
+      {
+        "id": 1233,
+        "name": "شاحنات وباصات",
+        "slug": "mercedes-shahnat-obasat-sale"
+      },
+      {
+        "id": 1812,
+        "name": "موديلات أخرى",
+        "slug": "mercedes-sale-other-models"
+      }
+    ]
+  },
+  "1235": {
+    "name": "بي إم دبليو",
+    "other_id": 1813,
+    "models": [
+      {
+        "id": 1236,
+        "name": "الفئة الثالثة (3 Series)",
+        "slug": "bmw-alfy-althalth-3-series-sale"
+      },
+      {
+        "id": 1237,
+        "name": "الفئة الخامسة (5 Series)",
+        "slug": "bmw-alfy-alkhams-5-series-sale"
+      },
+      {
+        "id": 1238,
+        "name": "جيبات X5",
+        "slug": "bmw-gybat-x5-sale"
+      },
+      {
+        "id": 1239,
+        "name": "الفئة السابعة (7 Series)",
+        "slug": "bmw-alfy-alsabaa-7-series-sale"
+      },
+      {
+        "id": 1240,
+        "name": "جيبات X6 / X3",
+        "slug": "bmw-gybat-x6-x3-sale"
+      },
+      {
+        "id": 1813,
+        "name": "موديلات أخرى",
+        "slug": "bmw-sale-other-models"
+      }
+    ]
+  },
+  "1242": {
+    "name": "بيجو",
+    "other_id": 1814,
+    "models": [
+      {
+        "id": 1243,
+        "name": "206",
+        "slug": "peugeot-206-sale"
+      },
+      {
+        "id": 1244,
+        "name": "207 / 208",
+        "slug": "peugeot-207-208-sale"
+      },
+      {
+        "id": 1245,
+        "name": "307 / 308",
+        "slug": "peugeot-307-308-sale"
+      },
+      {
+        "id": 1246,
+        "name": "405 / 406 / 407",
+        "slug": "peugeot-405-406-407-sale"
+      },
+      {
+        "id": 1247,
+        "name": "301",
+        "slug": "peugeot-301-sale"
+      },
+      {
+        "id": 1248,
+        "name": "3008 / 5008",
+        "slug": "peugeot-3008-5008-sale"
+      },
+      {
+        "id": 1249,
+        "name": "بارتنر (Partner)",
+        "slug": "peugeot-bartnr-partner-sale"
+      },
+      {
+        "id": 1814,
+        "name": "موديلات أخرى",
+        "slug": "peugeot-sale-other-models"
+      }
+    ]
+  },
+  "1251": {
+    "name": "فولكس فاجن",
+    "other_id": 1815,
+    "models": [
+      {
+        "id": 1252,
+        "name": "جولف (Golf)",
+        "slug": "volkswagen-golf-golf-sale"
+      },
+      {
+        "id": 1253,
+        "name": "باسات (Passat)",
+        "slug": "volkswagen-basat-passat-sale"
+      },
+      {
+        "id": 1254,
+        "name": "بولو (Polo)",
+        "slug": "volkswagen-bolo-polo-sale"
+      },
+      {
+        "id": 1255,
+        "name": "تيجوان (Tiguan)",
+        "slug": "volkswagen-tygoan-tiguan-sale"
+      },
+      {
+        "id": 1256,
+        "name": "طوارق (Touareg)",
+        "slug": "volkswagen-toark-touareg-sale"
+      },
+      {
+        "id": 1257,
+        "name": "جيتا / بيتل",
+        "slug": "volkswagen-gyta-bytl-sale"
+      },
+      {
+        "id": 1815,
+        "name": "موديلات أخرى",
+        "slug": "volkswagen-sale-other-models"
+      }
+    ]
+  },
+  "1259": {
+    "name": "رينو",
+    "other_id": 1816,
+    "models": [
+      {
+        "id": 1260,
+        "name": "ميجان (Megane)",
+        "slug": "renault-mygan-megane-sale"
+      },
+      {
+        "id": 1261,
+        "name": "داستر (Duster)",
+        "slug": "renault-dastr-duster-sale"
+      },
+      {
+        "id": 1262,
+        "name": "كليو (Clio)",
+        "slug": "renault-klyo-clio-sale"
+      },
+      {
+        "id": 1263,
+        "name": "لوجان / سيمبول",
+        "slug": "renault-logan-symbol-sale"
+      },
+      {
+        "id": 1264,
+        "name": "فلوانس (Fluence)",
+        "slug": "renault-floans-fluence-sale"
+      },
+      {
+        "id": 1816,
+        "name": "موديلات أخرى",
+        "slug": "renault-sale-other-models"
+      }
+    ]
+  },
+  "1266": {
+    "name": "بي واي دي",
+    "other_id": 1817,
+    "models": [
+      {
+        "id": 1267,
+        "name": "F3",
+        "slug": "byd-f3-sale"
+      },
+      {
+        "id": 1268,
+        "name": "سونج بلس (Song Plus)",
+        "slug": "byd-song-bls-song-plus-sale"
+      },
+      {
+        "id": 1269,
+        "name": "هان (Han EV)",
+        "slug": "byd-han-han-ev-sale"
+      },
+      {
+        "id": 1270,
+        "name": "يوان بلس (Yuan Plus)",
+        "slug": "byd-yoan-bls-yuan-plus-sale"
+      },
+      {
+        "id": 1271,
+        "name": "تانغ (Tang)",
+        "slug": "byd-tangh-tang-sale"
+      },
+      {
+        "id": 1272,
+        "name": "تشين (Qin Plus)",
+        "slug": "byd-tshyn-qin-plus-sale"
+      },
+      {
+        "id": 1817,
+        "name": "موديلات أخرى",
+        "slug": "byd-sale-other-models"
+      }
+    ]
+  },
+  "1274": {
+    "name": "جيلي",
+    "other_id": 1818,
+    "models": [
+      {
+        "id": 1275,
+        "name": "إمجراند (Emgrand 7/EC7)",
+        "slug": "geely-amgrand-emgrand-7ec7-sale"
+      },
+      {
+        "id": 1276,
+        "name": "كولراي (Coolray)",
+        "slug": "geely-kolray-coolray-sale"
+      },
+      {
+        "id": 1277,
+        "name": "GC6 / CK / MK",
+        "slug": "geely-gc6-ck-mk-sale"
+      },
+      {
+        "id": 1278,
+        "name": "توجيلا / أزكارا",
+        "slug": "geely-togyla-azkara-sale"
+      },
+      {
+        "id": 1279,
+        "name": "مونجارو",
+        "slug": "geely-mongaro-sale"
+      },
+      {
+        "id": 1280,
+        "name": "باندا",
+        "slug": "geely-banda-sale"
+      },
+      {
+        "id": 1818,
+        "name": "موديلات أخرى",
+        "slug": "geely-sale-other-models"
+      }
+    ]
+  },
+  "1282": {
+    "name": "شيري",
+    "other_id": 1819,
+    "models": [
+      {
+        "id": 1283,
+        "name": "كيو كيو (QQ)",
+        "slug": "chery-kyo-kyo-qq-sale"
+      },
+      {
+        "id": 1284,
+        "name": "تيجو (Tiggo 7 / 8 / 4)",
+        "slug": "chery-tygo-tiggo-7-8-4-sale"
+      },
+      {
+        "id": 1285,
+        "name": "أريزو (Arrizo)",
+        "slug": "chery-aryzo-arrizo-sale"
+      },
+      {
+        "id": 1286,
+        "name": "A11 / A15 / كوين",
+        "slug": "chery-a11-a15-koyn-sale"
+      },
+      {
+        "id": 1819,
+        "name": "موديلات أخرى",
+        "slug": "chery-sale-other-models"
+      }
+    ]
+  },
+  "1288": {
+    "name": "شانجان",
+    "other_id": 1820,
+    "models": [
+      {
+        "id": 1289,
+        "name": "CS35 Plus",
+        "slug": "changan-cs35-plus-sale"
+      },
+      {
+        "id": 1290,
+        "name": "CS75 / CS85 / CS95",
+        "slug": "changan-cs75-cs85-cs95-sale"
+      },
+      {
+        "id": 1291,
+        "name": "السفن (Alsvin)",
+        "slug": "changan-alsfn-alsvin-sale"
+      },
+      {
+        "id": 1292,
+        "name": "إيدو (Eado)",
+        "slug": "changan-aydo-eado-sale"
+      },
+      {
+        "id": 1293,
+        "name": "يوني (UNI-T / UNI-K)",
+        "slug": "changan-yony-uni-t-uni-k-sale"
+      },
+      {
+        "id": 1820,
+        "name": "موديلات أخرى",
+        "slug": "changan-sale-other-models"
+      }
+    ]
+  },
+  "1295": {
+    "name": "شيفروليه",
+    "other_id": 1821,
+    "models": [
+      {
+        "id": 1296,
+        "name": "أوبترا (Optra)",
+        "slug": "chevrolet-aobtra-optra-sale"
+      },
+      {
+        "id": 1297,
+        "name": "أفيو (Aveo)",
+        "slug": "chevrolet-afyo-aveo-sale"
+      },
+      {
+        "id": 1298,
+        "name": "كروز (Cruze)",
+        "slug": "chevrolet-kroz-cruze-sale"
+      },
+      {
+        "id": 1299,
+        "name": "تاهو / سوبربان",
+        "slug": "chevrolet-taho-sobrban-sale"
+      },
+      {
+        "id": 1300,
+        "name": "كابتيفا (Captiva)",
+        "slug": "chevrolet-kabtyfa-captiva-sale"
+      },
+      {
+        "id": 1301,
+        "name": "ماليبو / سبارك",
+        "slug": "chevrolet-malybo-sbark-sale"
+      },
+      {
+        "id": 1821,
+        "name": "موديلات أخرى",
+        "slug": "chevrolet-sale-other-models"
+      }
+    ]
+  },
+  "1303": {
+    "name": "أوبل",
+    "other_id": 1822,
+    "models": [
+      {
+        "id": 1304,
+        "name": "أسترا (Astra)",
+        "slug": "opel-astra-astra-sale"
+      },
+      {
+        "id": 1305,
+        "name": "فيكترا (Vectra)",
+        "slug": "opel-fyktra-vectra-sale"
+      },
+      {
+        "id": 1306,
+        "name": "كورسا (Corsa)",
+        "slug": "opel-korsa-corsa-sale"
+      },
+      {
+        "id": 1307,
+        "name": "إنسيجنيا (Insignia)",
+        "slug": "opel-ansygnya-insignia-sale"
+      },
+      {
+        "id": 1308,
+        "name": "زافيرا / أوميغا",
+        "slug": "opel-zafyra-aomygha-sale"
+      },
+      {
+        "id": 1822,
+        "name": "موديلات أخرى",
+        "slug": "opel-sale-other-models"
+      }
+    ]
+  },
+  "1310": {
+    "name": "فورد",
+    "other_id": 1823,
+    "models": [
+      {
+        "id": 1311,
+        "name": "فيوجن (Fusion)",
+        "slug": "ford-fyogn-fusion-sale"
+      },
+      {
+        "id": 1312,
+        "name": "فوكس (Focus)",
+        "slug": "ford-foks-focus-sale"
+      },
+      {
+        "id": 1313,
+        "name": "إكسبلورر (Explorer)",
+        "slug": "ford-aksblorr-explorer-sale"
+      },
+      {
+        "id": 1314,
+        "name": "F-150 / رينجر",
+        "slug": "ford-f-150-ryngr-sale"
+      },
+      {
+        "id": 1315,
+        "name": "إسكيب / إيدج",
+        "slug": "ford-askyb-aydg-sale"
+      },
+      {
+        "id": 1316,
+        "name": "موستنج",
+        "slug": "ford-mostng-sale"
+      },
+      {
+        "id": 1823,
+        "name": "موديلات أخرى",
+        "slug": "ford-sale-other-models"
+      }
+    ]
+  },
+  "1318": {
+    "name": "هوندا",
+    "other_id": 1824,
+    "models": [
+      {
+        "id": 1319,
+        "name": "سيفيك (Civic)",
+        "slug": "honda-syfyk-civic-sale"
+      },
+      {
+        "id": 1320,
+        "name": "أكورد (Accord)",
+        "slug": "honda-akord-accord-sale"
+      },
+      {
+        "id": 1321,
+        "name": "CR-V",
+        "slug": "honda-cr-v-sale"
+      },
+      {
+        "id": 1322,
+        "name": "سيتي / بايلوت",
+        "slug": "honda-syty-baylot-sale"
+      },
+      {
+        "id": 1824,
+        "name": "موديلات أخرى",
+        "slug": "honda-sale-other-models"
+      }
+    ]
+  },
+  "1324": {
+    "name": "إم جي",
+    "other_id": 1825,
+    "models": [
+      {
+        "id": 1325,
+        "name": "MG 5",
+        "slug": "mg-mg-5-sale"
+      },
+      {
+        "id": 1326,
+        "name": "MG ZS",
+        "slug": "mg-mg-zs-sale"
+      },
+      {
+        "id": 1327,
+        "name": "MG 6 / GT",
+        "slug": "mg-mg-6-gt-sale"
+      },
+      {
+        "id": 1328,
+        "name": "MG RX5 / HS",
+        "slug": "mg-mg-rx5-hs-sale"
+      },
+      {
+        "id": 1825,
+        "name": "موديلات أخرى",
+        "slug": "mg-sale-other-models"
+      }
+    ]
+  },
+  "1330": {
+    "name": "لادا",
+    "other_id": 1826,
+    "models": [
+      {
+        "id": 1331,
+        "name": "2107 / 2105 (ريفا)",
+        "slug": "lada-2107-2105-ryfa-sale"
+      },
+      {
+        "id": 1332,
+        "name": "نيفا (Niva 4x4)",
+        "slug": "lada-nyfa-niva-4x4-sale"
+      },
+      {
+        "id": 1333,
+        "name": "سمارا (Samara)",
+        "slug": "lada-smara-samara-sale"
+      },
+      {
+        "id": 1334,
+        "name": "كالينا / غرانتا",
+        "slug": "lada-kalyna-ghranta-sale"
+      },
+      {
+        "id": 1826,
+        "name": "موديلات أخرى",
+        "slug": "lada-sale-other-models"
+      }
+    ]
+  },
+  "1336": {
+    "name": "أودي",
+    "other_id": 1827,
+    "models": [
+      {
+        "id": 1337,
+        "name": "A4",
+        "slug": "audi-a4-sale"
+      },
+      {
+        "id": 1338,
+        "name": "A6",
+        "slug": "audi-a6-sale"
+      },
+      {
+        "id": 1339,
+        "name": "Q7",
+        "slug": "audi-q7-sale"
+      },
+      {
+        "id": 1340,
+        "name": "Q5 / Q3",
+        "slug": "audi-q5-q3-sale"
+      },
+      {
+        "id": 1341,
+        "name": "A8 / A3",
+        "slug": "audi-a8-a3-sale"
+      },
+      {
+        "id": 1827,
+        "name": "موديلات أخرى",
+        "slug": "audi-sale-other-models"
+      }
+    ]
+  },
+  "1343": {
+    "name": "سكودا",
+    "other_id": 1828,
+    "models": [
+      {
+        "id": 1344,
+        "name": "أوكتافيا (Octavia)",
+        "slug": "skoda-aoktafya-octavia-sale"
+      },
+      {
+        "id": 1345,
+        "name": "فابيا (Fabia)",
+        "slug": "skoda-fabya-fabia-sale"
+      },
+      {
+        "id": 1346,
+        "name": "سوبيرب (Superb)",
+        "slug": "skoda-sobyrb-superb-sale"
+      },
+      {
+        "id": 1347,
+        "name": "كودياك / كاروك",
+        "slug": "skoda-kodyak-karok-sale"
+      },
+      {
+        "id": 1828,
+        "name": "موديلات أخرى",
+        "slug": "skoda-sale-other-models"
+      }
+    ]
+  },
+  "1349": {
+    "name": "فيات",
+    "other_id": 1829,
+    "models": [
+      {
+        "id": 1350,
+        "name": "بونتو (Punto)",
+        "slug": "fiat-bonto-punto-sale"
+      },
+      {
+        "id": 1351,
+        "name": "تيبو (Tipo)",
+        "slug": "fiat-tybo-tipo-sale"
+      },
+      {
+        "id": 1352,
+        "name": "أونو (Uno)",
+        "slug": "fiat-aono-uno-sale"
+      },
+      {
+        "id": 1353,
+        "name": "سيينا / لينيا",
+        "slug": "fiat-syyna-lynya-sale"
+      },
+      {
+        "id": 1354,
+        "name": "فيات 500",
+        "slug": "fiat-fyat-500-sale"
+      },
+      {
+        "id": 1829,
+        "name": "موديلات أخرى",
+        "slug": "fiat-sale-other-models"
+      }
+    ]
+  },
+  "1356": {
+    "name": "لاند روفر",
+    "other_id": 1830,
+    "models": [
+      {
+        "id": 1357,
+        "name": "رنج روفر فوغ",
+        "slug": "land-rover-rng-rofr-fogh-sale"
+      },
+      {
+        "id": 1358,
+        "name": "رنج روفر سبورت",
+        "slug": "land-rover-rng-rofr-sbort-sale"
+      },
+      {
+        "id": 1359,
+        "name": "ديفندر",
+        "slug": "land-rover-dyfndr-sale"
+      },
+      {
+        "id": 1360,
+        "name": "إيفوك / فيلار",
+        "slug": "land-rover-ayfok-fylar-sale"
+      },
+      {
+        "id": 1361,
+        "name": "ديسكفري",
+        "slug": "land-rover-dyskfry-sale"
+      },
+      {
+        "id": 1830,
+        "name": "موديلات أخرى",
+        "slug": "land-rover-sale-other-models"
+      }
+    ]
+  },
+  "1363": {
+    "name": "هونشي ودونغ فينغ وفاو",
+    "other_id": 1831,
+    "models": [
+      {
+        "id": 1364,
+        "name": "هونشي (H5/HS5/H9)",
+        "slug": "hongqi-dfm-faw-honshy-h5hs5h9-sale"
+      },
+      {
+        "id": 1365,
+        "name": "دونغ فينغ (A30/T5)",
+        "slug": "hongqi-dfm-faw-dongh-fyngh-a30t5-sale"
+      },
+      {
+        "id": 1366,
+        "name": "بيستون (Bestune)",
+        "slug": "hongqi-dfm-faw-byston-bestune-sale"
+      },
+      {
+        "id": 1367,
+        "name": "فانات وشاحنات صينية",
+        "slug": "hongqi-dfm-faw-fanat-oshahnat-syny-sale"
+      },
+      {
+        "id": 1831,
+        "name": "موديلات أخرى",
+        "slug": "hongqi-dfm-faw-sale-other-models"
+      }
+    ]
+  },
+  "1832": {
+    "name": "ماركات أخرى",
+    "other_id": 1832,
+    "models": []
+  }
+}

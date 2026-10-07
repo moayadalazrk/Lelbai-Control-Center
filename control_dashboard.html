@@ -1,0 +1,1325 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة التحكم المركزية وسحب الإعلانات 🇸🇾 | للبيع - Lelbai</title>
+  <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #10b981;
+      --success-dark: #059669;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --purple: #8b5cf6;
+      --bg: #0b1120;
+      --card-bg: #1e293b;
+      --card-inner: #0f172a;
+      --border: #334155;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 20px; line-height: 1.6; }
+    
+    .navbar {
+      display: flex; justify-content: space-between; align-items: center;
+      background: var(--card-bg); padding: 16px 28px; border-radius: 16px;
+      border: 1px solid var(--border); margin-bottom: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .brand { font-size: 22px; font-weight: 900; color: #60a5fa; display: flex; align-items: center; gap: 10px; }
+    
+    .nav-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+    .nav-btn {
+      padding: 10px 18px; border-radius: 10px; border: 1px solid transparent;
+      background: transparent; color: var(--text-muted); font-weight: 700; font-size: 14px;
+      cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 8px;
+    }
+    .nav-btn.active { background: var(--primary); color: #fff; border-color: var(--primary); box-shadow: 0 4px 12px rgba(37,99,235,0.4); }
+    .nav-btn:hover:not(.active) { background: #334155; color: #fff; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .card {
+      background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border);
+      padding: 22px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .card-title { font-size: 18px; font-weight: 800; color: #93c5fd; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+
+    .form-group { margin-bottom: 14px; }
+    .form-group label { display: block; font-size: 13px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; }
+    .form-control {
+      width: 100%; padding: 10px 14px; border-radius: 10px; background: var(--card-inner);
+      border: 1px solid var(--border); color: #fff; font-size: 14px; outline: none; transition: 0.2s;
+    }
+    .form-control:focus { border-color: var(--primary); }
+    textarea.form-control { resize: vertical; min-height: 90px; }
+
+    .btn {
+      padding: 10px 20px; border-radius: 10px; font-weight: 800; font-size: 14px;
+      cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; gap: 8px;
+    }
+    .btn-sm { padding: 6px 12px; font-size: 12px; border-radius: 8px; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); transform: translateY(-1px); }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover { background: var(--success-dark); transform: translateY(-1px); }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-purple { background: var(--purple); color: #fff; }
+    .btn-purple:hover { background: #7c3aed; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: #fff; }
+    .btn-outline:hover { background: #334155; }
+
+    /* Stats Grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 14px; margin-bottom: 20px; }
+    .stat-card {
+      background: var(--card-inner); padding: 16px; border-radius: 14px; border: 1px solid var(--border);
+      display: flex; align-items: center; gap: 15px;
+    }
+    .stat-icon {
+      width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center;
+      font-size: 22px; background: rgba(59, 130, 246, 0.15); color: #60a5fa;
+    }
+    .stat-info .val { font-size: 24px; font-weight: 900; color: #f8fafc; }
+    .stat-info .lbl { font-size: 12px; font-weight: 700; color: var(--text-muted); }
+
+    /* Groups Table */
+    .table-container { overflow-x: auto; background: var(--card-inner); border-radius: 12px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; text-align: right; font-size: 13px; }
+    th { background: #1e293b; color: #94a3b8; padding: 12px 16px; font-weight: 800; border-bottom: 1px solid var(--border); }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+    .badge { padding: 4px 10px; border-radius: 6px; font-size: 11px; font-weight: 800; display: inline-flex; align-items: center; gap: 4px; }
+    .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-warning { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-info { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+
+    /* 3-Pillars Ad Card */
+    .ads-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 20px; }
+    .ad-card {
+      background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border);
+      overflow: hidden; display: flex; flex-direction: column; transition: all 0.2s;
+    }
+    .ad-card:hover { border-color: #60a5fa; box-shadow: 0 8px 25px rgba(0,0,0,0.4); }
+    
+    .ad-gallery { height: 230px; background: #000; position: relative; display: flex; align-items: center; justify-content: center; }
+    .ad-gallery img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .ad-thumbs {
+      position: absolute; bottom: 0; left: 0; right: 0; display: flex; gap: 5px;
+      padding: 6px; background: rgba(0,0,0,0.7); overflow-x: auto;
+    }
+    .ad-thumb { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; cursor: pointer; border: 2px solid transparent; opacity: 0.7; }
+    .ad-thumb.active { border-color: #38bdf8; opacity: 1; }
+
+    .ad-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+
+    /* 3 Pillars Box */
+    .verification-box {
+      background: var(--card-inner); border-radius: 12px; border: 1px solid var(--border);
+      padding: 12px; display: flex; flex-direction: column; gap: 8px;
+    }
+    .pillar-row {
+      display: flex; justify-content: space-between; align-items: center; font-size: 12px; font-weight: 700;
+      padding-bottom: 6px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .pillar-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .pillar-label { display: flex; align-items: center; gap: 6px; color: var(--text-muted); }
+
+    .ad-title-input {
+      background: var(--card-inner); border: 1px solid var(--border); color: #fff;
+      padding: 8px 12px; border-radius: 8px; font-size: 15px; font-weight: 800; width: 100%;
+    }
+    .ad-desc-box {
+      background: var(--card-inner); border: 1px solid var(--border); border-radius: 8px;
+      padding: 10px; font-size: 12px; color: #cbd5e1; max-height: 100px; overflow-y: auto; white-space: pre-line;
+    }
+
+    .modal {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75);
+      align-items: center; justify-content: center; z-index: 1000; padding: 20px;
+    }
+    .modal-content {
+      background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border);
+      padding: 24px; width: 100%; max-width: 550px; display: flex; flex-direction: column; gap: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="navbar">
+    <div class="brand">🚀 منصة إعلانات سوريا 🇸🇾 <span style="font-size:13px; color:var(--text-muted); font-weight:400;">(لوحة التحكم وسحب المجموعات والنشر)</span></div>
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <!-- زر تشغيل لوحة المنجر وكافة السيرفرات -->
+      <button class="btn btn-primary btn-sm" id="btnLaunchManager" onclick="launchManager()" style="display:inline-flex; align-items:center; gap:8px; font-weight:800; padding:8px 16px; border-radius:10px; background:linear-gradient(135deg, #1d4ed8, #2563eb); border:1px solid #3b82f6; box-shadow:0 3px 12px rgba(37,99,235,0.35); cursor:pointer;" title="تشغيل لوحة تحكم المنجر وكافة سيرفرات المنصة وفتح الصفحة (http://localhost:8002)">
+        <span>🖥️ تشغيل لوحة المنجر والسيرفرات</span>
+        <span id="managerStatusDot" style="width:10px; height:10px; border-radius:50%; background:#ef4444; display:inline-block; box-shadow:0 0 6px #ef4444;" title="سيرفر المنجر متوقف"></span>
+      </button>
+
+      <!-- شارة تاريخ آخر تحديث للنظام -->
+      <div id="updateBadgeContainer" style="display:inline-flex; align-items:center; gap:6px; font-size:12px; background:rgba(255,255,255,0.06); padding:6px 12px; border-radius:10px; border:1px solid var(--border); color:var(--text-muted); cursor:pointer;" onclick="checkSystemUpdates()" title="انقر للتحقق من التحديثات من GitHub">
+        <span>🔄 آخر تحديث:</span>
+        <b id="lblLastUpdate" style="color:#60a5fa;">جاري الفحص...</b>
+      </div>
+
+      <div id="serverStatusBadge" class="badge badge-warning" style="font-size:12px; padding:6px 14px; font-weight:700;">⏳ فحص الاتصال...</div>
+      
+      <div class="nav-tabs">
+        <button class="nav-btn active" id="navBtnLinks" onclick="switchTab('tab-links', this)">🔗 إدارة الروابط وتاريخ السحب</button>
+        <button class="nav-btn" id="navBtnScraper" onclick="switchTab('tab-scraper', this)">⚡ تشغيل السحب المتوازي</button>
+        <button class="nav-btn" id="navBtnReview" onclick="switchTab('tab-review', this)">📦 مراجعة ونشر الإعلانات (<span id="badgePending">0</span>)</button>
+        <button class="nav-btn" id="navBtnPublished" onclick="switchTab('tab-published', this)">✅ الإعلانات المنشورة (<span id="badgePublished">0</span>)</button>
+        <button class="nav-btn" id="navBtnSettings" onclick="switchTab('tab-settings', this)">⚙️ الإعدادات والـ API</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- تنبيه حالة السيرفر في حال فتح الملف كـ file:// أو السيرفر غير متصل -->
+  <div id="serverAlertBanner" style="display:none; background:#450a0a; color:#fecaca; border:1px solid #dc2626; border-radius:14px; padding:16px 20px; margin-bottom:20px; box-shadow:0 4px 20px rgba(220,38,38,0.25); align-items:center; justify-content:space-between; flex-wrap:wrap; gap:14px;">
+    <div style="display:flex; align-items:center; gap:14px;">
+      <span style="font-size:28px;">⚠️</span>
+      <div>
+        <div style="font-weight:900; font-size:16px; color:#fee2e2;">سيرفر لوحة التحكم المحلي غير متصل (http://localhost:5000)</div>
+        <div style="font-size:13px; color:#fca5a5; margin-top:2px;">
+          لقد قمت بفتح صفحة الويب مباشرة دون تشغيل السيرفر. لتفعيل سحب الإعلانات وحفظ الروابط والتواصل مع الذكاء الاصطناعي، يرجى تشغيل <b>start_app.bat</b> أو <b>Lelbai_Control_Center.exe</b> أولاً.
+        </div>
+      </div>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <a href="start_app.bat" download class="btn btn-success btn-sm" style="white-space:nowrap; padding:10px 18px; font-weight:800; text-decoration:none; display:inline-flex; align-items:center; gap:6px;">🚀 تشغيل السيرفر الآن (start_app.bat)</a>
+      <button class="btn btn-warning btn-sm" onclick="checkServerConnection(true)" style="white-space:nowrap; padding:10px 18px; font-weight:800;">🔄 إعادة فحص الاتصال</button>
+    </div>
+  </div>
+
+  <!-- الإحصائيات العلوية العامة -->
+  <div class="stats-grid">
+    <div class="stat-card" onclick="switchTab('tab-links', document.getElementById('navBtnLinks'))" style="cursor:pointer;" title="إدارة الروابط">
+      <div class="stat-icon">🔗</div>
+      <div class="stat-info"><div class="val" id="stTotalLinks">0</div><div class="lbl">إجمالي الروابط المحفوظة</div></div>
+    </div>
+    <div class="stat-card" onclick="switchTab('tab-review', document.getElementById('navBtnReview'))" style="cursor:pointer;" title="مراجعة الإعلانات الجاهزة">
+      <div class="stat-icon" style="background:rgba(16,185,129,0.15); color:#34d399;">🚀</div>
+      <div class="stat-info"><div class="val" id="stReadyAds" style="color:#34d399;">0</div><div class="lbl">إعلانات جاهزة للنشر الفوري</div></div>
+    </div>
+    <div class="stat-card" onclick="switchTab('tab-published', document.getElementById('navBtnPublished'))" style="cursor:pointer;" title="عرض قائمة الإعلانات المنشورة">
+      <div class="stat-icon" style="background:rgba(139,92,246,0.15); color:#a78bfa;">✔️</div>
+      <div class="stat-info"><div class="val" id="stPublishedAds" style="color:#a78bfa;">0</div><div class="lbl">إعلانات تم نشرها للموقع</div></div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-icon" style="background:rgba(239,68,68,0.15); color:#f87171;">🚫</div>
+      <div class="stat-info"><div class="val" id="stFlaggedAds" style="color:#f87171;">0</div><div class="lbl">إعلانات مخالفة تم استبعادها</div></div>
+    </div>
+  </div>
+
+  <!-- تبويب 1: إدارة الروابط وتاريخ السحب -->
+  <div class="tab-content active" id="tab-links">
+    <div class="card">
+      <div class="card-title">
+        <span>📋 قائمة الروابط المحفوظة ومتابعة آخر عمليات السحب</span>
+        <button class="btn btn-primary btn-sm" onclick="openAddGroupModal()">➕ إضافة رابط مجموعة جديد</button>
+      </div>
+
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>اسم المجموعة / الرابط</th>
+              <th>القسم</th>
+              <th>🕒 آخر مرة سحبت منه</th>
+              <th>📊 آخر سحب</th>
+              <th>إجمالي الإعلانات</th>
+              <th>الحالة</th>
+              <th>إجراءات</th>
+            </tr>
+          </thead>
+          <tbody id="groupsTableBody">
+            <!-- يتم الملء عبر JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- تبويب 2: تشغيل السحب المتوازي والمتابعة -->
+  <div class="tab-content" id="tab-scraper">
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px;">
+      
+      <div class="card">
+        <div class="card-title">⚡ بدء السحب المتوازي السريع</div>
+        
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label>⚡ عدد التبويبات المتزامنة (1 إلى 5):</label>
+            <input type="number" class="form-control" id="inpConcurrent" value="4" min="1" max="5">
+          </div>
+          <div class="form-group">
+            <label>🎯 المطلوب من كل مجموعة:</label>
+            <input type="number" class="form-control" id="inpMaxAds" value="100" min="5" max="500">
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+          <div class="form-group">
+            <label>⏱️ مهلة الانتظار قبل التخطي (ثانية):</label>
+            <input type="number" class="form-control" id="inpTimeout" value="60" min="20" max="180">
+          </div>
+          <div class="form-group">
+            <label>📁 مجلد استيراد الموقع:</label>
+            <input type="text" class="form-control" id="inpImportDir" value="C:\Users\mwyda\Desktop\إعلانات_للاستيراد">
+          </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:15px;">
+          <button class="btn btn-success" id="btnStartScraping" onclick="startAllScraping()">🚀 تشغيل السحب لكافة المجموعات</button>
+          <button class="btn btn-danger" id="btnStopScraping" onclick="stopAllScraping()" style="display:none;">⏹️ إيقاف السحب</button>
+          <button class="btn btn-outline" onclick="openLoginBrowser()">🔐 تسجيل دخول فيسبوك</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-title">📊 حالة التبويبات والسجلات الحية</div>
+        <div id="activeTabsLiveList" style="display:flex; flex-direction:column; gap:8px; margin-bottom:12px;">
+          <div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">لا توجد تبويبات نشطة حالياً</div>
+        </div>
+        <div id="liveLogsContainer" style="background:#000; color:#4ade80; font-family:monospace; padding:10px; border-radius:8px; height:150px; overflow-y:auto; font-size:11px;">جاهز لبدء السحب...</div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- تبويب 3: مراجعة ونشر الإعلانات (المراحل الثلاث) -->
+  <div class="tab-content" id="tab-review">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span style="font-weight:800; color:#60a5fa;">تصفية الإعلانات:</span>
+        <button class="btn btn-sm btn-outline active" onclick="filterAds('all', this)">الكل</button>
+        <button class="btn btn-sm btn-outline" onclick="filterAds('ready', this)">🚀 الجاهز للنشر فقط</button>
+        <button class="btn btn-sm btn-outline" onclick="filterAds('review', this)">⚠️ بحاجة لمراجعة</button>
+      </div>
+      <div style="display:flex; gap:10px;">
+        <button class="btn btn-success" onclick="bulkPublishReady()">⚡ نشر كافة الإعلانات الجاهزة لمجلد الاستيراد</button>
+        <button class="btn btn-outline" onclick="loadAllAds()">🔄 تحديث</button>
+      </div>
+    </div>
+
+    <div class="ads-grid" id="adsCardsGrid">
+      <!-- يتم عرض بطاقات الإعلانات بالمراحل الثلاث عبر JavaScript -->
+    </div>
+  </div>
+
+  <!-- تبويب 4: قائمة الإعلانات المنشورة في قائمة لوحدها -->
+  <div class="tab-content" id="tab-published">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title" style="flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span>✅ سجل الإعلانات التي تم نشرها وتصديرها (<span id="publishedListCount" style="color:#a78bfa; font-weight:900;">0</span> إعلان)</span>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-primary btn-sm" onclick="openImportFolder()">📂 فتح مجلد إعلانات_للاستيراد</button>
+          <button class="btn btn-outline btn-sm" onclick="loadPublishedAds()">🔄 تحديث القائمة</button>
+        </div>
+      </div>
+
+      <!-- شريط البحث والتصفية -->
+      <div style="display:flex; gap:12px; margin-top:14px; flex-wrap:wrap; align-items:center;">
+        <div style="flex:1; min-width:260px;">
+          <input type="text" class="form-control" id="searchPublishedInput" placeholder="🔍 ابحث في الإعلانات المنشورة (العنوان، الهاتف، اسم المعلن، المدينة، القسم...)" oninput="filterPublishedAds()" />
+        </div>
+        <div style="width:220px;">
+          <select class="form-control" id="filterPublishedCat" onchange="filterPublishedAds()">
+            <option value="">جميع الأقسام</option>
+            <option value="سيارات">السيارات والدراجات</option>
+            <option value="عقارات">العقارات</option>
+            <option value="قطع غيار">قطع الغيار والإكسسوارات</option>
+            <option value="إلكترونيات">الموبايلات والإلكترونيات</option>
+            <option value="طاقة">الطاقة والكهرباء</option>
+            <option value="أثاث">الأثاث والمنزل</option>
+            <option value="عام">أخرى / عام</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="ads-grid" id="publishedCardsGrid">
+      <!-- يتم عرض بطاقات الإعلانات المنشورة عبر JavaScript -->
+    </div>
+  </div>
+
+  <!-- تبويب 5: الإعدادات -->
+  <div class="tab-content" id="tab-settings">
+    <div class="card" style="max-width:650px; margin:0 auto;">
+      <div class="card-title">🔑 إعدادات المفاتيح والربط</div>
+      
+      <div class="form-group">
+        <label>مفتاح Gemini API المجاني (للتدقيق والهيكلة):</label>
+        <input type="password" class="form-control" id="setGeminiKey" placeholder="AIzaSy...">
+      </div>
+
+      <div class="form-group">
+        <label>رابط API الموقع (للنشر المباشر عبر الشبكة إن وُجد):</label>
+        <input type="text" class="form-control" id="setWebUrl" placeholder="https://example.com/api/ads">
+      </div>
+
+      <div class="form-group">
+        <label>مفتاح توثيق الموقع (Authorization Token):</label>
+        <input type="password" class="form-control" id="setWebKey" placeholder="Bearer Token...">
+      </div>
+
+      <button class="btn btn-primary" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+    </div>
+  </div>
+
+  <!-- Modal إضافة مجموعة -->
+  <div class="modal" id="addGroupModal">
+    <div class="modal-content">
+      <div style="font-size:18px; font-weight:800; color:#60a5fa;">➕ إضافة رابط سحب جديد</div>
+      
+      <div class="form-group">
+        <label>اسم المجموعة / الصفحة:</label>
+        <input type="text" class="form-control" id="mGrpName" placeholder="مثال: سوق سيارات دمشق">
+      </div>
+
+      <div class="form-group">
+        <label>رابط المجموعة (فيسبوك):</label>
+        <input type="text" class="form-control" id="mGrpUrl" placeholder="https://www.facebook.com/groups/...">
+      </div>
+
+      <div class="form-group">
+        <label>القسم / التصنيف:</label>
+        <select class="form-control" id="mGrpCat">
+          <option value="السيارات">السيارات والدراجات</option>
+          <option value="العقارات">العقارات</option>
+          <option value="الموبايلات والإلكترونيات">الموبايلات والإلكترونيات</option>
+          <option value="الطاقة البديلة">الطاقة البديلة والكهرباء</option>
+          <option value="الأثاث والمنزل">الأثاث والمنزل</option>
+          <option value="المواشي والحيوانات">المواشي والحيوانات</option>
+          <option value="الوظائف والخدمات">الوظائف والخدمات</option>
+          <option value="عام">أخرى / عام</option>
+        </select>
+      </div>
+
+      <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:10px;">
+        <button class="btn btn-outline" onclick="closeAddGroupModal()">إلغاء</button>
+        <button class="btn btn-primary" onclick="saveNewGroup()">حفظ الرابط</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // تحديد مسار الـ API تلقائياً للعمل المباشر سواء فُتح من السيرفر أو كملف HTML محلي
+    const API_BASE = (window.location.protocol === 'file:' || !window.location.port || window.location.port !== '5000') 
+      ? 'http://localhost:5000' 
+      : '';
+
+    let groupsData = [];
+    let adsData = [];
+    let publishedAdsData = [];
+    let filteredPublished = [];
+    let currentFilter = 'all';
+    let isServerConnected = false;
+
+    function updateServerStatusBadge(online) {
+      isServerConnected = online;
+      const badge = document.getElementById('serverStatusBadge');
+      const banner = document.getElementById('serverAlertBanner');
+      if (online) {
+        if (badge) {
+          badge.className = 'badge badge-success';
+          badge.innerHTML = '🟢 السيرفر متصل (5000)';
+        }
+        if (banner) banner.style.display = 'none';
+      } else {
+        if (badge) {
+          badge.className = 'badge badge-danger';
+          badge.innerHTML = '🔴 السيرفر غير متصل';
+        }
+        if (banner) banner.style.display = 'flex';
+      }
+    }
+
+    async function apiFetch(endpoint, options = {}) {
+      const url = endpoint.startsWith('http') ? endpoint : `${API_BASE}${endpoint}`;
+      try {
+        const res = await fetch(url, options);
+        updateServerStatusBadge(true);
+        return res;
+      } catch (err) {
+        updateServerStatusBadge(false);
+        console.warn(`[Connection Info] Unable to connect to ${url}`);
+        throw err;
+      }
+    }
+
+    function switchTab(tabId, el) {
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      const targetTab = document.getElementById(tabId);
+      if (targetTab) targetTab.classList.add('active');
+      if (el) el.classList.add('active');
+      if (tabId === 'tab-links') loadGroups();
+      if (tabId === 'tab-review') loadAllAds();
+      if (tabId === 'tab-published') loadPublishedAds();
+    }
+
+    async function init() {
+      await checkServerConnection(false);
+      checkManagerStatus();
+      fetchUpdateInfo();
+
+      // فحص دوري تلقائي لإعادة الاتصال ومتابعة السحب والمنجر
+      setInterval(async () => {
+        if (!isServerConnected) {
+          try {
+            const res = await apiFetch('/api/config');
+            if (res.ok) {
+              await checkServerConnection(false);
+            }
+          } catch (e) {}
+        } else {
+          pollScraperStatus();
+          checkManagerStatus();
+        }
+      }, 3000);
+    }
+
+    async function checkServerConnection(isManual = false) {
+      try {
+        const testRes = await apiFetch('/api/config');
+        if (!testRes.ok) throw new Error("Server offline");
+
+        await loadConfig();
+        await loadGroups();
+        await loadAllAds();
+        pollScraperStatus();
+        checkManagerStatus();
+        fetchUpdateInfo();
+        updateServerStatusBadge(true);
+        if (isManual) alert("تم الاتصال بالسيرفر بنجاح! 🟢");
+      } catch (e) {
+        updateServerStatusBadge(false);
+        if (isManual) alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat أو Lelbai_Launcher.exe أولاً.");
+      }
+    }
+
+    // تشغيل لوحة المنجر وكافة سيرفراتها
+    async function launchManager() {
+      const btn = document.getElementById('btnLaunchManager');
+      const dot = document.getElementById('managerStatusDot');
+      const origText = btn.innerHTML;
+      btn.disabled = true;
+      btn.innerHTML = `<span>⏳ جاري تشغيل المنجر والسيرفرات...</span>`;
+      
+      try {
+        const res = await fetch(`${API_BASE}/api/launch_manager`, { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          alert("🚀 " + (data.message || "تم إطلاق سيرفرات المنجر بنجاح وفتح لوحة التحكم!"));
+          if (dot) {
+            dot.style.background = '#10b981';
+            dot.style.boxShadow = '0 0 8px #10b981';
+            dot.title = 'سيرفر المنجر متصل (port 8002)';
+          }
+          if (data.url) {
+            window.open(data.url, '_blank');
+          }
+        } else {
+          alert("❌ " + (data.message || "فشل تشغيل سيرفرات المنجر."));
+        }
+      } catch (err) {
+        alert("تعذر الاتصال بسيرفر لوحة التحكم المحلي (تأكد من تشغيل السيرفر أولاً)");
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = origText;
+        checkManagerStatus();
+      }
+    }
+
+    // فحص حالة سيرفر المنجر دورياً
+    async function checkManagerStatus() {
+      const dot = document.getElementById('managerStatusDot');
+      if (!dot) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/manager_status`);
+        const data = await res.json();
+        if (data.manager_running) {
+          dot.style.background = '#10b981';
+          dot.style.boxShadow = '0 0 8px #10b981';
+          dot.title = 'سيرفر المنجر متصل وجاهز (port 8002)';
+        } else {
+          dot.style.background = '#ef4444';
+          dot.style.boxShadow = '0 0 8px #ef4444';
+          dot.title = 'سيرفر المنجر متوقف حالياً. انقر للتشغيل';
+        }
+      } catch (e) {
+        dot.style.background = '#6b7280';
+        dot.title = 'السيرفر غير متصل';
+      }
+    }
+
+    // جلب تاريخ آخر تحديث للنظام
+    async function fetchUpdateInfo() {
+      const lbl = document.getElementById('lblLastUpdate');
+      if (!lbl) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/update_info`);
+        const data = await res.json();
+        if (data.last_updated_at && data.last_updated_at !== 'غير محدد') {
+          let dtStr = data.last_updated_at.split(' ')[0] + ' ' + (data.last_updated_at.split(' ')[1] || '').substring(0, 5);
+          if (data.relative_time) {
+            dtStr += ` (${data.relative_time})`;
+          }
+          lbl.innerText = dtStr;
+        } else {
+          lbl.innerText = "أحدث إصدار";
+        }
+      } catch (e) {
+        lbl.innerText = "--";
+      }
+    }
+
+    // التحقق من التحديثات من GitHub
+    async function checkSystemUpdates() {
+      const lbl = document.getElementById('lblLastUpdate');
+      const oldText = lbl ? lbl.innerText : '';
+      if (lbl) lbl.innerText = "جاري الفحص...";
+      try {
+        const res = await fetch(`${API_BASE}/api/check_update`, { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || (data.success ? "النظام محدث بالكامل!" : "لا يمكن التحديث حالياً"));
+        fetchUpdateInfo();
+      } catch (e) {
+        alert("تعذر الاتصال للتحقق من التحديثات.");
+        if (lbl) lbl.innerText = oldText;
+      }
+    }
+
+    async function loadConfig() {
+      try {
+        const res = await apiFetch('/api/config');
+        const cfg = await res.json();
+        document.getElementById('setGeminiKey').value = cfg.gemini_api_key || '';
+        document.getElementById('setWebUrl').value = cfg.website_api_url || '';
+        document.getElementById('setWebKey').value = cfg.website_api_key || '';
+      } catch (e) {}
+    }
+
+    async function loadGroups() {
+      try {
+        const res = await apiFetch('/api/groups');
+        groupsData = await res.json();
+        document.getElementById('stTotalLinks').innerText = groupsData.length;
+
+        const tbody = document.getElementById('groupsTableBody');
+        if (groupsData.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">لا توجد روابط محفوظة حالياً. اضغط "إضافة رابط جديد" للبدء.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = groupsData.map((g, idx) => `
+          <tr>
+            <td style="font-weight:700;">${idx+1}</td>
+            <td>
+              <div style="font-weight:800; color:#f8fafc;">${g.name}</div>
+              <a href="${g.url}" target="_blank" style="font-size:11px; color:#60a5fa; text-decoration:none;">🔗 فتح المجموعة</a>
+            </td>
+            <td><span class="badge badge-info">${g.category || 'عام'}</span></td>
+            <td style="font-weight:700; color:#38bdf8;">🕒 ${g.last_scraped_at || 'لم يُسحب بعد'}</td>
+            <td style="font-weight:700; color:#34d399;">${g.last_ads_count || 0} إعلان</td>
+            <td style="font-weight:700;">${g.total_ads_count || 0} إعلان</td>
+            <td><span class="badge ${g.status==='قيد السحب'?'badge-warning':'badge-success'}">${g.status || 'جاهز'}</span></td>
+            <td>
+              <div style="display:flex; gap:6px;">
+                <button class="btn btn-sm btn-success" onclick="scrapeSingleGroup('${g.url}')">⚡ سحب الآن</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteGroup(${g.id})">🗑️</button>
+              </div>
+            </td>
+          </tr>
+        `).join('');
+      } catch (e) {}
+    }
+
+    async function loadAllAds() {
+      try {
+        const res = await apiFetch('/api/ads');
+        const data = await res.json();
+        adsData = data.pending || [];
+        publishedAdsData = data.published || [];
+        
+        document.getElementById('badgePending').innerText = adsData.length;
+        const pubCount = data.published_count !== undefined ? data.published_count : publishedAdsData.length;
+        const badgePub = document.getElementById('badgePublished');
+        if (badgePub) badgePub.innerText = pubCount;
+        const stPub = document.getElementById('stPublishedAds');
+        if (stPub) stPub.innerText = pubCount;
+        const pubListCount = document.getElementById('publishedListCount');
+        if (pubListCount) pubListCount.innerText = pubCount;
+        document.getElementById('stFlaggedAds').innerText = data.flagged_count || 0;
+
+        const readyCount = adsData.filter(a => a.evaluation && a.evaluation.is_ready_to_publish).length;
+        document.getElementById('stReadyAds').innerText = readyCount;
+
+        renderAdsGrid();
+        renderPublishedGrid();
+      } catch (e) {}
+    }
+
+    function filterAds(type, el) {
+      currentFilter = type;
+      el.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      el.classList.add('active');
+      renderAdsGrid();
+    }
+
+    function renderAdsGrid() {
+      const grid = document.getElementById('adsCardsGrid');
+      let filtered = adsData;
+      if (currentFilter === 'ready') filtered = adsData.filter(a => a.evaluation && a.evaluation.is_ready_to_publish);
+      if (currentFilter === 'review') filtered = adsData.filter(a => a.evaluation && !a.evaluation.is_ready_to_publish);
+
+      if (filtered.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; background:var(--card-bg); border-radius:16px; color:var(--text-muted);">🎉 لا توجد إعلانات مطابقة لفلتر العرض!</div>`;
+        return;
+      }
+
+      grid.innerHTML = filtered.map((ad, idx) => {
+        const ev = ad.evaluation || {};
+        const sp = ev.specs_details || {};
+        const sh = ev.sharia_details || {};
+
+        const title = ad.clean_title || (ad.description || '').substring(0, 60);
+        const city = sp.city_name || (ad.location_detected || 'دمشق');
+        const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : '';
+        const cat = ad.category || 'عام';
+        const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
+        const accountName = ad.publisher_name || 'أبو محمد الشامي';
+        const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${ad.price_info.currency}` : 'السعر: على السوم';
+        
+        const images = ad.nimages || [];
+        const firstImg = images.length > 0 ? `${API_BASE}/imgs/${images[0]}` : '';
+
+        const thumbsHtml = images.map((img, i) => `
+          <img src="${API_BASE}/imgs/${img}" class="ad-thumb ${i===0?'active':''}" onclick="document.getElementById('adMainImg-${idx}').src='${API_BASE}/imgs/${img}'" />
+        `).join('');
+
+        // أشرطة الفحص
+        const specsStatusHtml = sp.has_images && sp.has_desc && sp.has_phone ? 
+          `<span style="color:#34d399;">✔️ مكتمل (${sp.images_count} صور + هاتف + وصف + موقع)</span>` :
+          `<span style="color:#f87171;">⚠️ ناقص بعض الحقول</span>`;
+
+        const shariaStatusHtml = sh.is_safe ?
+          `<span style="color:#34d399;">🟢 مطابق للشريعة والضوابط الرقابية 100%</span>` :
+          `<span style="color:#f87171;">⚠️ مخالف: ${sh.flags.join(', ')}</span>`;
+
+        const dupStatusHtml = ad.is_duplicate ?
+          `<span style="color:#ef4444; font-weight:700;">⚠️ مكرر مسبقاً على الموقع</span>` :
+          `<span style="color:#34d399; font-weight:700;">✔️ جديد كلياً (غير مكرر)</span>`;
+
+        const readyBadgeHtml = ev.is_ready_to_publish ?
+          `<span class="badge badge-success" style="font-size:12px;">🚀 جاهز للنشر الفوري</span>` :
+          `<span class="badge badge-warning" style="font-size:12px;">⏳ بحاجة لمراجعة</span>`;
+
+        // استخراج بادجات المواصفات الفنية
+        const specsObj = ad.specifications || {};
+        const specItems = [];
+        if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
+        if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
+        if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
+        if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
+        if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
+        if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
+        if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
+        if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
+        if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
+        if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
+        if (specsObj.features && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
+
+        const specsBadgesHtml = specItems.length > 0 ? `
+          <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
+            ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${s}</span>`).join('')}
+          </div>
+        ` : '';
+
+        // رد وتقرير الذكاء الاصطناعي
+        const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
+          ad.ai_review.full_text : 
+          (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية.');
+
+        return `
+          <div class="ad-card" id="adCard-${idx}">
+            <div class="ad-gallery">
+              <img id="adMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
+              <div class="ad-thumbs">${thumbsHtml}</div>
+            </div>
+
+            <div class="ad-body">
+              
+              <!-- التصنيف بأصغر ابن واسم الحساب -->
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
+                <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${catHierarchy}</span>
+                <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${accountName}</span>
+              </div>
+
+              <!-- صندوق المراحل التفصيلي -->
+              <div class="verification-box">
+                <div class="pillar-row">
+                  <span class="pillar-label">1️⃣ المواصفات والبيانات:</span>
+                  ${specsStatusHtml}
+                </div>
+                <div class="pillar-row">
+                  <span class="pillar-label">2️⃣ الفحص الشرعي والرقابي:</span>
+                  ${shariaStatusHtml}
+                </div>
+                <div class="pillar-row">
+                  <span class="pillar-label">3️⃣ عدم التكرار على الموقع:</span>
+                  ${dupStatusHtml}
+                </div>
+                <div class="pillar-row">
+                  <span class="pillar-label">4️⃣ حالة الجاهزية للنشر:</span>
+                  ${readyBadgeHtml}
+                </div>
+              </div>
+
+              <!-- بادجات المواصفات المستخرجة -->
+              ${specsBadgesHtml}
+
+              <!-- رد وتقرير الذكاء الاصطناعي الشامل -->
+              <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:10px; padding:10px; margin:8px 0;">
+                <div style="font-size:11px; font-weight:800; color:#a5b4fc; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between;">
+                  <span>🤖 رد وتقرير فحص الذكاء الاصطناعي:</span>
+                  <span style="color:#34d399; font-size:10px;">✔️ فحص دقيق</span>
+                </div>
+                <div style="font-size:11px; color:#cbd5e1; line-height:1.55; white-space:pre-line; background:rgba(15,23,42,0.65); padding:8px 10px; border-radius:6px; font-family:monospace; border:1px solid rgba(255,255,255,0.05);">${aiReviewText}</div>
+              </div>
+
+              <div>
+                <label style="font-size:11px; color:var(--text-muted); font-weight:700;">العنوان المهيكل:</label>
+                <input type="text" class="ad-title-input" id="titleInp-${idx}" value="${title.replace(/"/g, '&quot;')}" />
+              </div>
+
+              <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
+                <span style="color:#60a5fa;">📍 ${city}${subDist}</span>
+                <span style="color:#fde047;">💰 ${price}</span>
+              </div>
+
+              <div class="ad-desc-box">${ad.clean_description || ad.description}</div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8;">
+                <span>📞 ${ad.phone_number || 'لا يوجد'}</span>
+                <a href="${ad.ad_url}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
+              </div>
+
+              <div style="display:flex; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border);">
+                <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
+                <button id="rejBtn-${idx}" class="btn btn-danger btn-sm" onclick="rejectSingleAd(${idx})">❌ حذف</button>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    const activePublishing = new Set();
+
+    async function publishSingleAd(idx) {
+      if (activePublishing.has(idx)) {
+        return;
+      }
+      activePublishing.add(idx);
+
+      const ad = adsData[idx];
+      if (!ad) {
+        activePublishing.delete(idx);
+        return;
+      }
+
+      const btn = document.getElementById(`pubBtn-${idx}`);
+      const rejBtn = document.getElementById(`rejBtn-${idx}`);
+      const card = document.getElementById(`adCard-${idx}`);
+      const origBtnText = btn ? btn.innerHTML : '';
+
+      if (btn) {
+        btn.disabled = true;
+        btn.style.opacity = '0.7';
+        btn.style.cursor = 'not-allowed';
+        btn.innerHTML = '⏳ جاري النشر والرفع للموقع...';
+      }
+      if (rejBtn) {
+        rejBtn.disabled = true;
+      }
+
+      const titleInp = document.getElementById(`titleInp-${idx}`);
+      if (titleInp) {
+        ad.clean_title = titleInp.value;
+      }
+
+      try {
+        const res = await apiFetch('/api/approve', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ad })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+          if (btn) {
+            btn.innerHTML = '✅ تم النشر بنجاح!';
+            btn.style.background = '#059669';
+          }
+          if (card) {
+            card.style.transition = 'all 0.4s ease';
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.95)';
+          }
+          if (data.message) {
+            alert(data.message);
+          }
+          await loadAllAds();
+          await loadPublishedAds();
+        } else {
+          alert(data.message || 'حدث خطأ أثناء النشر');
+          if (btn) {
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            btn.style.cursor = 'pointer';
+            btn.innerHTML = origBtnText;
+          }
+          if (rejBtn) {
+            rejBtn.disabled = false;
+          }
+        }
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
+        if (btn) {
+          btn.disabled = false;
+          btn.style.opacity = '1';
+          btn.style.cursor = 'pointer';
+          btn.innerHTML = origBtnText;
+        }
+        if (rejBtn) {
+          rejBtn.disabled = false;
+        }
+      } finally {
+        activePublishing.delete(idx);
+      }
+    }
+
+    async function rejectSingleAd(idx) {
+      const ad = adsData[idx];
+      const rejBtn = document.getElementById(`rejBtn-${idx}`);
+      const pubBtn = document.getElementById(`pubBtn-${idx}`);
+      if (rejBtn) rejBtn.disabled = true;
+      if (pubBtn) pubBtn.disabled = true;
+
+      try {
+        await apiFetch('/api/reject', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ad })
+        });
+        loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
+        if (rejBtn) rejBtn.disabled = false;
+        if (pubBtn) pubBtn.disabled = false;
+      }
+    }
+
+    async function bulkPublishReady() {
+      if (!confirm("هل تريد تصدير ونشر كافة الإعلانات الجاهزة للنشر الآن؟")) return;
+      try {
+        const res = await apiFetch('/api/bulk_approve', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message);
+        loadAllAds();
+        loadPublishedAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
+      }
+    }
+
+    async function loadPublishedAds() {
+      try {
+        const res = await apiFetch('/api/published_ads');
+        const data = await res.json();
+        publishedAdsData = data.published || [];
+        const count = publishedAdsData.length;
+        const badgePub = document.getElementById('badgePublished');
+        if (badgePub) badgePub.innerText = count;
+        const stPub = document.getElementById('stPublishedAds');
+        if (stPub) stPub.innerText = count;
+        const pubListCount = document.getElementById('publishedListCount');
+        if (pubListCount) pubListCount.innerText = count;
+        filterPublishedAds();
+      } catch (e) {}
+    }
+
+    function filterPublishedAds() {
+      const q = (document.getElementById('searchPublishedInput')?.value || '').trim().toLowerCase();
+      const cat = (document.getElementById('filterPublishedCat')?.value || '').trim();
+
+      filteredPublished = publishedAdsData.filter(ad => {
+        const title = (ad.clean_title || ad.title || '').toLowerCase();
+        const desc = (ad.clean_description || ad.description || '').toLowerCase();
+        const phone = (ad.phone_number || '').toLowerCase();
+        const pubName = (ad.publisher_name || '').toLowerCase();
+        const city = (ad.city_name || ad.location_detected || '').toLowerCase();
+        const category = (ad.category || ad.category_hierarchy || '').toLowerCase();
+
+        const matchQ = !q || title.includes(q) || desc.includes(q) || phone.includes(q) || pubName.includes(q) || city.includes(q) || category.includes(q);
+        const matchCat = !cat || category.includes(cat.toLowerCase());
+        return matchQ && matchCat;
+      });
+
+      renderPublishedGrid();
+    }
+
+    function renderPublishedGrid() {
+      const grid = document.getElementById('publishedCardsGrid');
+      if (!grid) return;
+
+      const hasFilter = (document.getElementById('searchPublishedInput')?.value || '').trim() || (document.getElementById('filterPublishedCat')?.value || '').trim();
+      const list = hasFilter ? filteredPublished : publishedAdsData;
+
+      if (list.length === 0) {
+        grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; background:var(--card-bg); border-radius:16px; color:var(--text-muted);">
+          <div style="font-size:36px; margin-bottom:12px;">📭</div>
+          <div style="font-size:16px; font-weight:800; color:#f8fafc;">لا توجد إعلانات منشورة حتى الآن مطابقة للبحث!</div>
+          <div style="font-size:13px; margin-top:8px; color:var(--text-muted);">عندما تقوم بنشر الإعلانات من تبويب "مراجعة ونشر الإعلانات"، ستظهر تلقائياً هنا في هذه القائمة المنفصلة.</div>
+        </div>`;
+        return;
+      }
+
+      grid.innerHTML = list.map((ad, idx) => {
+        const title = ad.clean_title || (ad.description || '').substring(0, 60);
+        const city = ad.city_name || (ad.location_detected || 'دمشق');
+        const subDist = ad.sub_district_name && ad.sub_district_name !== 'عام' ? ` (${ad.sub_district_name})` : '';
+        const cat = ad.category || 'عام';
+        const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
+        const accountName = ad.publisher_name || 'أبو محمد الشامي';
+        const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${ad.price_info.currency}` : 'السعر: على السوم';
+        const pubDate = ad.published_at || 'تاريخ غير محدد';
+
+        const images = ad.nimages || [];
+        const firstImg = images.length > 0 ? `${API_BASE}/imgs/${images[0]}` : '';
+
+        const thumbsHtml = images.map((img, i) => `
+          <img src="${API_BASE}/imgs/${img}" class="ad-thumb ${i===0?'active':''}" onclick="document.getElementById('pubMainImg-${idx}').src='${API_BASE}/imgs/${img}'" />
+        `).join('');
+
+        // بادجات المواصفات الفنية
+        const specsObj = ad.specifications || {};
+        const specItems = [];
+        if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
+        if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
+        if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
+        if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
+        if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
+        if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
+        if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
+        if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
+        if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
+        if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
+        if (specsObj.features && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
+
+        const specsBadgesHtml = specItems.length > 0 ? `
+          <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
+            ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${s}</span>`).join('')}
+          </div>
+        ` : '';
+
+        const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
+          ad.ai_review.full_text : 
+          (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية وتم نشره.');
+
+        return `
+          <div class="ad-card" id="pubCard-${idx}" style="border: 1px solid rgba(139,92,246,0.35); box-shadow: 0 4px 20px rgba(139,92,246,0.08);">
+            <div class="ad-gallery">
+              <img id="pubMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
+              <div class="ad-thumbs">${thumbsHtml}</div>
+            </div>
+
+            <div class="ad-body">
+              <!-- شريط الحالة وتاريخ النشر -->
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:8px; flex-wrap:wrap; gap:4px; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:6px;">
+                <span class="badge badge-success" style="font-size:11px;">✅ تم النشر وتصدير الملفات</span>
+                <span style="color:#a78bfa; font-weight:700;">🕒 ${pubDate}</span>
+              </div>
+
+              <!-- التصنيف بأصغر ابن واسم الحساب -->
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
+                <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${catHierarchy}</span>
+                <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${accountName}</span>
+              </div>
+
+              <!-- العنوان -->
+              <div style="font-size:14px; font-weight:800; color:#f8fafc; line-height:1.4; margin:4px 0;">${title}</div>
+
+              <!-- بادجات المواصفات -->
+              ${specsBadgesHtml}
+
+              <!-- الموقع والسعر -->
+              <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin:6px 0;">
+                <span style="color:#60a5fa;">📍 ${city}${subDist}</span>
+                <span style="color:#fde047;">💰 ${price}</span>
+              </div>
+
+              <!-- صندوق الوصف -->
+              <div class="ad-desc-box">${ad.clean_description || ad.description}</div>
+
+              <!-- الهاتف ورابط فيسبوك -->
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8; margin:6px 0;">
+                <span>📞 ${ad.phone_number || 'لا يوجد'}</span>
+                <a href="${ad.ad_url}" target="_blank" style="font-size:11px; color:#60a5fa; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">🔗 فتح المنشور في فيسبوك</a>
+              </div>
+
+              <!-- تقرير الفحص والذكاء الاصطناعي -->
+              <div style="background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:8px 10px; margin:6px 0;">
+                <div style="font-size:10px; font-weight:800; color:#a5b4fc; margin-bottom:4px; display:flex; justify-content:space-between;">
+                  <span>🤖 تقرير الذكاء الاصطناعي المعتمد:</span>
+                  <span style="color:#34d399;">✔️ مُدقق ومُعتمد</span>
+                </div>
+                <div style="font-size:10px; color:#cbd5e1; line-height:1.5; white-space:pre-line; max-height:80px; overflow-y:auto; font-family:monospace;">${aiReviewText}</div>
+              </div>
+
+              <!-- أزرار الإجراءات الخاصة بالإعلان المنشور -->
+              <div style="display:flex; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border);">
+                <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openImportFolder()">📂 فتح مجلد الاستيراد</button>
+                <button class="btn btn-warning btn-sm" onclick="revertPublishedAd(${idx})" title="إلغاء النشر وإعادة الإعلان للمسودة">🔄 إعادة للمراجعة</button>
+                <button class="btn btn-danger btn-sm" onclick="deletePublishedAd(${idx})" title="حذف من سجل المنشورات">🗑️</button>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function openImportFolder() {
+      try {
+        const res = await apiFetch('/api/open_folder', { method: 'POST' });
+        const data = await res.json();
+        if (!data.success) {
+          alert("المجلد موجود على سطح المكتب: إعلانات_للاستيراد");
+        }
+      } catch (e) {
+        alert("المجلد موجود على سطح المكتب باسم: إعلانات_للاستيراد");
+      }
+    }
+
+    async function revertPublishedAd(idx) {
+      const hasFilter = (document.getElementById('searchPublishedInput')?.value || '').trim() || (document.getElementById('filterPublishedCat')?.value || '').trim();
+      const list = hasFilter ? filteredPublished : publishedAdsData;
+      const ad = list[idx];
+      if (!ad) return;
+      if (!confirm(`هل أنت متأكد من إعادة إعلان "${(ad.clean_title || '').substring(0, 30)}..." إلى قائمة المراجعة؟`)) return;
+      try {
+        await apiFetch('/api/revert_ad', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ad })
+        });
+        await loadAllAds();
+        await loadPublishedAds();
+        alert("تمت إعادة الإعلان إلى قائمة المراجعة بنجاح! 🔄");
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر!");
+      }
+    }
+
+    async function deletePublishedAd(idx) {
+      const hasFilter = (document.getElementById('searchPublishedInput')?.value || '').trim() || (document.getElementById('filterPublishedCat')?.value || '').trim();
+      const list = hasFilter ? filteredPublished : publishedAdsData;
+      const ad = list[idx];
+      if (!ad) return;
+      if (!confirm(`هل أنت متأكد من حذف هذا الإعلان نهائياً من سجل المنشورات؟`)) return;
+      try {
+        await apiFetch('/api/delete_published', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ad })
+        });
+        await loadAllAds();
+        await loadPublishedAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر!");
+      }
+    }
+
+    async function startAllScraping() {
+      const groups = groupsData.map(g => g.url);
+      if (groups.length === 0) {
+        alert("يرجى إضافة روابط مجموعات أولاً!");
+        return;
+      }
+      const params = {
+        groups,
+        concurrent_tabs: parseInt(document.getElementById('inpConcurrent').value) || 4,
+        max_ads_per_group: parseInt(document.getElementById('inpMaxAds').value) || 100,
+        timeout_seconds: parseInt(document.getElementById('inpTimeout').value) || 60,
+        import_dir: document.getElementById('inpImportDir').value.trim()
+      };
+      try {
+        await apiFetch('/api/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(params)
+        });
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
+      }
+    }
+
+    async function stopAllScraping() {
+      try {
+        await apiFetch('/api/stop', { method: 'POST' });
+      } catch (e) {}
+    }
+
+    async function scrapeSingleGroup(url) {
+      const params = {
+        groups: [url],
+        concurrent_tabs: 1,
+        max_ads_per_group: parseInt(document.getElementById('inpMaxAds').value) || 100,
+        timeout_seconds: parseInt(document.getElementById('inpTimeout').value) || 60,
+        import_dir: document.getElementById('inpImportDir').value.trim()
+      };
+      try {
+        await apiFetch('/api/start', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(params)
+        });
+        switchTab('tab-scraper', document.querySelectorAll('.nav-btn')[1]);
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
+      }
+    }
+
+    async function pollScraperStatus() {
+      try {
+        const res = await apiFetch('/api/status');
+        const st = await res.json();
+        
+        const btnStart = document.getElementById('btnStartScraping');
+        const btnStop = document.getElementById('btnStopScraping');
+        if (st.is_running) {
+          btnStart.style.display = 'none';
+          btnStop.style.display = 'inline-flex';
+        } else {
+          btnStart.style.display = 'inline-flex';
+          btnStop.style.display = 'none';
+        }
+
+        const tabsBox = document.getElementById('activeTabsLiveList');
+        const keys = Object.keys(st.active_tabs || {});
+        if (keys.length === 0) {
+          tabsBox.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">لا توجد تبويبات نشطة حالياً</div>`;
+        } else {
+          tabsBox.innerHTML = keys.map(k => `
+            <div style="display:flex; justify-content:space-between; background:var(--card-inner); padding:8px 12px; border-radius:8px; font-size:12px; font-weight:700;">
+              <div>⚡ تبويب ${parseInt(k)+1}: <span style="color:#60a5fa;">مجموعة [${st.active_tabs[k].group_idx}]</span></div>
+              <div style="color:#34d399;">${st.active_tabs[k].status}</div>
+            </div>
+          `).join('');
+        }
+
+        if (st.pending_count !== undefined) {
+          document.getElementById('badgePending').innerText = st.pending_count;
+          document.getElementById('stReadyAds').innerText = st.ready_count || 0;
+          document.getElementById('stPublishedAds').innerText = st.published_count || 0;
+          document.getElementById('stFlaggedAds').innerText = st.flagged_count || 0;
+        }
+
+        if (st.logs && st.logs.length > 0) {
+          const logBox = document.getElementById('liveLogsContainer');
+          logBox.innerHTML = st.logs.join('<br>');
+          logBox.scrollTop = logBox.scrollHeight;
+        }
+      } catch (e) {}
+    }
+
+    function openAddGroupModal() {
+      document.getElementById('addGroupModal').style.display = 'flex';
+    }
+    function closeAddGroupModal() {
+      document.getElementById('addGroupModal').style.display = 'none';
+    }
+
+    async function saveNewGroup() {
+      const name = document.getElementById('mGrpName').value.trim();
+      const url = document.getElementById('mGrpUrl').value.trim();
+      const cat = document.getElementById('mGrpCat').value;
+      if (!name || !url) {
+        alert("يرجى إدخال اسم ورابط المجموعة!");
+        return;
+      }
+      try {
+        await apiFetch('/api/add_group', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ name, url, category: cat })
+        });
+        closeAddGroupModal();
+        loadGroups();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function deleteGroup(id) {
+      if (!confirm("هل أنت متأكد من حذف هذا الرابط؟")) return;
+      try {
+        await apiFetch('/api/delete_group', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ id })
+        });
+        loadGroups();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function saveSettings() {
+      const webKeyVal = document.getElementById('setWebKey').value.trim();
+      const webUrlVal = document.getElementById('setWebUrl').value.trim();
+      const cfg = {
+        gemini_api_key: document.getElementById('setGeminiKey').value.trim(),
+        website_api_url: webUrlVal || 'https://api.lelbai.com/public/api/listings',
+        website_api_key: webKeyVal || '67|5181926855ca52522dec3990517f272b027b745f'
+      };
+      try {
+        await apiFetch('/api/config', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify(cfg)
+        });
+        alert("تم حفظ الإعدادات بنجاح! ✅");
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function openLoginBrowser() {
+      try {
+        const res = await apiFetch('/api/login', { method: 'POST' });
+        const data = await res.json();
+        if (data.success) {
+          alert("تم فتح نافذة المتصفح لتسجيل الدخول إلى فيسبوك. سجل دخولك وأغلق النافذة عند الانتهاء.");
+        } else {
+          alert(data.message || "حدث خطأ أثناء فتح المتصفح.");
+        }
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

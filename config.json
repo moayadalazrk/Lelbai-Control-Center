@@ -1,0 +1,14 @@
+{
+  "gemini_api_key": "",
+  "gemini_model": "gemini-2.0-flash",
+  "website_api_url": "https://api.lelbai.com/public/api/listings",
+  "website_api_key": "67|5181926855ca52522dec3990517f272b027b745f",
+  "min_images_required": 1,
+  "max_images_per_ad": 5,
+  "auto_publish_safe_ads": false,
+  "dashboard_port": 5000,
+  "manager_shortcut": "C:\\Users\\mwyda\\Desktop\\لوحة تحكم المنجر.lnk",
+  "manager_servers_dir": "C:\\xampp\\htdocs\\projects\\AZ",
+  "manager_url": "http://localhost:8002",
+  "github_repo": "https://github.com/moayadalazrk/Lelbai-Control-Center.git"
+}
