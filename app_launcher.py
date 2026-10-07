@@ -43,7 +43,7 @@ def check_for_updates():
 
             if "behind" in status or "Your branch is behind" in status:
                 print("      ⚡ تم العثور على تحديث جديد! جاري سحب التحديث وتطبيقه...")
-                pull_res = subprocess.check_output(["git", "pull", "--rebase"], cwd=BASE_DIR, universal_newlines=True)
+                pull_res = subprocess.check_output(["git", "pull"], cwd=BASE_DIR, universal_newlines=True)
                 print("      ✅ تم تحديث الملفات بنجاح من GitHub!")
                 
                 if "requirements.txt" in pull_res:
@@ -58,7 +58,7 @@ def check_for_updates():
         try:
             repo_url = load_repo_config()
             repo_name = repo_url.replace(".git", "").replace("https://github.com/", "").strip("/")
-            api_url = f"https://api.github.com/repos/{repo_name}/commits/master"
+            api_url = f"https://api.github.com/repos/{repo_name}/commits/main"
             req = urllib.request.Request(api_url, headers={"User-Agent": "Lelbai-Launcher/1.0"})
             with urllib.request.urlopen(req, timeout=5) as res:
                 data = json.loads(res.read().decode("utf-8"))

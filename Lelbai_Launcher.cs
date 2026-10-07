@@ -11,8 +11,8 @@ namespace LelbaiLauncher
     class Program
     {
         static string DefaultRepoUrl = "https://github.com/moayadalazrk/Lelbai-Control-Center.git";
-        static string DefaultZipUrl = "https://github.com/moayadalazrk/Lelbai-Control-Center/archive/refs/heads/master.zip";
-        static string CommitApiUrl = "https://api.github.com/repos/moayadalazrk/Lelbai-Control-Center/commits/master";
+        static string DefaultZipUrl = "https://github.com/moayadalazrk/Lelbai-Control-Center/archive/refs/heads/main.zip";
+        static string CommitApiUrl = "https://api.github.com/repos/moayadalazrk/Lelbai-Control-Center/commits/main";
 
         static void Main(string[] args)
         {
@@ -98,10 +98,10 @@ namespace LelbaiLauncher
                             {
                                 DefaultRepoUrl = repo;
                                 string repoName = repo.Replace(".git", "").TrimEnd('/');
-                                DefaultZipUrl = repoName + "/archive/refs/heads/master.zip";
+                                DefaultZipUrl = repoName + "/archive/refs/heads/main.zip";
                                 
                                 string cleanPath = repoName.Replace("https://github.com/", "");
-                                CommitApiUrl = "https://api.github.com/repos/" + cleanPath + "/commits/master";
+                                CommitApiUrl = "https://api.github.com/repos/" + cleanPath + "/commits/main";
                             }
                         }
                     }
@@ -194,7 +194,7 @@ namespace LelbaiLauncher
                     Console.WriteLine("      ⚡ تم العثور على تحديث جديد! جاري سحب التحديث وتطبيقه...");
                     Console.ResetColor();
 
-                    string pullOut = RunCommandWithOutput("git", "pull origin master", dir);
+                    string pullOut = RunCommandWithOutput("git", "pull", dir);
                     Console.ForegroundColor = ConsoleColor.Green;
                     Console.WriteLine("      ✅ تم تحديث الملفات بنجاح!");
                     Console.ResetColor();
