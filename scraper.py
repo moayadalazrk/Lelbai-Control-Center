@@ -27,6 +27,69 @@ PENDING_FILE = os.path.join(BASE_DIR, "pending_review.json")
 FLAGGED_FILE = os.path.join(BASE_DIR, "flagged_ads.json")
 IMGS_DIR = os.path.join(BASE_DIR, "asstes", "imgs")
 
+def clean_browser_session_locks(user_data_dir: str):
+    import shutil
+    import subprocess
+    os.makedirs(user_data_dir, exist_ok=True)
+    try:
+        import psutil
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmd = " ".join(proc.info.get('cmdline') or []).lower()
+                name = (proc.info.get('name') or "").lower()
+                if "browser_session" in cmd and ("chrome" in name or "chromium" in name or "node" in name):
+                    proc.kill()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    if sys.platform == "win32":
+        try:
+            cmd = "Get-CimInstance Win32_Process | Where-Object { ($_.Name -like '*chrome*' -or $_.Name -like '*chromium*') -and $_.CommandLine -like '*browser_session*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+            subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, timeout=5)
+        except Exception:
+            pass
+
+    time.sleep(0.5)
+
+    lock_files = ["lockfile", "SingletonLock", "SingletonCookie", "SingletonSocket"]
+    for lock in lock_files:
+        lock_path = os.path.join(user_data_dir, lock)
+        if os.path.exists(lock_path):
+            try:
+                os.remove(lock_path)
+            except Exception:
+                pass
+
+    snapshots_dir = os.path.join(user_data_dir, "Snapshots")
+    if os.path.exists(snapshots_dir):
+        try:
+            shutil.rmtree(snapshots_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+    parent_dir = os.path.dirname(user_data_dir) or "."
+    session_basename = os.path.basename(user_data_dir)
+    try:
+        for item in os.listdir(parent_dir):
+            if item.startswith(session_basename) and "CHROME_DELETE" in item:
+                del_path = os.path.join(parent_dir, item)
+                if os.path.isdir(del_path):
+                    shutil.rmtree(del_path, ignore_errors=True)
+                elif os.path.isfile(del_path):
+                    os.remove(del_path)
+    except Exception:
+        pass
+
+    for cache_sub in ["GPUPersistentCache", "ShaderCache", "GrShaderCache"]:
+        cp = os.path.join(user_data_dir, cache_sub)
+        if os.path.exists(cp):
+            try:
+                shutil.rmtree(cp, ignore_errors=True)
+            except Exception:
+                pass
+
 class SyrianAdScraper:
     def __init__(self, user_data_dir: str = "./browser_session", headless: bool = False):
         """
@@ -300,14 +363,7 @@ class SyrianAdScraper:
         print(f"[+] سيتم حفظ الإعلانات في: {output_file}")
         print(f"[+] سيتم فتح الصفحة: {group_url}\n")
 
-        # تنظيف أي أقفال أو عمليات عالقة للمتصفح
-        for lock in ["lockfile", "SingletonLock", "SingletonCookie", "SingletonSocket"]:
-            lp = os.path.join(self.user_data_dir, lock)
-            if os.path.exists(lp):
-                try:
-                    os.remove(lp)
-                except Exception:
-                    pass
+        clean_browser_session_locks(self.user_data_dir)
 
         with sync_playwright() as p:
             # تشغيل متصفح مرئي مع سياق مستخدم دائم وتفعيل وضع الأمان والحماية التامة
@@ -317,7 +373,7 @@ class SyrianAdScraper:
                     context = p.chromium.launch_persistent_context(
                         user_data_dir=self.user_data_dir,
                         headless=self.headless,
-                        viewport={"width": 1280, "height": 850},
+                        viewport=None,
                         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                         locale="ar-SY",
                         timezone_id="Asia/Damascus",
@@ -331,13 +387,7 @@ class SyrianAdScraper:
                     break
                 except Exception as e:
                     if attempt == 0:
-                        import subprocess
-                        if sys.platform == "win32":
-                            try:
-                                cmd = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*browser_session*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
-                                subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, timeout=5)
-                            except Exception:
-                                pass
+                        clean_browser_session_locks(self.user_data_dir)
                         time.sleep(1)
                     else:
                         raise e

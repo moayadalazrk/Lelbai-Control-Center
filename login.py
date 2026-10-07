@@ -16,6 +16,69 @@ if hasattr(sys.stderr, 'reconfigure'):
 
 from playwright.sync_api import sync_playwright
 
+def clean_browser_session_locks(user_data_dir: str):
+    import shutil
+    import subprocess
+    os.makedirs(user_data_dir, exist_ok=True)
+    try:
+        import psutil
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmd = " ".join(proc.info.get('cmdline') or []).lower()
+                name = (proc.info.get('name') or "").lower()
+                if "browser_session" in cmd and ("chrome" in name or "chromium" in name or "node" in name):
+                    proc.kill()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    if sys.platform == "win32":
+        try:
+            cmd = "Get-CimInstance Win32_Process | Where-Object { ($_.Name -like '*chrome*' -or $_.Name -like '*chromium*') -and $_.CommandLine -like '*browser_session*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+            subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, timeout=5)
+        except Exception:
+            pass
+
+    time.sleep(0.5)
+
+    lock_files = ["lockfile", "SingletonLock", "SingletonCookie", "SingletonSocket"]
+    for lock in lock_files:
+        lock_path = os.path.join(user_data_dir, lock)
+        if os.path.exists(lock_path):
+            try:
+                os.remove(lock_path)
+            except Exception:
+                pass
+
+    snapshots_dir = os.path.join(user_data_dir, "Snapshots")
+    if os.path.exists(snapshots_dir):
+        try:
+            shutil.rmtree(snapshots_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+    parent_dir = os.path.dirname(user_data_dir) or "."
+    session_basename = os.path.basename(user_data_dir)
+    try:
+        for item in os.listdir(parent_dir):
+            if item.startswith(session_basename) and "CHROME_DELETE" in item:
+                del_path = os.path.join(parent_dir, item)
+                if os.path.isdir(del_path):
+                    shutil.rmtree(del_path, ignore_errors=True)
+                elif os.path.isfile(del_path):
+                    os.remove(del_path)
+    except Exception:
+        pass
+
+    for cache_sub in ["GPUPersistentCache", "ShaderCache", "GrShaderCache"]:
+        cp = os.path.join(user_data_dir, cache_sub)
+        if os.path.exists(cp):
+            try:
+                shutil.rmtree(cp, ignore_errors=True)
+            except Exception:
+                pass
+
 def run_login_helper(target_url: str = "https://www.facebook.com/login.php", user_data_dir: str = "./browser_session"):
     session_path = os.path.abspath(user_data_dir)
     os.makedirs(session_path, exist_ok=True)
@@ -34,14 +97,7 @@ def run_login_helper(target_url: str = "https://www.facebook.com/login.php", use
 ================================================================
 """)
 
-    # تنظيف أي أقفال أو عمليات عالقة سابقة
-    for lock in ["lockfile", "SingletonLock", "SingletonCookie", "SingletonSocket"]:
-        lp = os.path.join(session_path, lock)
-        if os.path.exists(lp):
-            try:
-                os.remove(lp)
-            except Exception:
-                pass
+    clean_browser_session_locks(session_path)
 
     with sync_playwright() as p:
         print("[+] جاري تشغيل المتصفح...")
@@ -66,13 +122,7 @@ def run_login_helper(target_url: str = "https://www.facebook.com/login.php", use
             except Exception as e:
                 if attempt == 0:
                     print("⚠️ تم رصد حجز سابق للجلسة، جاري تنظيف الأقفال والمحاولة...")
-                    import subprocess
-                    if sys.platform == "win32":
-                        try:
-                            cmd = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*browser_session*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
-                            subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, timeout=5)
-                        except Exception:
-                            pass
+                    clean_browser_session_locks(session_path)
                     time.sleep(1)
                 else:
                     raise e

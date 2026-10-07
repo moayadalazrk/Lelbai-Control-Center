@@ -170,8 +170,9 @@ def enrich_ad_status(ad: Dict[str, Any]) -> Dict[str, Any]:
 def clean_browser_session_locks(user_data_dir: str):
     """
     تحرير أقفال مجلد الجلسة وإنهاء أي عمليات كروم أو بايثون يتيمة تحتجز browser_session
-    لتجنب خطأ: BrowserType.launch_persistent_context: Target page, context or browser has been closed
+    وتنظيف ملفات Snapshots و CHROME_DELETE التي تسبب انهيار المتصفح فور إطلاقه (Exit code 33)
     """
+    import shutil
     os.makedirs(user_data_dir, exist_ok=True)
     try:
         import psutil
@@ -179,7 +180,7 @@ def clean_browser_session_locks(user_data_dir: str):
             try:
                 cmd = " ".join(proc.info.get('cmdline') or []).lower()
                 name = (proc.info.get('name') or "").lower()
-                if "browser_session" in cmd and ("chrome" in name or "chromium" in name or "node" in name or "python" in name):
+                if "browser_session" in cmd and ("chrome" in name or "chromium" in name or "node" in name):
                     proc.kill()
                 elif "login.py" in cmd and proc.pid != os.getpid():
                     proc.kill()
@@ -190,7 +191,7 @@ def clean_browser_session_locks(user_data_dir: str):
 
     if sys.platform == "win32":
         try:
-            cmd = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*browser_session*' -or $_.CommandLine -like '*login.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+            cmd = "Get-CimInstance Win32_Process | Where-Object { ($_.Name -like '*chrome*' -or $_.Name -like '*chromium*') -and $_.CommandLine -like '*browser_session*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
             subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, timeout=5)
         except Exception:
             pass
@@ -203,6 +204,35 @@ def clean_browser_session_locks(user_data_dir: str):
         if os.path.exists(lock_path):
             try:
                 os.remove(lock_path)
+            except Exception:
+                pass
+
+    # تنظيف مجلد Snapshots و CHROME_DELETE وأي ملفات كاش مسببة لانهيار Chromium
+    snapshots_dir = os.path.join(user_data_dir, "Snapshots")
+    if os.path.exists(snapshots_dir):
+        try:
+            shutil.rmtree(snapshots_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+    parent_dir = os.path.dirname(user_data_dir) or "."
+    session_basename = os.path.basename(user_data_dir)
+    try:
+        for item in os.listdir(parent_dir):
+            if item.startswith(session_basename) and "CHROME_DELETE" in item:
+                del_path = os.path.join(parent_dir, item)
+                if os.path.isdir(del_path):
+                    shutil.rmtree(del_path, ignore_errors=True)
+                elif os.path.isfile(del_path):
+                    os.remove(del_path)
+    except Exception:
+        pass
+
+    for cache_sub in ["GPUPersistentCache", "ShaderCache", "GrShaderCache"]:
+        cp = os.path.join(user_data_dir, cache_sub)
+        if os.path.exists(cp):
+            try:
+                shutil.rmtree(cp, ignore_errors=True)
             except Exception:
                 pass
 
@@ -317,7 +347,7 @@ class ScrapingTaskManager:
                     context = await p.chromium.launch_persistent_context(
                         user_data_dir=user_data_dir,
                         headless=False,
-                        viewport={"width": 1280, "height": 850},
+                        viewport=None,
                         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
                         locale="ar-SY",
                         timezone_id="Asia/Damascus",
@@ -1830,6 +1860,10 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/update_info":
             self.send_json(get_system_update_info())
+            return
+
+        elif path == "/api/check_update":
+            self.send_json(check_and_apply_updates())
             return
 
         self.send_response(404)

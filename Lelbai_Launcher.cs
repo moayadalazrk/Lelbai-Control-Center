@@ -18,6 +18,23 @@ namespace LelbaiLauncher
         {
             try
             {
+                RunApp(args);
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("\n❌ حدث خطأ غير متوقع في المشغل:");
+                Console.WriteLine(ex.Message);
+                Console.ResetColor();
+                Console.WriteLine("\nاضغط أي مفتاح للخروج...");
+                Console.ReadKey();
+            }
+        }
+
+        static void RunApp(string[] args)
+        {
+            try
+            {
                 Console.OutputEncoding = Encoding.UTF8;
             }
             catch { }
@@ -325,9 +342,16 @@ namespace LelbaiLauncher
             if (alreadyRunning)
             {
                 Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("  🟢 سيرفر لوحة التحكم يعمل بالفعل على: http://localhost:5000");
+                Console.WriteLine("  🟢 سيرفر لوحة التحكم يعمل بنشاط على: http://localhost:5000");
                 Console.ResetColor();
                 OpenBrowser("http://localhost:5000");
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("\n==========================================================================");
+                Console.WriteLine("  🌐 لوحة التحكم مفتوحة وتعمل الآن في المتصفح.");
+                Console.WriteLine("  💡 يمكنك الضغط على [Enter] هنا في أي وقت لإغلاق هذه النافذة.");
+                Console.WriteLine("==========================================================================");
+                Console.ResetColor();
+                Console.ReadLine();
                 return;
             }
 
@@ -340,7 +364,7 @@ namespace LelbaiLauncher
                 FileName = pythonExe,
                 Arguments = "\"" + webAppScript + "\"",
                 WorkingDirectory = dir,
-                UseShellExecute = true,
+                UseShellExecute = false,
                 CreateNoWindow = false
             };
 
@@ -349,12 +373,41 @@ namespace LelbaiLauncher
                 Process p = Process.Start(psi);
                 Console.ForegroundColor = ConsoleColor.Green;
                 Console.WriteLine("  🟢 تم تشغيل سيرفر لوحة التحكم بنجاح! PID: " + p.Id);
-                Console.WriteLine("  🌐 جاري فتح لوحة التحكم: http://localhost:5000");
+                Console.WriteLine("  ⏳ جاري الانتظار حتى اكتمال إقلاع السيرفر...");
                 Console.ResetColor();
 
-                // الانتظار قليلاً ثم فتح المتصفح
-                Thread.Sleep(1500);
-                OpenBrowser("http://localhost:5000");
+                // الانتظار حتى يصبح المنفذ 5000 متاحاً ثم فتح المتصفح
+                new Thread(() =>
+                {
+                    for (int i = 0; i < 30; i++)
+                    {
+                        Thread.Sleep(700);
+                        if (IsPortOpen(5000))
+                        {
+                            Console.ForegroundColor = ConsoleColor.Green;
+                            Console.WriteLine("\n  🌐 السيرفر متصل بنجاح! جاري فتح المتصفح: http://localhost:5000");
+                            Console.ResetColor();
+                            OpenBrowser("http://localhost:5000");
+                            break;
+                        }
+                    }
+                }).Start();
+
+                Console.ForegroundColor = ConsoleColor.Cyan;
+                Console.WriteLine("  💡 نافذة المشغل هذه تبقي السيرفر قيد العمل المباشر.");
+                Console.WriteLine("==========================================================================\n");
+                Console.ResetColor();
+
+                p.WaitForExit();
+
+                if (p.ExitCode != 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\n⚠️ توقف سيرفر بايثون (رمز الخروج: " + p.ExitCode + ")");
+                    Console.ResetColor();
+                    Console.WriteLine("\nاضغط أي مفتاح للخروج...");
+                    Console.ReadKey();
+                }
             }
             catch (Exception ex)
             {
@@ -388,13 +441,15 @@ namespace LelbaiLauncher
 
         static string FindPythonExecutable()
         {
+            string localApp = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
             string[] possiblePaths = new string[]
             {
                 "py",
                 "python",
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Programs\Python\Python311\python.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Programs\Python\Python312\python.exe"),
-                Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Programs\Python\Python310\python.exe"),
+                Path.Combine(localApp, @"Python\pythoncore-3.14-64\python.exe"),
+                Path.Combine(localApp, @"Programs\Python\Python311\python.exe"),
+                Path.Combine(localApp, @"Programs\Python\Python312\python.exe"),
+                Path.Combine(localApp, @"Programs\Python\Python310\python.exe"),
                 @"C:\Python311\python.exe",
                 @"C:\Python312\python.exe"
             };
