@@ -1572,16 +1572,30 @@ HTML_PAGE = """<!DOCTYPE html>
     }
 
     async function openLoginBrowser() {
+      const btn = document.getElementById("btnLogin") || document.querySelector("button[onclick='openLoginBrowser()']");
+      const oldHtml = btn ? btn.innerHTML : '🔐 تسجيل دخول فيسبوك';
+      if (btn) btn.innerHTML = '⏳ جاري تشغيل المتصفح...';
       try {
         const res = await apiFetch('/api/login', { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-          alert("تم فتح نافذة المتصفح لتسجيل الدخول إلى فيسبوك. سجل دخولك وأغلق النافذة عند الانتهاء.");
+          if (btn) {
+            btn.innerHTML = '🟢 المتصفح مفتوح أمامك الآن';
+            btn.style.borderColor = '#10b981';
+            btn.style.color = '#10b981';
+            setTimeout(() => {
+              btn.innerHTML = oldHtml;
+              btn.style.borderColor = '';
+              btn.style.color = '';
+            }, 12000);
+          }
         } else {
           alert(data.message || "حدث خطأ أثناء فتح المتصفح.");
+          if (btn) btn.innerHTML = oldHtml;
         }
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+        if (btn) btn.innerHTML = oldHtml;
       }
     }
 
@@ -1923,10 +1937,18 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                 return
             user_data_dir = os.path.join(BASE_DIR, "browser_session")
             clean_browser_session_locks(user_data_dir)
+            login_bat = os.path.join(BASE_DIR, "login.bat")
             login_script = os.path.join(BASE_DIR, "login.py")
-            flags = getattr(subprocess, 'CREATE_NEW_CONSOLE', 0)
-            subprocess.Popen([sys.executable, login_script], cwd=BASE_DIR, creationflags=flags)
-            self.send_json({"success": True})
+            try:
+                if sys.platform == "win32" and os.path.exists(login_bat):
+                    os.startfile(login_bat)
+                else:
+                    flags = getattr(subprocess, 'CREATE_NEW_CONSOLE', 0)
+                    subprocess.Popen([sys.executable, login_script], cwd=BASE_DIR, creationflags=flags)
+            except Exception:
+                flags = getattr(subprocess, 'CREATE_NEW_CONSOLE', 0)
+                subprocess.Popen([sys.executable, login_script], cwd=BASE_DIR, creationflags=flags)
+            self.send_json({"success": True, "message": "تم إطلاق نافذة المتصفح بنجاح! 🟢"})
             return
 
         elif path == "/api/approve":

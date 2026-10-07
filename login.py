@@ -141,38 +141,26 @@ def run_login_helper(target_url: str = "https://www.facebook.com/login.php", use
         except Exception as e:
             print(f"[!] تنبيه أثناء التحميل: {e}")
 
+        # مراقبة نافذة المتصفح: يظل المتصفح مفتوحاً وشغالاً حتى يغلقه المستخدم بنفسه
         print("\n🟢 المتصفح مفتوح الآن أمامك.")
-        print("💡 سجّل دخولك متى ما أردت، وعند الانتهاء أغلق المتصفح بيدك (أو اضغط Enter هنا)...\n")
+        print("💡 سجّل دخولك بحرية كاملة، وعندما تنتهي:")
+        print("   👉 أغلق نافذة المتصفح (زر X) وسيتم حفظ الجلسة والكوكيز تلقائياً بنجاح!\n")
 
-        # انتظار إما ضغط Enter من المستخدم أو إغلاق نافذة المتصفح يدوياً
         try:
-            # نتحقق في خيط انتظار بسيط أو عبر input
-            # باستخدام input نتيح للمستخدم الضغط على Enter فور انتهائه
-            # ونراقب أيضاً إذا أغلق المتصفح
-            import threading
-            
-            user_finished = threading.Event()
-            
-            def wait_for_user_input():
-                try:
-                    input("👉 اضغط Enter هنا بعد الانتهاء وحفظ الجلسة: ")
-                except Exception:
-                    pass
-                user_finished.set()
+            page.bring_to_front()
+        except Exception:
+            pass
 
-            input_thread = threading.Thread(target=wait_for_user_input, daemon=True)
-            input_thread.start()
-
-            while not user_finished.is_set():
+        try:
+            # الانتظار حتى يقوم المستخدم بإغلاق كافة صفحات المتصفح بنفسه
+            while True:
                 time.sleep(1)
-                # فحص إذا أغلق المستخدم جميع الصفحات أو المتصفح
                 try:
-                    if len(context.pages) == 0 or all(p.is_closed() for p in context.pages):
-                        print("\n[+] تم اكتشاف إغلاق المتصفح يدوياً.")
+                    if not context.pages or all(p.is_closed() for p in context.pages):
+                        print("\n[+] تم رصد إغلاق نافذة المتصفح.")
                         break
                 except Exception:
                     break
-
         except KeyboardInterrupt:
             print("\n[!] جاري حفظ الجلسة والإغلاق...")
 
