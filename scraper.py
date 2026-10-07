@@ -300,22 +300,47 @@ class SyrianAdScraper:
         print(f"[+] سيتم حفظ الإعلانات في: {output_file}")
         print(f"[+] سيتم فتح الصفحة: {group_url}\n")
 
+        # تنظيف أي أقفال أو عمليات عالقة للمتصفح
+        for lock in ["lockfile", "SingletonLock", "SingletonCookie", "SingletonSocket"]:
+            lp = os.path.join(self.user_data_dir, lock)
+            if os.path.exists(lp):
+                try:
+                    os.remove(lp)
+                except Exception:
+                    pass
+
         with sync_playwright() as p:
             # تشغيل متصفح مرئي مع سياق مستخدم دائم وتفعيل وضع الأمان والحماية التامة
-            context: BrowserContext = p.chromium.launch_persistent_context(
-                user_data_dir=self.user_data_dir,
-                headless=self.headless,
-                viewport={"width": 1280, "height": 850},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                locale="ar-SY",
-                timezone_id="Asia/Damascus",
-                args=[
-                    "--start-maximized",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-infobars",
-                    "--no-sandbox"
-                ]
-            )
+            context = None
+            for attempt in range(2):
+                try:
+                    context = p.chromium.launch_persistent_context(
+                        user_data_dir=self.user_data_dir,
+                        headless=self.headless,
+                        viewport={"width": 1280, "height": 850},
+                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                        locale="ar-SY",
+                        timezone_id="Asia/Damascus",
+                        args=[
+                            "--start-maximized",
+                            "--disable-blink-features=AutomationControlled",
+                            "--disable-infobars",
+                            "--no-sandbox"
+                        ]
+                    )
+                    break
+                except Exception as e:
+                    if attempt == 0:
+                        import subprocess
+                        if sys.platform == "win32":
+                            try:
+                                cmd = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*browser_session*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+                                subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, timeout=5)
+                            except Exception:
+                                pass
+                        time.sleep(1)
+                    else:
+                        raise e
 
             # إخفاء أي أثر لبرامج الأتمتة وجعل المتصفح يظهر كمتصفح بشري طبيعي 100%
             context.add_init_script("""

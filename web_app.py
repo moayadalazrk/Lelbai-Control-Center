@@ -167,6 +167,45 @@ def enrich_ad_status(ad: Dict[str, Any]) -> Dict[str, Any]:
 # ==============================================================================
 # محرك إدارة السحب المتوازي وتحديث تواريخ الروابط
 # ==============================================================================
+def clean_browser_session_locks(user_data_dir: str):
+    """
+    تحرير أقفال مجلد الجلسة وإنهاء أي عمليات كروم أو بايثون يتيمة تحتجز browser_session
+    لتجنب خطأ: BrowserType.launch_persistent_context: Target page, context or browser has been closed
+    """
+    os.makedirs(user_data_dir, exist_ok=True)
+    try:
+        import psutil
+        for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+            try:
+                cmd = " ".join(proc.info.get('cmdline') or []).lower()
+                name = (proc.info.get('name') or "").lower()
+                if "browser_session" in cmd and ("chrome" in name or "chromium" in name or "node" in name or "python" in name):
+                    proc.kill()
+                elif "login.py" in cmd and proc.pid != os.getpid():
+                    proc.kill()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    if sys.platform == "win32":
+        try:
+            cmd = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*browser_session*' -or $_.CommandLine -like '*login.py*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+            subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, timeout=5)
+        except Exception:
+            pass
+
+    time.sleep(0.5)
+
+    lock_files = ["lockfile", "SingletonLock", "SingletonCookie", "SingletonSocket"]
+    for lock in lock_files:
+        lock_path = os.path.join(user_data_dir, lock)
+        if os.path.exists(lock_path):
+            try:
+                os.remove(lock_path)
+            except Exception:
+                pass
+
 class ScrapingTaskManager:
     def __init__(self):
         self.is_running = False
@@ -257,28 +296,41 @@ class ScrapingTaskManager:
         self.log(f"🚀 بدء محرك السحب المتوازي: {len(urls)} مجموعات | {concurrent_tabs} صفحات متزامنة حقيقية ⚡")
 
         user_data_dir = os.path.join(BASE_DIR, "browser_session")
-        os.makedirs(user_data_dir, exist_ok=True)
+        clean_browser_session_locks(user_data_dir)
+
+        browser_launch_args = [
+            "--start-maximized",
+            "--disable-blink-features=AutomationControlled",
+            "--disable-infobars",
+            "--no-sandbox",
+            "--disable-background-timer-throttling",
+            "--disable-backgrounding-occluded-windows",
+            "--disable-renderer-backgrounding",
+            "--disable-features=CalculateNativeWinOcclusion",
+            "--disable-features=IntensiveWakeUpThrottling"
+        ]
 
         async with async_playwright() as p:
-            context = await p.chromium.launch_persistent_context(
-                user_data_dir=user_data_dir,
-                headless=False,
-                viewport={"width": 1280, "height": 850},
-                user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                locale="ar-SY",
-                timezone_id="Asia/Damascus",
-                args=[
-                    "--start-maximized",
-                    "--disable-blink-features=AutomationControlled",
-                    "--disable-infobars",
-                    "--no-sandbox",
-                    "--disable-background-timer-throttling",
-                    "--disable-backgrounding-occluded-windows",
-                    "--disable-renderer-backgrounding",
-                    "--disable-features=CalculateNativeWinOcclusion",
-                    "--disable-features=IntensiveWakeUpThrottling"
-                ]
-            )
+            context = None
+            for attempt in range(2):
+                try:
+                    context = await p.chromium.launch_persistent_context(
+                        user_data_dir=user_data_dir,
+                        headless=False,
+                        viewport={"width": 1280, "height": 850},
+                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                        locale="ar-SY",
+                        timezone_id="Asia/Damascus",
+                        args=browser_launch_args
+                    )
+                    break
+                except Exception as ex:
+                    if attempt == 0:
+                        self.log("⚠️ تم رصد حجز سابق لملفات المتصفح، جاري إعادة تحرير الجلسة والبدء...")
+                        clean_browser_session_locks(user_data_dir)
+                        await asyncio.sleep(1.0)
+                    else:
+                        raise ex
 
             await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
 
@@ -1835,6 +1887,8 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             if task_manager.is_running:
                 self.send_json({"success": False, "message": "⚠️ يرجى إيقاف عملية السحب أولاً بالضغط على 'إيقاف السحب' قبل فتح نافذة تسجيل الدخول!"})
                 return
+            user_data_dir = os.path.join(BASE_DIR, "browser_session")
+            clean_browser_session_locks(user_data_dir)
             login_script = os.path.join(BASE_DIR, "login.py")
             flags = getattr(subprocess, 'CREATE_NEW_CONSOLE', 0)
             subprocess.Popen([sys.executable, login_script], cwd=BASE_DIR, creationflags=flags)

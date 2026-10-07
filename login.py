@@ -34,22 +34,48 @@ def run_login_helper(target_url: str = "https://www.facebook.com/login.php", use
 ================================================================
 """)
 
+    # تنظيف أي أقفال أو عمليات عالقة سابقة
+    for lock in ["lockfile", "SingletonLock", "SingletonCookie", "SingletonSocket"]:
+        lp = os.path.join(session_path, lock)
+        if os.path.exists(lp):
+            try:
+                os.remove(lp)
+            except Exception:
+                pass
+
     with sync_playwright() as p:
         print("[+] جاري تشغيل المتصفح...")
-        context = p.chromium.launch_persistent_context(
-            user_data_dir=session_path,
-            headless=False,
-            viewport=None,  # يفتح بحجم النافذة الطبيعي
-            user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-            locale="ar-SY",
-            timezone_id="Asia/Damascus",
-            args=[
-                "--start-maximized",
-                "--disable-blink-features=AutomationControlled",
-                "--disable-infobars",
-                "--no-sandbox"
-            ]
-        )
+        context = None
+        for attempt in range(2):
+            try:
+                context = p.chromium.launch_persistent_context(
+                    user_data_dir=session_path,
+                    headless=False,
+                    viewport=None,  # يفتح بحجم النافذة الطبيعي
+                    user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                    locale="ar-SY",
+                    timezone_id="Asia/Damascus",
+                    args=[
+                        "--start-maximized",
+                        "--disable-blink-features=AutomationControlled",
+                        "--disable-infobars",
+                        "--no-sandbox"
+                    ]
+                )
+                break
+            except Exception as e:
+                if attempt == 0:
+                    print("⚠️ تم رصد حجز سابق للجلسة، جاري تنظيف الأقفال والمحاولة...")
+                    import subprocess
+                    if sys.platform == "win32":
+                        try:
+                            cmd = "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*browser_session*' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }"
+                            subprocess.run(["powershell", "-NoProfile", "-Command", cmd], capture_output=True, timeout=5)
+                        except Exception:
+                            pass
+                    time.sleep(1)
+                else:
+                    raise e
 
         context.add_init_script("""
             Object.defineProperty(navigator, 'webdriver', {
