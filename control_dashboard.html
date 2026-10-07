@@ -352,21 +352,30 @@
   <!-- تبويب 5: الإعدادات -->
   <div class="tab-content" id="tab-settings">
     <div class="card" style="max-width:650px; margin:0 auto;">
-      <div class="card-title">🔑 إعدادات المفاتيح والربط</div>
-      
-      <div class="form-group">
-        <label>مفتاح Gemini API المجاني (للتدقيق والهيكلة):</label>
-        <input type="password" class="form-control" id="setGeminiKey" placeholder="AIzaSy...">
+      <div class="card-title">⚙️ الإعدادات والربط الآلي</div>
+
+      <div style="background:rgba(16,185,129,0.12); border:1px solid #10b981; border-radius:12px; padding:14px; margin-bottom:18px; color:#a7f3d0; font-size:13px; line-height:1.6;">
+        <div style="font-weight:800; font-size:14px; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+          <span>🟢</span> <span>المنظومة مهيأة وتعمل بالكامل تلقائياً (لا يلزم إدخال أي مفتاح)</span>
+        </div>
+        • محرك الذكاء الاصطناعي، الرقابة الشرعية، واستخراج المواصفات السورية يعمل محلياً وتلقائياً.<br>
+        • مفتاح الربط والتوثيق مع منصة للبيع مدمج وموثق مسبقاً.<br>
+        • التحديث التلقائي وتنزيل الملفات عبر مشغل EXE يعمل برابط GitHub المباشر وبدون أي مفاتيح أو تسجيل دخول.
       </div>
 
       <div class="form-group">
-        <label>رابط API الموقع (للنشر المباشر عبر الشبكة إن وُجد):</label>
-        <input type="text" class="form-control" id="setWebUrl" placeholder="https://example.com/api/ads">
+        <label>رابط API الموقع (مدمج وجاهز):</label>
+        <input type="text" class="form-control" id="setWebUrl" placeholder="https://api.lelbai.com/public/api/listings" readonly style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
       </div>
 
       <div class="form-group">
-        <label>مفتاح توثيق الموقع (Authorization Token):</label>
-        <input type="password" class="form-control" id="setWebKey" placeholder="Bearer Token...">
+        <label>مفتاح توثيق الموقع (مدمج وموثق مسبقاً):</label>
+        <input type="password" class="form-control" id="setWebKey" value="●●●●●●●●●●●●●●●●" readonly style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+      </div>
+
+      <div class="form-group">
+        <label>مفتاح Gemini API (اختياري إضافي فقط - غير مطلوب):</label>
+        <input type="password" class="form-control" id="setGeminiKey" placeholder="غير مطلوب، النظام يعمل ذاتياً بدون مفتاح">
       </div>
 
       <button class="btn btn-primary" onclick="saveSettings()">💾 حفظ الإعدادات</button>
