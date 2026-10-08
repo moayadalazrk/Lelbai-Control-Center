@@ -474,23 +474,35 @@ class SyrianAdScraper:
                 except Exception:
                     pass
 
-            if "Log In" in page_text or "تسجيل الدخول" in page_text or "login" in page.url.lower():
-                print("\n" + "="*65)
-                print("🔐 تنبيه: المجموعة أو الصفحة تتطلب تسجيل الدخول.")
-                print("👉 يرجى تسجيل الدخول إلى حسابك في نافذة المتصفح المفتوحة الآن.")
-                print("⏳ البوت ينتظرك لإتمام تسجيل الدخول...")
-                print("="*65)
+            is_checkpoint = "checkpoint" in current_url_lower or "أدخل الرمز" in page_text or "security code" in page_text.lower() or "رمز الأمان" in page_text or "تأكيد الهوية" in page_text
+            is_login = "Log In" in page_text or "تسجيل الدخول" in page_text or "login" in page.url.lower()
+
+            if is_login or is_checkpoint:
+                if is_checkpoint:
+                    print("\n" + "="*65)
+                    print("⚠️ تنبيه أمني من فيسبوك: يطلب إدخال رمز التحقق/التأكيد (Checkpoint).")
+                    print("👉 يرجى فتح نافذة المتصفح الظاهرة أمامك، إدخال الرمز، والضغط على متابعة.")
+                    print("⏳ البوت ينتظرك لإتمام تأكيد الحساب في المتصفح...")
+                    print("="*65)
+                else:
+                    print("\n" + "="*65)
+                    print("🔐 تنبيه: المجموعة أو الصفحة تتطلب تسجيل الدخول.")
+                    print("👉 يرجى تسجيل الدخول إلى حسابك في نافذة المتصفح المفتوحة الآن.")
+                    print("⏳ البوت ينتظرك لإتمام تسجيل الدخول...")
+                    print("="*65)
                 
-                # انتظار تسجيل الدخول
-                for _ in range(120): # مهلة 4 دقائق
+                # انتظار تسجيل الدخول أو إدخال الكود
+                for _ in range(150): # مهلة 5 دقائق
                     time.sleep(2)
                     current_text = page.locator("body").inner_text() if page.locator("body").count() > 0 else ""
-                    if "Log In" not in current_text and "تسجيل الدخول" not in current_text and "login" not in page.url.lower():
-                        print("[✔] تم إتمام تسجيل الدخول بنجاح! جاري حفظ الجلسة ومتابعة السحب...")
+                    current_u = page.url.lower()
+                    if "Log In" not in current_text and "تسجيل الدخول" not in current_text and "login" not in current_u and "checkpoint" not in current_u and "أدخل الرمز" not in current_text:
+                        print("[✔] تم تأكيد وتسجيل الدخول بنجاح! جاري حفظ الجلسة ومتابعة السحب...")
                         try:
                             context.storage_state(path=os.path.join(self.user_data_dir, "auth_state.json"))
                         except Exception:
                             pass
+                        break
             # فحص ما إذا كانت الصفحة غير متوفرة أو الرابط خاطئ
             if "هذا المحتوى غير متوفر" in page_text or "This content isn't available" in page_text or "Page Not Found" in page_text:
                 print("\n" + "!"*65)
