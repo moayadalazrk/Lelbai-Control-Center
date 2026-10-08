@@ -570,7 +570,7 @@ namespace LelbaiLauncher
                     // تطبيق التحديث باستخدام reset --hard لضمان عدم التعليق أو رفض الدمج بسبب اختلافات الملفات المحلية
                     string targetBranch = !string.IsNullOrEmpty(remoteHead) ? (RunCommandWithOutput("git", "branch -r", dir).Contains("origin/main") ? "origin/main" : "origin/master") : "origin/main";
 
-                    RunCommand("git", "checkout -B main " + targetBranch, dir, 25000);
+                    RunCommand("git", "checkout -f -B main " + targetBranch, dir, 25000);
                     RunCommand("git", "reset --hard " + targetBranch, dir, 25000);
                     RunCommand("git", "clean -fd -e imgs/ -e *.json", dir, 15000);
 
@@ -633,7 +633,7 @@ namespace LelbaiLauncher
                     RunCommand("git", "remote remove origin", dir, 5000);
                     RunCommand("git", "remote add origin " + DefaultRepoUrl, dir, 15000);
                     RunCommand("git", "fetch origin", dir, 30000);
-                    RunCommand("git", "checkout -B main origin/main", dir, 20000);
+                    RunCommand("git", "checkout -f -B main origin/main", dir, 20000);
                     RunCommand("git", "reset --hard origin/main", dir, 20000);
                     if (Directory.Exists(Path.Combine(dir, ".git")))
                     {
