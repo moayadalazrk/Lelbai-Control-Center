@@ -5,9 +5,8 @@ echo ======================================================================
 echo    🚀 جاري رفع منظومة مركز التحكم إلى GitHub تلقائياً...
 echo ======================================================================
 echo.
-
-git push -u origin master
-if %errorlevel% neq 0 (
+git push -u origin main
+git push origin main:master
     echo.
     echo ⚠️ المستودع غير موجود بعد على حسابك في GitHub.
     echo 🌐 جاري فتح صفحة إنشاء المستودع في المتصفح الآن (الاسم مكتوب جاهز)...
@@ -23,7 +22,8 @@ if %errorlevel% neq 0 (
     pause >nul
     echo.
     echo 🚀 جاري رفع كافة الملفات إلى GitHub...
-    git push -u origin master
+    git push -u origin main
+    git push origin main:master
 )
 
 if %errorlevel% equ 0 (
