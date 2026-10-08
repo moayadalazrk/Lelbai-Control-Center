@@ -171,7 +171,16 @@ def get_ordered_groups(start_mode: str = "smart", groups: List[Dict[str, Any]] =
     return groups[target_idx:] + groups[:target_idx]
 
 # تقييم الإعلان بالمراحل الشاملة (الذكاء الاصطناعي الفائق، التصنيف في أصغر ابن، المواصفات، الشريعة، حساب وهمي، عدم التكرار)
-def enrich_ad_status(ad: Dict[str, Any]) -> Dict[str, Any]:
+def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str, Any]:
+    if not isinstance(ad, dict):
+        return {}
+        
+    # تسريع الاستجابة إذا كان الإعلان مفحوصاً ومكتمل التقييم مسبقاً
+    if not force_recalc and ad.get("evaluation") and ad.get("clean_title") and ad.get("publisher_name"):
+        ev = ad.get("evaluation", {})
+        if "specs_details" in ev and "sharia_details" in ev:
+            return ad
+
     from ai_ad_enhancer import enhance_ad_with_super_ai
     # 1. تعزيز الإعلان بالذكاء الاصطناعي (عنوان نخبوي، وصف مهيكل، وأدق تصنيف أصغر فئة)
     ad_copy = enhance_ad_with_super_ai(ad)
@@ -202,24 +211,24 @@ def enrich_ad_status(ad: Dict[str, Any]) -> Dict[str, Any]:
     ad_copy["duplicate_reason"] = dup_reason
 
     # 5. اكتمال المواصفات
-    has_images = len(ad.get("nimages", [])) > 0
-    has_desc = bool(ad.get("clean_description") or ad.get("description"))
-    has_title = bool(ad.get("clean_title"))
-    has_phone = bool(ad.get("phone_number"))
-    has_city = bool(ad.get("id-citie") or ad.get("city_name") or ad.get("location_detected"))
-    has_price = ad.get("price_info", {}).get("amount") is not None
+    has_images = len(ad_copy.get("nimages", [])) > 0
+    has_desc = bool(ad_copy.get("clean_description") or ad_copy.get("description"))
+    has_title = bool(ad_copy.get("clean_title") or ad_copy.get("title"))
+    has_phone = bool(ad_copy.get("phone_number"))
+    has_city = bool(ad_copy.get("id-citie") or ad_copy.get("city_name") or ad_copy.get("location_detected"))
+    has_price = ad_copy.get("price_info", {}).get("amount") is not None
     
     is_specs_complete = has_images and has_desc and has_title and has_phone and has_city
     
     # 6. الفحص الشرعي والرقابي
-    raw_flags = ad.get("flags", [])
+    raw_flags = ad_copy.get("flags", [])
     flags = [f for f in raw_flags if f != "no_api_key_provided"]
-    is_safe = ad.get("is_safe", True) and len(flags) == 0
+    is_safe = ad_copy.get("is_safe", True) and len(flags) == 0
     
     # 7. الجاهزية للنشر (مكتمل + سليم شرعياً + غير مكرر على الموقع)
     is_ready_to_publish = is_specs_complete and is_safe and not is_duplicate
     
-    summary_text = ad.get("moderation_summary")
+    summary_text = ad_copy.get("moderation_summary")
     if not summary_text or summary_text == "بانتظار إضافة مفتاح Gemini API للمراجعة الآلية":
         summary_text = "مطابق للشريعة وضوابط المنصة بالكامل 🟢" if is_safe else "تم رصد ملاحظات تحتاج لمراجعة"
 
@@ -239,14 +248,14 @@ def enrich_ad_status(ad: Dict[str, Any]) -> Dict[str, Any]:
         "is_specs_complete": is_specs_complete,
         "specs_details": {
             "has_images": has_images,
-            "images_count": len(ad.get("nimages", [])),
+            "images_count": len(ad_copy.get("nimages", [])),
             "has_desc": has_desc,
             "has_title": has_title,
             "has_phone": has_phone,
             "has_city": has_city,
             "has_price": has_price,
-            "city_name": ad.get("city_name") or ad.get("location_detected") or "غير محدد",
-            "sub_district_name": ad.get("sub_district_name") or "عام"
+            "city_name": ad_copy.get("city_name") or ad_copy.get("location_detected") or "دمشق",
+            "sub_district_name": ad_copy.get("sub_district_name") or "عام"
         },
         "is_sharia_compliant": is_safe,
         "sharia_details": {
@@ -2043,6 +2052,11 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/ads":
             raw_pending = read_json_file(PENDING_FILE)
+            if not raw_pending:
+                all_ads = read_json_file(ALL_ADS_FILE)
+                if all_ads:
+                    raw_pending = all_ads
+                    write_json_file(PENDING_FILE, raw_pending)
             published = read_json_file(PUBLISHED_FILE)
             flagged = read_json_file(FLAGGED_FILE)
 
@@ -2075,8 +2089,12 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                 time_str = f"{h:02d}:{m:02d}:{s:02d}"
 
                 raw_pending = read_json_file(PENDING_FILE)
+                if not raw_pending:
+                    raw_pending = read_json_file(ALL_ADS_FILE)
                 published = read_json_file(PUBLISHED_FILE)
                 flagged = read_json_file(FLAGGED_FILE)
+
+                ready_ads = [p for p in raw_pending if enrich_ad_status(p).get("evaluation", {}).get("is_ready_to_publish")]
 
                 resp = {
                     "is_running": task_manager.is_running,
@@ -2087,7 +2105,7 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                     "active_tabs": task_manager.active_tabs,
                     "logs": task_manager.logs[-25:],
                     "pending_count": len(raw_pending),
-                    "ready_count": len([p for p in raw_pending if enrich_ad_status(p).get("evaluation", {}).get("is_ready_to_publish")]),
+                    "ready_count": len(ready_ads),
                     "published_count": len(published),
                     "flagged_count": len(flagged)
                 }
@@ -2101,8 +2119,15 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 
         elif path.startswith("/imgs/"):
             img_name = os.path.basename(path)
-            img_path = os.path.join(IMGS_DIR, img_name)
-            if os.path.exists(img_path):
+            candidate_paths = [
+                os.path.join(IMGS_DIR, img_name),
+                os.path.join(BASE_DIR, "imgs", img_name),
+                os.path.join(BASE_DIR, "assets", "imgs", img_name),
+                os.path.expanduser(os.path.join("~/Desktop/1/imgs", img_name)),
+                os.path.expanduser(os.path.join("~/Desktop/تنزيل الاعلانات/asstes/imgs", img_name))
+            ]
+            img_path = next((p for p in candidate_paths if os.path.exists(p)), None)
+            if img_path:
                 ext = img_name.split(".")[-1].lower()
                 mime = "image/webp" if ext == "webp" else ("image/jpeg" if ext in ["jpg", "jpeg"] else "image/png")
                 self.send_response(200)

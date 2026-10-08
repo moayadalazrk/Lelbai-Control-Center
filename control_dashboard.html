@@ -716,8 +716,14 @@
       } catch (e) {}
     }
 
+    let adsLimit = 60;
+
     async function loadAllAds() {
       try {
+        const grid = document.getElementById('adsCardsGrid');
+        if (adsData.length === 0 && grid) {
+          grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px; color:#60a5fa; font-weight:800; font-size:16px;">⏳ جاري تجهيز وعرض الإعلانات...</div>`;
+        }
         const res = await apiFetch('/api/ads');
         const data = await res.json();
         adsData = data.pending || [];
@@ -738,11 +744,14 @@
 
         renderAdsGrid();
         renderPublishedGrid();
-      } catch (e) {}
+      } catch (e) {
+        console.error("Error loading ads:", e);
+      }
     }
 
     function filterAds(type, el) {
       currentFilter = type;
+      adsLimit = 60;
       el.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
       el.classList.add('active');
       renderAdsGrid();
@@ -759,7 +768,8 @@
         return;
       }
 
-      grid.innerHTML = filtered.map((ad, idx) => {
+      const visibleAds = filtered.slice(0, adsLimit);
+      const cardsHtml = visibleAds.map((ad, idx) => {
         const ev = ad.evaluation || {};
         const sp = ev.specs_details || {};
         const sh = ev.sharia_details || {};
@@ -786,7 +796,7 @@
 
         const shariaStatusHtml = sh.is_safe ?
           `<span style="color:#34d399;">🟢 مطابق للشريعة والضوابط الرقابية 100%</span>` :
-          `<span style="color:#f87171;">⚠️ مخالف: ${sh.flags.join(', ')}</span>`;
+          `<span style="color:#f87171;">⚠️ مخالف: ${(sh.flags || []).join(', ')}</span>`;
 
         const dupStatusHtml = ad.is_duplicate ?
           `<span style="color:#ef4444; font-weight:700;">⚠️ مكرر مسبقاً على الموقع</span>` :
@@ -895,6 +905,22 @@
           </div>
         `;
       }).join('');
+
+      let moreHtml = '';
+      if (filtered.length > adsLimit) {
+        moreHtml = `
+          <div style="grid-column:1/-1; text-align:center; padding:24px; background:var(--card-inner); border-radius:14px; border:1px solid var(--border); margin-top:15px; display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap;">
+            <button class="btn btn-primary" onclick="adsLimit += 60; renderAdsGrid();" style="padding:12px 24px; font-weight:800; font-size:14px;">
+              📥 عرض المزيد من الإعلانات (+60) [المعروض حالياً ${visibleAds.length} من ${filtered.length}]
+            </button>
+            <button class="btn btn-outline" onclick="adsLimit = filtered.length; renderAdsGrid();" style="padding:12px 24px; font-weight:800; font-size:14px;">
+              ⚡ عرض كافة الإعلانات دفعة واحدة (${filtered.length})
+            </button>
+          </div>
+        `;
+      }
+
+      grid.innerHTML = cardsHtml + moreHtml;
     }
 
     const activePublishing = new Set();
