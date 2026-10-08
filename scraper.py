@@ -90,6 +90,20 @@ def clean_browser_session_locks(user_data_dir: str):
             except Exception:
                 pass
 
+    pref_file = os.path.join(user_data_dir, "Default", "Preferences")
+    if os.path.exists(pref_file):
+        try:
+            import json
+            with open(pref_file, "r", encoding="utf-8") as f:
+                pref_data = json.load(f)
+            if "profile" in pref_data and isinstance(pref_data["profile"], dict):
+                pref_data["profile"]["exit_type"] = "Normal"
+                pref_data["profile"]["exited_cleanly"] = True
+            with open(pref_file, "w", encoding="utf-8") as f:
+                json.dump(pref_data, f)
+        except Exception:
+            pass
+
 def get_playwright_channel():
     chrome_paths = [
         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -447,9 +461,20 @@ class SyrianAdScraper:
 
             time.sleep(3)
 
-            # فحص ما إذا كانت الصفحة تطلب تسجيل الدخول
+            # فحص ما إذا كانت الصفحة تطلب تسجيل الدخول أو تم التحويل لصفحة التسجيل
+            current_url_lower = page.url.lower()
             page_text = page.locator("body").inner_text() if page.locator("body").count() > 0 else ""
-            if "Log In" in page_text or "تسجيل الدخول" in page_text or "log in" in page.url.lower():
+            
+            if "/reg" in current_url_lower or "logged_out_dialog" in current_url_lower:
+                print("\n[+] تم رصد صفحة إنشاء حساب، جاري التحويل التلقائي لصفحة تسجيل الدخول المباشرة...")
+                try:
+                    page.goto("https://www.facebook.com/login/", wait_until="domcontentloaded", timeout=15000)
+                    time.sleep(2)
+                    page_text = page.locator("body").inner_text() if page.locator("body").count() > 0 else ""
+                except Exception:
+                    pass
+
+            if "Log In" in page_text or "تسجيل الدخول" in page_text or "login" in page.url.lower():
                 print("\n" + "="*65)
                 print("🔐 تنبيه: المجموعة أو الصفحة تتطلب تسجيل الدخول.")
                 print("👉 يرجى تسجيل الدخول إلى حسابك في نافذة المتصفح المفتوحة الآن.")

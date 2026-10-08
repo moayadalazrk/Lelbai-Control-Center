@@ -80,6 +80,20 @@ def clean_browser_session_locks(user_data_dir: str):
             except Exception:
                 pass
 
+    pref_file = os.path.join(user_data_dir, "Default", "Preferences")
+    if os.path.exists(pref_file):
+        try:
+            import json
+            with open(pref_file, "r", encoding="utf-8") as f:
+                pref_data = json.load(f)
+            if "profile" in pref_data and isinstance(pref_data["profile"], dict):
+                pref_data["profile"]["exit_type"] = "Normal"
+                pref_data["profile"]["exited_cleanly"] = True
+            with open(pref_file, "w", encoding="utf-8") as f:
+                json.dump(pref_data, f)
+        except Exception:
+            pass
+
 def find_installed_browser():
     candidates = [
         r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -101,7 +115,7 @@ def get_playwright_channel():
         return "chrome" if "chrome" in b.lower() else "msedge"
     return None
 
-def run_login_helper(target_url: str = "https://www.facebook.com/", user_data_dir: str = None):
+def run_login_helper(target_url: str = "https://www.facebook.com/login/", user_data_dir: str = None):
     if not user_data_dir:
         user_data_dir = os.path.join(BASE_DIR, "browser_session")
     session_path = os.path.abspath(user_data_dir)
@@ -118,11 +132,12 @@ def run_login_helper(target_url: str = "https://www.facebook.com/", user_data_di
           🌐 تشغيل المتصفح الرسمي المباشر لتسجيل الدخول 
 ================================================================
   🟢 تم العثور على المتصفح الرسمي: {browser_name}
-  🚀 سيتم فتح المتصفح الحقيقي مباشرة (بدون أي أتمتة أو محاكاة).
+  🚀 سيتم فتح صفحة تسجيل الدخول المباشرة (بدون أي أتمتة أو محاكاة).
   ✨ هذا يضمن عدم تعليق زر تسجيل الدخول أو ظهور شاشة تحميل أبدية.
   
   💡 تعليمات هامة:
-  1. نافذة المتصفح ستفتح أمامك الآن على موقع فيسبوك.
+  1. نافذة المتصفح ستفتح أمامك الآن على صفحة تسجيل الدخول:
+     (الإيميل + كلمة المرور فقط).
   2. أدخل إيميلك وكلمة المرور وسجل دخولك بشكل طبيعي تماماً.
   3. (إذا كان الإنترنت في سوريا بطيئاً، تأكد من تشغيل الـ VPN
       أو يمكنك أيضاً الدخول من النسخة الخفيفة: https://m.facebook.com)
@@ -136,6 +151,7 @@ def run_login_helper(target_url: str = "https://www.facebook.com/", user_data_di
             f"--user-data-dir={session_path}",
             "--no-first-run",
             "--no-default-browser-check",
+            "--disable-session-crashed-bubble",
             "--start-maximized",
             target_url
         ]
