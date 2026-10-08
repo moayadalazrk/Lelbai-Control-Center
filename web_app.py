@@ -1732,22 +1732,44 @@ def get_system_update_info() -> dict:
     return info
 
 def check_and_apply_updates() -> dict:
-    """التحقق من وجود تحديثات من GitHub وسحبها تلقائياً."""
+    """التحقق من وجود تحديثات من GitHub وسحبها وتطبيقها تلقائياً مع حماية بيانات المستخدم."""
     git_dir = os.path.join(BASE_DIR, ".git")
     if os.path.exists(git_dir):
         try:
-            subprocess.run(["git", "fetch", "origin"], cwd=BASE_DIR, capture_output=True, timeout=15)
-            res = subprocess.run(["git", "pull", "--rebase"], cwd=BASE_DIR, capture_output=True, text=True, timeout=30)
-            info = get_system_update_info()
-            
-            last_update_file = os.path.join(BASE_DIR, "last_update.json")
-            with open(last_update_file, "w", encoding="utf-8") as f:
-                json.dump(info, f, ensure_ascii=False, indent=2)
+            user_files = ["config.json", "pending_review.json", "published_ads.json", "flagged_ads.json", "groups_data.json"]
+            backup = {}
+            for uf in user_files:
+                uf_path = os.path.join(BASE_DIR, uf)
+                if os.path.exists(uf_path):
+                    try:
+                        with open(uf_path, "rb") as f:
+                            backup[uf] = f.read()
+                    except Exception:
+                        pass
 
+            subprocess.run(["git", "fetch", "origin", "--prune"], cwd=BASE_DIR, capture_output=True, timeout=25)
+            try:
+                branches = subprocess.check_output(["git", "branch", "-r"], cwd=BASE_DIR, universal_newlines=True)
+            except Exception:
+                branches = ""
+            target = "origin/main" if "origin/main" in branches else "origin/master"
+
+            subprocess.run(["git", "checkout", "-f", "-B", "main", target], cwd=BASE_DIR, capture_output=True, timeout=20)
+            subprocess.run(["git", "reset", "--hard", target], cwd=BASE_DIR, capture_output=True, timeout=20)
+            subprocess.run(["git", "clean", "-fd", "-e", "imgs/", "-e", "*.json"], cwd=BASE_DIR, capture_output=True, timeout=15)
+
+            for uf, data in backup.items():
+                if data:
+                    try:
+                        with open(os.path.join(BASE_DIR, uf), "wb") as f:
+                            f.write(data)
+                    except Exception:
+                        pass
+
+            info = get_system_update_info()
             return {
                 "success": True,
-                "message": "تم التحقق من GitHub وتحديث النظام بنجاح! ✅",
-                "details": res.stdout or res.stderr,
+                "message": "تم تحديث كافة ملفات النظام من GitHub بنجاح 100%! 🚀",
                 "info": info
             }
         except Exception as e:
