@@ -153,10 +153,10 @@
   <div class="navbar">
     <div class="brand">🚀 منصة إعلانات سوريا 🇸🇾 <span style="font-size:13px; color:var(--text-muted); font-weight:400;">(لوحة التحكم وسحب المجموعات والنشر)</span></div>
     <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-      <!-- زر تشغيل لوحة المنجر وكافة السيرفرات -->
-      <button class="btn btn-primary btn-sm" id="btnLaunchManager" onclick="launchManager()" style="display:inline-flex; align-items:center; gap:8px; font-weight:800; padding:8px 16px; border-radius:10px; background:linear-gradient(135deg, #1d4ed8, #2563eb); border:1px solid #3b82f6; box-shadow:0 3px 12px rgba(37,99,235,0.35); cursor:pointer;" title="تشغيل لوحة تحكم المنجر وكافة سيرفرات المنصة وفتح الصفحة (http://localhost:8002)">
-        <span>🖥️ تشغيل لوحة المنجر والسيرفرات</span>
-        <span id="managerStatusDot" style="width:10px; height:10px; border-radius:50%; background:#ef4444; display:inline-block; box-shadow:0 0 6px #ef4444;" title="سيرفر المنجر متوقف"></span>
+      <!-- زر تشغيل لوحة الإدارة (المنجر) وكافة السيرفرات -->
+      <button class="btn btn-primary btn-sm" id="btnLaunchManager" onclick="launchManager()" style="display:inline-flex; align-items:center; gap:8px; font-weight:800; padding:8px 16px; border-radius:10px; background:linear-gradient(135deg, #1d4ed8, #2563eb); border:1px solid #3b82f6; box-shadow:0 3px 12px rgba(37,99,235,0.35); cursor:pointer;" title="تشغيل وفتح لوحة تحكم الإدارة (المنجر) والسيرفرات">
+        <span>🖥️ صفحة الإدارة (المنجر)</span>
+        <span id="managerStatusDot" data-online="false" style="width:10px; height:10px; border-radius:50%; background:#ef4444; display:inline-block; box-shadow:0 0 6px #ef4444;" title="سيرفر الإدارة متوقف"></span>
       </button>
 
       <!-- شارة تاريخ آخر تحديث للنظام -->
@@ -270,6 +270,26 @@
           <div class="form-group">
             <label>📁 مجلد استيراد الموقع:</label>
             <input type="text" class="form-control" id="inpImportDir" value="" placeholder="تلقائي: سطح المكتب \ إعلانات_للاستيراد (أو اختر مساراً مخصصاً)">
+          </div>
+        <div class="form-group" style="margin-top:14px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
+          <label style="font-weight:700; color:#60a5fa; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
+            <span>🎯 نقطة انطلاق السحب:</span>
+          </label>
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <select class="form-control" id="scrapeStartMode" onchange="updateScrapeStartPreview()">
+              <option value="smart">🌟 تلقائي ذكي: من آخر صفحة انضافت أو سُحبت (موصى به)</option>
+              <option value="last_added">🆕 من آخر صفحة انضافت أولاً</option>
+              <option value="last_scraped">🕒 من آخر صفحة تم السحب منها</option>
+              <option value="first">🔢 من أول صفحة بالقائمة</option>
+              <option value="custom">📌 اختيار صفحة محددة للبدء منها...</option>
+            </select>
+            <select class="form-control" id="scrapeCustomGroupSelect" onchange="updateScrapeStartPreview()" style="display:none;">
+              <!-- يتم الملء ديناميكياً عبر JavaScript -->
+            </select>
+          </div>
+          <div id="scrapeStartInfoBox" style="font-size:12px; margin-top:8px; color:#38bdf8; font-weight:700; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <span>🚀 سيبدأ السحب من:</span>
+            <span id="scrapeStartGroupName" style="color:#4ade80;">جاري التحميل...</span>
           </div>
         </div>
 
@@ -512,57 +532,94 @@
       }
     }
 
-    // تشغيل لوحة المنجر وكافة سيرفراتها
+    // تشغيل وفتح لوحة الإدارة (المنجر) وكافة سيرفراتها
     async function launchManager() {
       const btn = document.getElementById('btnLaunchManager');
       const dot = document.getElementById('managerStatusDot');
-      const origText = btn.innerHTML;
-      btn.disabled = true;
-      btn.innerHTML = `<span>⏳ جاري تشغيل المنجر والسيرفرات...</span>`;
+      const origText = btn ? btn.innerHTML : '';
+
+      const currentHost = (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+        ? window.location.hostname
+        : 'localhost';
+      let targetUrl = `http://${currentHost}:8002`;
+
+      // إذا كانت سيرفرات الإدارة تعمل مسبقاً، افتح الصفحة فوراً في تبويب جديد دون إعادة تشغيل
+      if (dot && dot.getAttribute('data-online') === 'true') {
+        window.open(targetUrl, '_blank');
+        return;
+      }
+
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>⏳ جاري تشغيل صفحة الإدارة والسيرفرات...</span>`;
+      }
       
       try {
         const res = await fetch(`${API_BASE}/api/launch_manager`, { method: 'POST' });
         const data = await res.json();
         if (data.success) {
-          alert("🚀 " + (data.message || "تم إطلاق سيرفرات المنجر بنجاح وفتح لوحة التحكم!"));
+          if (data.url) {
+            targetUrl = data.url;
+            if (currentHost !== 'localhost') {
+              targetUrl = targetUrl.replace('localhost', currentHost).replace('127.0.0.1', currentHost);
+            }
+          }
           if (dot) {
             dot.style.background = '#10b981';
             dot.style.boxShadow = '0 0 8px #10b981';
-            dot.title = 'سيرفر المنجر متصل (port 8002)';
+            dot.setAttribute('data-online', 'true');
+            dot.title = `صفحة الإدارة متصلة وجاهزة (${targetUrl})`;
           }
-          if (data.url) {
-            window.open(data.url, '_blank');
-          }
+          alert("🚀 " + (data.message || "تم إطلاق سيرفرات الإدارة بنجاح وفتح لوحة التحكم!"));
+          window.open(targetUrl, '_blank');
         } else {
-          alert("❌ " + (data.message || "فشل تشغيل سيرفرات المنجر."));
+          alert("❌ " + (data.message || "فشل تشغيل سيرفرات الإدارة."));
         }
       } catch (err) {
-        alert("تعذر الاتصال بسيرفر لوحة التحكم المحلي (تأكد من تشغيل السيرفر أولاً)");
+        alert("تعذر الاتصال بسيرفر لوحة التحكم المحلي (تأكد من تشغيل start_app.bat أولاً)");
       } finally {
-        btn.disabled = false;
-        btn.innerHTML = origText;
+        if (btn) {
+          btn.disabled = false;
+          btn.innerHTML = origText;
+        }
         checkManagerStatus();
       }
     }
 
-    // فحص حالة سيرفر المنجر دورياً
+    // فحص حالة سيرفر الإدارة دورياً وتحديث الروابط حسب الجهاز المتصل
     async function checkManagerStatus() {
       const dot = document.getElementById('managerStatusDot');
+      const btn = document.getElementById('btnLaunchManager');
       if (!dot) return;
+
+      const currentHost = (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+        ? window.location.hostname
+        : 'localhost';
+      const targetUrl = `http://${currentHost}:8002`;
+
       try {
         const res = await fetch(`${API_BASE}/api/manager_status`);
         const data = await res.json();
         if (data.manager_running) {
           dot.style.background = '#10b981';
           dot.style.boxShadow = '0 0 8px #10b981';
-          dot.title = 'سيرفر المنجر متصل وجاهز (port 8002)';
+          dot.setAttribute('data-online', 'true');
+          dot.title = `صفحة الإدارة متصلة وجاهزة (${targetUrl}) - انقر للفتح المباشر`;
+          if (btn) {
+            btn.title = `صفحة الإدارة تعمل بنشاط. انقر للفتح المباشر في المتصفح (${targetUrl})`;
+          }
         } else {
           dot.style.background = '#ef4444';
           dot.style.boxShadow = '0 0 8px #ef4444';
-          dot.title = 'سيرفر المنجر متوقف حالياً. انقر للتشغيل';
+          dot.setAttribute('data-online', 'false');
+          dot.title = 'سيرفر الإدارة متوقف حالياً. انقر للتشغيل';
+          if (btn) {
+            btn.title = 'تشغيل لوحة تحكم الإدارة (المنجر) والسيرفرات وفتح الصفحة';
+          }
         }
       } catch (e) {
         dot.style.background = '#6b7280';
+        dot.setAttribute('data-online', 'false');
         dot.title = 'السيرفر غير متصل';
       }
     }
@@ -620,6 +677,9 @@
         groupsData = await res.json();
         document.getElementById('stTotalLinks').innerText = groupsData.length;
 
+        populateCustomGroupSelect();
+        updateScrapeStartPreview();
+
         const tbody = document.getElementById('groupsTableBody');
         if (groupsData.length === 0) {
           tbody.innerHTML = `<tr><td colspan="8" style="text-align:center; padding:30px; color:var(--text-muted);">لا توجد روابط محفوظة حالياً. اضغط "إضافة رابط جديد" للبدء.</td></tr>`;
@@ -627,10 +687,15 @@
         }
 
         tbody.innerHTML = groupsData.map((g, idx) => `
-          <tr>
+          <tr style="${g.is_smart_start ? 'background:rgba(5,150,105,0.08);' : ''}">
             <td style="font-weight:700;">${idx+1}</td>
             <td>
-              <div style="font-weight:800; color:#f8fafc;">${g.name}</div>
+              <div style="font-weight:800; color:#f8fafc; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                <span>${g.name}</span>
+                ${g.is_last_added ? '<span class="badge" style="background:#7c3aed; color:#fff; font-size:10px; padding:2px 8px; border-radius:6px;">🆕 آخر صفحة انضافت</span>' : ''}
+                ${g.is_last_scraped ? '<span class="badge" style="background:#0284c7; color:#fff; font-size:10px; padding:2px 8px; border-radius:6px;">🕒 آخر صفحة مسحوبة</span>' : ''}
+                ${g.is_smart_start ? '<span class="badge" style="background:#059669; color:#fff; font-size:10px; padding:2px 8px; border-radius:6px;">🎯 نقطة الانطلاق</span>' : ''}
+              </div>
               <a href="${g.url}" target="_blank" style="font-size:11px; color:#60a5fa; text-decoration:none;">🔗 فتح المجموعة</a>
             </td>
             <td><span class="badge badge-info">${g.category || 'عام'}</span></td>
@@ -1157,14 +1222,90 @@
       }
     }
 
+    function normalizeGroupUrl(url) {
+      if (!url) return '';
+      let u = String(url).trim();
+      if (u.indexOf('?') !== -1) u = u.split('?')[0];
+      if (u.indexOf('#') !== -1) u = u.split('#')[0];
+      u = u.replace(/\/+$/, '').toLowerCase();
+      u = u.replace(/^https?:\/\//, '');
+      u = u.replace(/^(www\.|m\.|web\.|mbasic\.|touch\.)/, '');
+      return u.replace(/\/+$/, '');
+    }
+
+    function getOrderedGroupsForScraping(mode = 'smart', customUrl = null) {
+      if (!groupsData || groupsData.length === 0) return [];
+      let list = [...groupsData];
+
+      let targetIdx = 0;
+      if (customUrl) {
+        const normCustom = normalizeGroupUrl(customUrl);
+        const idx = list.findIndex(g => normalizeGroupUrl(g.url) === normCustom);
+        if (idx !== -1) targetIdx = idx;
+      } else if (mode === 'last_added') {
+        const idx = list.findIndex(g => g.is_last_added);
+        if (idx !== -1) targetIdx = idx;
+      } else if (mode === 'last_scraped') {
+        const idx = list.findIndex(g => g.is_last_scraped);
+        if (idx !== -1) targetIdx = idx;
+      } else if (mode === 'first') {
+        targetIdx = 0;
+      } else { // smart (تلقائي: من آخر صفحة انضافت أو سحبت)
+        const idx = list.findIndex(g => g.is_smart_start);
+        if (idx !== -1) targetIdx = idx;
+      }
+
+      return list.slice(targetIdx).concat(list.slice(0, targetIdx));
+    }
+
+    function updateScrapeStartPreview() {
+      const modeSel = document.getElementById('scrapeStartMode');
+      const customSel = document.getElementById('scrapeCustomGroupSelect');
+      const infoBox = document.getElementById('scrapeStartGroupName');
+      if (!modeSel || !infoBox) return;
+
+      const mode = modeSel.value;
+      if (customSel) {
+        customSel.style.display = (mode === 'custom') ? 'block' : 'none';
+      }
+
+      const customUrl = (mode === 'custom' && customSel) ? customSel.value : null;
+      const ordered = getOrderedGroupsForScraping(mode, customUrl);
+      if (ordered.length > 0) {
+        const first = ordered[0];
+        let tag = '';
+        if (first.is_last_added) tag = ' (🆕 آخر صفحة انضافت)';
+        else if (first.is_last_scraped) tag = ' (🕒 آخر صفحة مسحوبة)';
+        infoBox.innerHTML = `<b>${first.name}</b>${tag}`;
+      } else {
+        infoBox.innerText = 'لا توجد مجموعات محفوظة';
+      }
+    }
+
+    function populateCustomGroupSelect() {
+      const sel = document.getElementById('scrapeCustomGroupSelect');
+      if (!sel) return;
+      sel.innerHTML = groupsData.map(g => `<option value="${g.url}">${g.name} (${g.category || 'عام'})</option>`).join('');
+    }
+
     async function startAllScraping() {
-      const groups = groupsData.map(g => g.url);
-      if (groups.length === 0) {
+      if (!groupsData || groupsData.length === 0) {
         alert("يرجى إضافة روابط مجموعات أولاً!");
         return;
       }
+
+      const modeSel = document.getElementById('scrapeStartMode');
+      const startMode = modeSel ? modeSel.value : 'smart';
+      const customSel = document.getElementById('scrapeCustomGroupSelect');
+      const customUrl = (startMode === 'custom' && customSel) ? customSel.value : null;
+
+      const orderedGroups = getOrderedGroupsForScraping(startMode, customUrl);
+      const groupsUrls = orderedGroups.map(g => g.url);
+
       const params = {
-        groups,
+        groups: groupsUrls,
+        start_mode: startMode,
+        start_url: customUrl || (orderedGroups[0] ? orderedGroups[0].url : null),
         concurrent_tabs: parseInt(document.getElementById('inpConcurrent').value) || 4,
         max_ads_per_group: parseInt(document.getElementById('inpMaxAds').value) || 100,
         timeout_seconds: parseInt(document.getElementById('inpTimeout').value) || 60,
@@ -1265,14 +1406,31 @@
         alert("يرجى إدخال اسم ورابط المجموعة!");
         return;
       }
+
+      // فحص مسبق لمنع تكرار إضافة نفس الصفحة مرتين
+      const normInput = normalizeGroupUrl(url);
+      const duplicate = groupsData.find(g => normalizeGroupUrl(g.url) === normInput);
+      if (duplicate) {
+        alert(`❌ لا يمكن إضافة نفس الصفحة مرتين!\nهذا الرابط مضاف مسبقاً باسم: "${duplicate.name}"`);
+        return;
+      }
+
       try {
-        await apiFetch('/api/add_group', {
+        const res = await apiFetch('/api/add_group', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ name, url, category: cat })
         });
-        closeAddGroupModal();
-        loadGroups();
+        const data = await res.json();
+        if (data.success) {
+          closeAddGroupModal();
+          document.getElementById('mGrpName').value = '';
+          document.getElementById('mGrpUrl').value = '';
+          await loadGroups();
+          alert("✅ تمت إضافة الصفحة بنجاح!");
+        } else {
+          alert(data.message || "❌ فشل إضافة الرابط.");
+        }
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
       }

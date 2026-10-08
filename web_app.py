@@ -73,6 +73,103 @@ def write_json_file(file_path: str, data: List[Dict[str, Any]]):
     except Exception as e:
         print(f"[!] خطأ أثناء كتابة {file_path}: {e}")
 
+def normalize_group_url(url: str) -> str:
+    """توحيد وتنظيف رابط المجموعة أو الصفحة لمنع التكرار بدقة."""
+    if not url:
+        return ""
+    u = str(url).strip()
+    if "?" in u:
+        u = u.split("?")[0]
+    if "#" in u:
+        u = u.split("#")[0]
+    u = u.rstrip("/").lower()
+    u = re.sub(r"^https?://", "", u)
+    u = re.sub(r"^(www\.|m\.|web\.|mbasic\.|touch\.)", "", u)
+    return u.rstrip("/")
+
+def get_lan_ip() -> str:
+    """الحصول على الآي بي المحلي للجهاز في الشبكة المحلية."""
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
+
+def enrich_groups_metadata(groups: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """تمييز آخر صفحة مضافة وآخر صفحة تم سحبها ونقطة الانطلاق التلقائية."""
+    if not groups:
+        return []
+
+    result = [dict(g) for g in groups]
+
+    # البحث عن آخر صفحة تم سحبها بتوقيت صحيح
+    scraped_candidates = [
+        g for g in result
+        if g.get("last_scraped_at") and g.get("last_scraped_at") != "لم يُسحب بعد"
+    ]
+    last_scraped_group = max(scraped_candidates, key=lambda g: g.get("last_scraped_at", "")) if scraped_candidates else None
+
+    # البحث عن آخر صفحة انضافت (أعلى ID أو أحدث created_at)
+    last_added_group = max(result, key=lambda g: (g.get("created_at") or "", g.get("id", 0))) if result else None
+
+    # تحديد نقطة الانطلاق الذكية:
+    # إذا كانت آخر صفحة انضافت لم تُسحب بعد، أو تاريخ إضافتها أحدث من تاريخ آخر سحب -> نبدأ منها فوراً
+    smart_start_group = None
+    if last_added_group and (
+        not last_scraped_group or 
+        last_added_group.get("last_scraped_at") == "لم يُسحب بعد" or 
+        (last_added_group.get("created_at", "") >= last_scraped_group.get("last_scraped_at", ""))
+    ):
+        smart_start_group = last_added_group
+    elif last_scraped_group:
+        smart_start_group = last_scraped_group
+    else:
+        smart_start_group = result[0] if result else None
+
+    for g in result:
+        g["is_last_scraped"] = bool(last_scraped_group and g.get("id") == last_scraped_group.get("id"))
+        g["is_last_added"] = bool(last_added_group and g.get("id") == last_added_group.get("id"))
+        g["is_smart_start"] = bool(smart_start_group and g.get("id") == smart_start_group.get("id"))
+
+    return result
+
+def get_ordered_groups(start_mode: str = "smart", groups: List[Dict[str, Any]] = None, custom_start_url: str = None) -> List[Dict[str, Any]]:
+    """ترتيب المجموعات بشكل دائري بحيث يبدأ السحب من الصفحة المحددة أو الذكية."""
+    if groups is None:
+        groups = read_json_file(GROUPS_DATA_FILE)
+    if not groups:
+        return []
+
+    enriched = enrich_groups_metadata(groups)
+    target_idx = 0
+
+    if custom_start_url:
+        norm_custom = normalize_group_url(custom_start_url)
+        for idx, g in enumerate(enriched):
+            if normalize_group_url(g.get("url", "")) == norm_custom:
+                target_idx = idx
+                break
+    elif start_mode == "last_added":
+        for idx, g in enumerate(enriched):
+            if g.get("is_last_added"):
+                target_idx = idx
+                break
+    elif start_mode == "last_scraped":
+        for idx, g in enumerate(enriched):
+            if g.get("is_last_scraped"):
+                target_idx = idx
+                break
+    elif start_mode == "first":
+        target_idx = 0
+    else:  # "smart" (افتراضي: آخر صفحة انضافت أو آخر صفحة تم سحبها)
+        for idx, g in enumerate(enriched):
+            if g.get("is_smart_start"):
+                target_idx = idx
+                break
+
+    return groups[target_idx:] + groups[:target_idx]
+
 # تقييم الإعلان بالمراحل الشاملة (الذكاء الاصطناعي الفائق، التصنيف في أصغر ابن، المواصفات، الشريعة، حساب وهمي، عدم التكرار)
 def enrich_ad_status(ad: Dict[str, Any]) -> Dict[str, Any]:
     from ai_ad_enhancer import enhance_ad_with_super_ai
@@ -284,9 +381,9 @@ class ScrapingTaskManager:
         """تحديث تاريخ وعدد الإعلانات المسحوبة للمجموعة في groups_data.json"""
         with self.lock:
             groups = read_json_file(GROUPS_DATA_FILE)
+            norm_u = normalize_group_url(group_url)
             for g in groups:
-                norm_g = g.get("url", "").rstrip("/").lower()
-                norm_u = group_url.rstrip("/").lower()
+                norm_g = normalize_group_url(g.get("url", ""))
                 if norm_g == norm_u or norm_g in norm_u or norm_u in norm_g:
                     g["last_scraped_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
                     g["last_ads_count"] = ads_found_count
@@ -306,9 +403,25 @@ class ScrapingTaskManager:
 
     async def _async_parallel_scraper(self, params: Dict[str, Any]):
         urls = params.get("groups", [])
+        start_mode = params.get("start_mode", "smart")
+        start_url = params.get("start_url")
+        all_groups = read_json_file(GROUPS_DATA_FILE)
+
+        # إذا لم يتم تمرير الروابط مسبقاً، نستخدم الترتيب الذكي
+        if not urls:
+            ordered_objs = get_ordered_groups(start_mode, all_groups, start_url)
+            urls = [g.get("url") for g in ordered_objs if g.get("url")]
+
         if not urls:
             self.log("❌ لم يتم تحديد أي روابط مجموعات للسحب!")
             return
+
+        first_group_name = "المجموعة الأولى"
+        norm_first = normalize_group_url(urls[0])
+        for g in all_groups:
+            if normalize_group_url(g.get("url", "")) == norm_first:
+                first_group_name = g.get("name", urls[0])
+                break
 
         concurrent_tabs = int(params.get("concurrent_tabs", 4))
         concurrent_tabs = max(1, min(concurrent_tabs, 6))
@@ -323,6 +436,7 @@ class ScrapingTaskManager:
         self.total_ads_collected = len(existing_ads)
         seen_signatures = {f"{a.get('phone_number')}_{a.get('description', '')[:50]}" for a in existing_ads}
 
+        self.log(f"🎯 نقطة الانطلاق: البدء من [{first_group_name}] (إجمالي {len(urls)} مجموعات)")
         self.log(f"🚀 بدء محرك السحب المتوازي: {len(urls)} مجموعات | {concurrent_tabs} صفحات متزامنة حقيقية ⚡")
 
         user_data_dir = os.path.join(BASE_DIR, "browser_session")
@@ -1524,14 +1638,30 @@ HTML_PAGE = """<!DOCTYPE html>
         alert("يرجى إدخال اسم ورابط المجموعة!");
         return;
       }
+      // فحص مسبق لمنع تكرار إضافة نفس الصفحة مرتين
+      const normInput = url.trim().replace(/\/+$/, '').toLowerCase().replace(/^https?:\/\//, '').replace(/^(www\.|m\.|web\.|mbasic\.|touch\.)/, '');
+      const duplicate = groupsData.find(g => (g.url || '').trim().replace(/\/+$/, '').toLowerCase().replace(/^https?:\/\//, '').replace(/^(www\.|m\.|web\.|mbasic\.|touch\.)/, '') === normInput);
+      if (duplicate) {
+        alert(`❌ لا يمكن إضافة نفس الصفحة مرتين!\nهذا الرابط مضاف مسبقاً باسم: "${duplicate.name}"`);
+        return;
+      }
+
       try {
-        await apiFetch('/api/add_group', {
+        const res = await apiFetch('/api/add_group', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ name, url, category: cat })
         });
-        closeAddGroupModal();
-        loadGroups();
+        const data = await res.json();
+        if (data.success) {
+          closeAddGroupModal();
+          document.getElementById('mGrpName').value = '';
+          document.getElementById('mGrpUrl').value = '';
+          await loadGroups();
+          alert("✅ تمت إضافة الصفحة بنجاح!");
+        } else {
+          alert(data.message || "❌ فشل إضافة الرابط.");
+        }
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
       }
@@ -1620,35 +1750,42 @@ def is_port_listening(port: int, host: str = "127.0.0.1", timeout: float = 0.15)
 _last_manager_status = None
 _last_manager_status_time = 0
 
-def get_manager_system_status() -> dict:
+def get_manager_system_status(client_host: str = "localhost") -> dict:
     """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة مع كاش خفيف."""
     global _last_manager_status, _last_manager_status_time
     now = time.time()
-    if _last_manager_status and (now - _last_manager_status_time < 1.0):
-        return _last_manager_status
 
     manager_running = is_port_listening(8002)
     backend_running = is_port_listening(8000)
     frontend_running = is_port_listening(3000)
     desktop_shortcut = os.path.join(os.path.expanduser("~"), "Desktop", "لوحة تحكم المنجر.lnk")
     
+    is_local = client_host in ["localhost", "127.0.0.1", "::1"]
+    display_host = "localhost" if is_local else client_host
+    lan_ip = get_lan_ip()
+
     st = {
         "manager_running": manager_running,
         "backend_running": backend_running,
         "frontend_running": frontend_running,
         "shortcut_exists": os.path.exists(desktop_shortcut),
-        "manager_url": "http://localhost:8002"
+        "manager_url": f"http://{display_host}:8002",
+        "lan_url": f"http://{lan_ip}:8002"
     }
     _last_manager_status = st
     _last_manager_status_time = now
     return st
 
-def launch_manager_and_all_servers() -> dict:
+def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
     """تشغيل كافة سيرفرات المنجر وفتح لوحة التحكم في المتصفح."""
     desktop_shortcut = os.path.join(os.path.expanduser("~"), "Desktop", "لوحة تحكم المنجر.lnk")
     az_base = r"C:\xampp\htdocs\projects\AZ"
     start_servers_bat = os.path.join(az_base, "start_servers.bat")
-    manager_url = "http://localhost:8002"
+
+    is_local = client_host in ["localhost", "127.0.0.1", "::1"]
+    display_host = "localhost" if is_local else client_host
+    manager_url = f"http://{display_host}:8002"
+    lan_url = f"http://{get_lan_ip()}:8002"
 
     manager_running = is_port_listening(8002)
     backend_running = is_port_listening(8000)
@@ -1674,19 +1811,21 @@ def launch_manager_and_all_servers() -> dict:
             except Exception:
                 pass
 
-    # 3. فتح صفحة المنجر في المتصفح تلقائياً
-    def open_browser():
-        time.sleep(1.2)
-        try:
-            webbrowser.open(manager_url)
-        except Exception:
-            pass
-    threading.Thread(target=open_browser, daemon=True).start()
+    # 3. فتح صفحة المنجر في المتصفح تلقائياً إذا كان الطلب من نفس الجهاز
+    if is_local:
+        def open_browser():
+            time.sleep(1.2)
+            try:
+                webbrowser.open(manager_url)
+            except Exception:
+                pass
+        threading.Thread(target=open_browser, daemon=True).start()
 
     return {
         "success": True,
         "message": "تم إطلاق سيرفرات المنجر وفتح لوحة التحكم بنجاح! 🚀",
         "url": manager_url,
+        "lan_url": lan_url,
         "manager_running": True
     }
 
@@ -1851,7 +1990,8 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/groups":
             groups = read_json_file(GROUPS_DATA_FILE)
-            self.send_json(groups)
+            enriched = enrich_groups_metadata(groups)
+            self.send_json(enriched)
             return
 
         elif path == "/api/ads":
@@ -1930,7 +2070,8 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             self.send_cors_headers()
             self.end_headers()
         elif path == "/api/manager_status":
-            self.send_json(get_manager_system_status())
+            client_host = self.headers.get("Host", "").split(":")[0].strip() or "localhost"
+            self.send_json(get_manager_system_status(client_host))
             return
 
         elif path == "/api/update_info":
@@ -1957,13 +2098,32 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             req_data = {}
 
         if path == "/api/add_group":
+            raw_url = req_data.get("url", "").strip()
+            if not raw_url:
+                self.send_json({"success": False, "message": "يرجى إدخال رابط المجموعة أو الصفحة!"})
+                return
+
+            norm_input = normalize_group_url(raw_url)
             groups = read_json_file(GROUPS_DATA_FILE)
+
+            # فحص صارم لمنع تكرار إضافة نفس الصفحة أو المجموعة مرتين
+            for g in groups:
+                if normalize_group_url(g.get("url", "")) == norm_input:
+                    existing_name = g.get("name", "المجموعة")
+                    self.send_json({
+                        "success": False,
+                        "message": f"❌ لا يمكن إضافة نفس الصفحة مرتين! هذا الرابط مضاف مسبقاً باسم: ({existing_name})."
+                    })
+                    return
+
             new_id = (max([g.get("id", 0) for g in groups]) + 1) if groups else 1
+            now_str = time.strftime("%Y-%m-%d %H:%M:%S")
             new_entry = {
                 "id": new_id,
-                "name": req_data.get("name", f"مجموعة {new_id}"),
-                "url": req_data.get("url", ""),
+                "name": req_data.get("name", f"مجموعة {new_id}").strip(),
+                "url": raw_url,
                 "category": req_data.get("category", "عام"),
+                "created_at": now_str,
                 "last_scraped_at": "لم يُسحب بعد",
                 "last_ads_count": 0,
                 "total_ads_count": 0,
@@ -1971,7 +2131,7 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             }
             groups.append(new_entry)
             write_json_file(GROUPS_DATA_FILE, groups)
-            self.send_json({"success": True})
+            self.send_json({"success": True, "message": "تمت إضافة الرابط بنجاح! ✅", "group": new_entry})
             return
 
         elif path == "/api/delete_group":
@@ -1983,6 +2143,16 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             return
 
         elif path == "/api/start":
+            start_mode = req_data.get("start_mode", "smart")
+            start_url = req_data.get("start_url")
+            incoming_groups = req_data.get("groups", [])
+            
+            # ترتيب المجموعات بناءً على نقطة الانطلاق المطلوبة
+            if not incoming_groups or "start_mode" in req_data:
+                ordered_objs = get_ordered_groups(start_mode, None, start_url)
+                if ordered_objs:
+                    req_data["groups"] = [g.get("url") for g in ordered_objs if g.get("url")]
+
             ok, msg = task_manager.start_scraping_job(req_data)
             self.send_json({"success": ok, "message": msg})
             return
@@ -2140,7 +2310,8 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             write_json_file(PUBLISHED_FILE, published)
             self.send_json({"success": True, "message": "تم حذف الإعلان من سجل المنشورات"})
         elif path == "/api/launch_manager":
-            self.send_json(launch_manager_and_all_servers())
+            client_host = self.headers.get("Host", "").split(":")[0].strip() or "localhost"
+            self.send_json(launch_manager_and_all_servers(client_host))
             return
 
         elif path == "/api/check_update":

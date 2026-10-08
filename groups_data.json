@@ -7,7 +7,8 @@
     "last_scraped_at": "2026-10-07 17:36:26",
     "last_ads_count": 1,
     "total_ads_count": 10,
-    "status": "مكتمل"
+    "status": "مكتمل",
+    "created_at": "2026-10-07 10:01:00"
   },
   {
     "id": 2,
@@ -17,7 +18,8 @@
     "last_scraped_at": "2026-10-07 17:36:27",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "مكتمل"
+    "status": "مكتمل",
+    "created_at": "2026-10-07 10:02:00"
   },
   {
     "id": 3,
@@ -27,7 +29,8 @@
     "last_scraped_at": "2026-10-07 17:36:29",
     "last_ads_count": 1,
     "total_ads_count": 19,
-    "status": "مكتمل"
+    "status": "مكتمل",
+    "created_at": "2026-10-07 10:03:00"
   },
   {
     "id": 4,
@@ -37,7 +40,8 @@
     "last_scraped_at": "2026-10-07 17:36:36",
     "last_ads_count": 2,
     "total_ads_count": 10,
-    "status": "مكتمل"
+    "status": "مكتمل",
+    "created_at": "2026-10-07 10:04:00"
   },
   {
     "id": 5,
@@ -47,7 +51,8 @@
     "last_scraped_at": "2026-10-07 14:54:43",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "مكتمل"
+    "status": "مكتمل",
+    "created_at": "2026-10-07 10:05:00"
   },
   {
     "id": 6,
@@ -57,7 +62,8 @@
     "last_scraped_at": "2026-10-07 14:43:58",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "مكتمل"
+    "status": "مكتمل",
+    "created_at": "2026-10-07 10:06:00"
   },
   {
     "id": 7,
@@ -67,7 +73,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:07:00"
   },
   {
     "id": 8,
@@ -77,7 +84,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:08:00"
   },
   {
     "id": 9,
@@ -87,7 +95,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:09:00"
   },
   {
     "id": 10,
@@ -97,7 +106,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:10:00"
   },
   {
     "id": 11,
@@ -107,7 +117,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:11:00"
   },
   {
     "id": 12,
@@ -117,7 +128,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:12:00"
   },
   {
     "id": 13,
@@ -127,7 +139,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:13:00"
   },
   {
     "id": 14,
@@ -137,7 +150,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:14:00"
   },
   {
     "id": 15,
@@ -147,7 +161,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:15:00"
   },
   {
     "id": 16,
@@ -157,7 +172,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:16:00"
   },
   {
     "id": 17,
@@ -167,7 +183,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:17:00"
   },
   {
     "id": 18,
@@ -177,7 +194,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:18:00"
   },
   {
     "id": 19,
@@ -187,7 +205,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:19:00"
   },
   {
     "id": 20,
@@ -197,7 +216,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:20:00"
   },
   {
     "id": 21,
@@ -207,7 +227,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:21:00"
   },
   {
     "id": 22,
@@ -217,7 +238,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:22:00"
   },
   {
     "id": 23,
@@ -227,7 +249,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:23:00"
   },
   {
     "id": 24,
@@ -237,7 +260,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:24:00"
   },
   {
     "id": 25,
@@ -247,7 +271,8 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:25:00"
   },
   {
     "id": 26,
@@ -257,6 +282,7 @@
     "last_scraped_at": "لم يُسحب بعد",
     "last_ads_count": 0,
     "total_ads_count": 0,
-    "status": "جاهز"
+    "status": "جاهز",
+    "created_at": "2026-10-07 10:26:00"
   }
 ]
