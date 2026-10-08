@@ -543,7 +543,7 @@
         : 'localhost';
       let targetUrl = `http://${currentHost}:8002`;
 
-      // إذا كانت سيرفرات الإدارة تعمل مسبقاً، افتح الصفحة فوراً في تبويب جديد دون إعادة تشغيل
+      // إذا كانت سيرفرات الإدارة تعمل مسبقاً، افتح الصفحة فوراً في تبويب جديد دون أي تأخير
       if (dot && dot.getAttribute('data-online') === 'true') {
         window.open(targetUrl, '_blank');
         return;
@@ -551,7 +551,7 @@
 
       if (btn) {
         btn.disabled = true;
-        btn.innerHTML = `<span>⏳ جاري تشغيل صفحة الإدارة والسيرفرات...</span>`;
+        btn.innerHTML = `<span>⏳ جاري تشغيل سيرفرات الإدارة...</span>`;
       }
       
       try {
@@ -570,13 +570,15 @@
             dot.setAttribute('data-online', 'true');
             dot.title = `صفحة الإدارة متصلة وجاهزة (${targetUrl})`;
           }
-          alert("🚀 " + (data.message || "تم إطلاق سيرفرات الإدارة بنجاح وفتح لوحة التحكم!"));
-          window.open(targetUrl, '_blank');
+          const win = window.open(targetUrl, '_blank');
+          if (!win) {
+            alert(`✅ تم تشغيل سيرفر الإدارة بنجاح!\nيرجى السماح بالنوافذ المنبثقة أو فتح الرابط التالي مباشرة:\n${targetUrl}`);
+          }
         } else {
-          alert("❌ " + (data.message || "فشل تشغيل سيرفرات الإدارة."));
+          alert("⚠️ " + (data.message || "فشل تشغيل سيرفرات الإدارة."));
         }
       } catch (err) {
-        alert("تعذر الاتصال بسيرفر لوحة التحكم المحلي (تأكد من تشغيل start_app.bat أولاً)");
+        alert("تعذر الاتصال بسيرفر لوحة التحكم المحلي (تأكد من تشغيل السيرفر أولاً)");
       } finally {
         if (btn) {
           btn.disabled = false;

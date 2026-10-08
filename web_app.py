@@ -1747,83 +1747,130 @@ def is_port_listening(port: int, host: str = "127.0.0.1", timeout: float = 0.15)
     except Exception:
         return False
 
-_last_manager_status = None
-_last_manager_status_time = 0
+def ensure_mysql_running() -> bool:
+    """التأكد من تشغيل خادم MySQL (XAMPP) الضروري لعمل لوحة الإدارة وقاعدة البيانات."""
+    if is_port_listening(3306):
+        return True
+
+    # 1. محاولة تشغيل خدمة ويندوز
+    try:
+        subprocess.run(["net", "start", "mysql"], capture_output=True, timeout=5)
+    except Exception:
+        pass
+
+    if is_port_listening(3306):
+        return True
+
+    # 2. تشغيل mysqld.exe مباشرة من مسار XAMPP
+    mysqld_exe = r"C:\xampp\mysql\bin\mysqld.exe"
+    my_ini = r"C:\xampp\mysql\bin\my.ini"
+    if os.path.exists(mysqld_exe):
+        try:
+            subprocess.Popen(
+                [mysqld_exe, f"--defaults-file={my_ini}", "--standalone"],
+                cwd=r"C:\xampp",
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
+            )
+        except Exception as e:
+            print(f"Error starting mysqld: {e}")
+
+    for _ in range(8):
+        time.sleep(0.4)
+        if is_port_listening(3306):
+            return True
+
+    return is_port_listening(3306)
 
 def get_manager_system_status(client_host: str = "localhost") -> dict:
-    """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة مع كاش خفيف."""
-    global _last_manager_status, _last_manager_status_time
-    now = time.time()
-
+    """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة في الوقت الفعلي."""
     manager_running = is_port_listening(8002)
     backend_running = is_port_listening(8000)
     frontend_running = is_port_listening(3000)
+    mysql_running = is_port_listening(3306)
     desktop_shortcut = os.path.join(os.path.expanduser("~"), "Desktop", "لوحة تحكم المنجر.lnk")
     
     is_local = client_host in ["localhost", "127.0.0.1", "::1"]
-    display_host = "localhost" if is_local else client_host
     lan_ip = get_lan_ip()
+    display_host = "localhost" if is_local else (client_host if client_host else lan_ip)
 
-    st = {
+    return {
         "manager_running": manager_running,
         "backend_running": backend_running,
         "frontend_running": frontend_running,
+        "mysql_running": mysql_running,
         "shortcut_exists": os.path.exists(desktop_shortcut),
         "manager_url": f"http://{display_host}:8002",
         "lan_url": f"http://{lan_ip}:8002"
     }
-    _last_manager_status = st
-    _last_manager_status_time = now
-    return st
 
 def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
-    """تشغيل كافة سيرفرات المنجر وفتح لوحة التحكم في المتصفح."""
-    desktop_shortcut = os.path.join(os.path.expanduser("~"), "Desktop", "لوحة تحكم المنجر.lnk")
+    """تشغيل كافة سيرفرات المنجر وقاعدة البيانات والتحقق من جاهزيتها قبل فتح لوحة التحكم."""
     az_base = r"C:\xampp\htdocs\projects\AZ"
     start_servers_bat = os.path.join(az_base, "start_servers.bat")
 
     is_local = client_host in ["localhost", "127.0.0.1", "::1"]
-    display_host = "localhost" if is_local else client_host
+    lan_ip = get_lan_ip()
+    display_host = "localhost" if is_local else (client_host if client_host else lan_ip)
     manager_url = f"http://{display_host}:8002"
-    lan_url = f"http://{get_lan_ip()}:8002"
+    lan_url = f"http://{lan_ip}:8002"
 
-    manager_running = is_port_listening(8002)
-    backend_running = is_port_listening(8000)
+    # 1. التأكد أولاً من عمل خادم MySQL
+    ensure_mysql_running()
 
-    # 1. تشغيل start_servers.bat في نافذة جديدة إذا لم تكن سيرفرات المنصة تعمل
-    if not backend_running and os.path.exists(start_servers_bat):
+    # 2. فحص ما إذا كان سيرفر المنجر يعمل مسبقاً
+    if is_port_listening(8002):
+        return {
+            "success": True,
+            "message": "سيرفر الإدارة يعمل بالفعل وهو جاهز للاستخدام! 🚀",
+            "url": manager_url,
+            "lan_url": lan_url,
+            "manager_running": True
+        }
+
+    # 3. إطلاق السيرفرات عبر start_servers.bat أو node start_bot.js مع استماع كامل لكافة الأجهزة (0.0.0.0)
+    start_bot_js = os.path.join(az_base, "start_bot.js")
+    if os.path.exists(start_servers_bat):
         try:
-            subprocess.Popen(["cmd.exe", "/c", "start", "start_servers.bat"], cwd=az_base, shell=True)
+            subprocess.Popen(
+                'start "lelbai - Server Control Panel" start_servers.bat',
+                cwd=az_base,
+                shell=True
+            )
         except Exception as e:
             print(f"Error launching start_servers.bat: {e}")
 
-    # 2. تشغيل اختصار سطح المكتب المخصص للمنجر إذا وُجد
-    if os.path.exists(desktop_shortcut):
+    # إذا لم يبدأ السيرفر فوراً خلال ثانية واحدة، يتم إطلاق node start_bot.js كعملية خلفية مباشرة
+    time.sleep(1.0)
+    if not is_port_listening(8002) and os.path.exists(start_bot_js):
         try:
-            os.startfile(desktop_shortcut)
+            subprocess.Popen(
+                ["node", "start_bot.js"],
+                cwd=az_base,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
+            )
         except Exception as e:
-            print(f"Error launching shortcut: {e}")
-    else:
-        manager_exe = os.path.join(az_base, "لوحة_التحكم_المنجر.exe")
-        if os.path.exists(manager_exe) and not manager_running:
-            try:
-                subprocess.Popen([manager_exe], cwd=os.path.join(az_base, "manager"), shell=True)
-            except Exception:
-                pass
+            print(f"Error launching node start_bot.js directly: {e}")
 
-    # 3. فتح صفحة المنجر في المتصفح تلقائياً إذا كان الطلب من نفس الجهاز
-    if is_local:
-        def open_browser():
-            time.sleep(1.2)
-            try:
-                webbrowser.open(manager_url)
-            except Exception:
-                pass
-        threading.Thread(target=open_browser, daemon=True).start()
+    # 4. انتظار نشاط واستجابة البورت 8002 بنشاط لمنع حدوث خطأ ERR_CONNECTION_REFUSED
+    manager_ready = False
+    for _ in range(16):  # انتظار حتى 8 ثوانٍ
+        time.sleep(0.5)
+        if is_port_listening(8002):
+            manager_ready = True
+            break
+
+    if not manager_ready:
+        return {
+            "success": False,
+            "message": "جاري تجهيز سيرفرات الإدارة في الخلفية، يرجى الانتظار بضع ثوانٍ ثم النقر مجدداً.",
+            "url": manager_url,
+            "lan_url": lan_url,
+            "manager_running": False
+        }
 
     return {
         "success": True,
-        "message": "تم إطلاق سيرفرات المنجر وفتح لوحة التحكم بنجاح! 🚀",
+        "message": "تم إطلاق سيرفرات الإدارة بنجاح وهي جاهزة الآن! 🚀",
         "url": manager_url,
         "lan_url": lan_url,
         "manager_running": True
