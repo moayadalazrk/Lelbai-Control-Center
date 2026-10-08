@@ -554,7 +554,8 @@ namespace LelbaiLauncher
                         "pending_review.json",
                         "published_ads.json",
                         "flagged_ads.json",
-                        "groups_data.json"
+                        "groups_data.json",
+                        "ads_syria.json"
                     };
 
                     Dictionary<string, byte[]> backupData = new Dictionary<string, byte[]>();
