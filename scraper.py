@@ -90,6 +90,26 @@ def clean_browser_session_locks(user_data_dir: str):
             except Exception:
                 pass
 
+def get_playwright_channel():
+    chrome_paths = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
+    ]
+    for p in chrome_paths:
+        if os.path.exists(p):
+            return "chrome"
+    edge_paths = [
+        r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+        r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
+    ]
+    for p in edge_paths:
+        if os.path.exists(p):
+            return "msedge"
+    return None
+
 class SyrianAdScraper:
     def __init__(self, user_data_dir: str = "./browser_session", headless: bool = False):
         """
@@ -367,36 +387,55 @@ class SyrianAdScraper:
 
         with sync_playwright() as p:
             # تشغيل متصفح مرئي مع سياق مستخدم دائم وتفعيل وضع الأمان والحماية التامة
+            ch = get_playwright_channel()
+            launch_kwargs = {
+                "user_data_dir": self.user_data_dir,
+                "headless": self.headless,
+                "viewport": None,
+                "ignore_default_args": ["--enable-automation"],
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                "locale": "ar-SY",
+                "timezone_id": "Asia/Damascus",
+                "args": [
+                    "--start-maximized",
+                    "--disable-blink-features=AutomationControlled",
+                    "--disable-infobars",
+                    "--no-sandbox"
+                ]
+            }
+            if ch:
+                launch_kwargs["channel"] = ch
+
             context = None
             for attempt in range(2):
                 try:
-                    context = p.chromium.launch_persistent_context(
-                        user_data_dir=self.user_data_dir,
-                        headless=self.headless,
-                        viewport=None,
-                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                        locale="ar-SY",
-                        timezone_id="Asia/Damascus",
-                        args=[
-                            "--start-maximized",
-                            "--disable-blink-features=AutomationControlled",
-                            "--disable-infobars",
-                            "--no-sandbox"
-                        ]
-                    )
+                    context = p.chromium.launch_persistent_context(**launch_kwargs)
                     break
                 except Exception as e:
                     if attempt == 0:
                         clean_browser_session_locks(self.user_data_dir)
                         time.sleep(1)
                     else:
+                        if "channel" in launch_kwargs:
+                            del launch_kwargs["channel"]
+                            try:
+                                context = p.chromium.launch_persistent_context(**launch_kwargs)
+                                break
+                            except Exception:
+                                pass
                         raise e
 
             # إخفاء أي أثر لبرامج الأتمتة وجعل المتصفح يظهر كمتصفح بشري طبيعي 100%
             context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', {
-                    get: () => undefined
-                });
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                window.chrome = {
+                    app: { isInstalled: false },
+                    runtime: {},
+                    loadTimes: () => ({}),
+                    csi: () => ({})
+                };
+                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+                Object.defineProperty(navigator, 'languages', { get: () => ['ar-SY', 'ar', 'en-US', 'en'] });
             """)
 
             page = context.pages[0] if context.pages else context.new_page()
