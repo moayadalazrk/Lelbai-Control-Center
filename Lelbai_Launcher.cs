@@ -58,17 +58,32 @@ namespace LelbaiLauncher
             Console.WriteLine("==========================================================================");
             Console.ResetColor();
 
-            string currentDir = AppDomain.CurrentDomain.BaseDirectory;
-            Directory.SetCurrentDirectory(currentDir);
-
             // تمكين بروتوكول TLS 1.2 للاتصال الآمن مع GitHub
             ServicePointManager.SecurityProtocol = (SecurityProtocolType)3072 | SecurityProtocolType.Tls;
 
-            // 1. قراءة إعدادات المستودع من config.json إذا وجد
-            ReadCustomConfig(currentDir);
+            // 1. تحديد المجلد المستقل في قرص C
+            string appDir = DetermineAppDirectory(args);
+            Console.ForegroundColor = ConsoleColor.DarkCyan;
+            Console.WriteLine("📁 مجلد تثبيت النظام المستقل: " + appDir);
+            Console.ResetColor();
 
-            // 2. التحقق من وجود ملفات النظام الأساسية
-            bool filesExist = File.Exists(Path.Combine(currentDir, "web_app.py"));
+            // 2. نسخ المشغل الحالي إلى المجلد المستقل
+            EnsureLauncherInAppDir(appDir);
+
+            // 3. إنشاء اختصار نظيف على سطح المكتب
+            EnsureDesktopShortcut(appDir);
+
+            // 4. تنظيف وإزالة كافة ملفات المشروع من سطح المكتب
+            CleanDesktopArtifacts(appDir);
+
+            // التوجه إلى مجلد النظام
+            Directory.SetCurrentDirectory(appDir);
+
+            // 5. قراءة إعدادات المستودع من config.json إذا وجد
+            ReadCustomConfig(appDir);
+
+            // 6. التحقق من وجود ملفات النظام الأساسية وتنزيلها إن لزم
+            bool filesExist = File.Exists(Path.Combine(appDir, "web_app.py"));
 
             if (!filesExist)
             {
@@ -77,21 +92,21 @@ namespace LelbaiLauncher
                 Console.WriteLine("      جاري تنزيل أحدث نسخة من المستودع على GitHub بالكامل...");
                 Console.ResetColor();
 
-                bool cloned = TryGitClone(DefaultRepoUrl, currentDir);
+                bool cloned = TryGitClone(DefaultRepoUrl, appDir);
                 if (!cloned)
                 {
                     Console.WriteLine("      جاري تنزيل حزمة الملفات عبر HTTPS مباشرة...");
-                    DownloadAndExtractZip(DefaultZipUrl, currentDir);
+                    DownloadAndExtractZip(DefaultZipUrl, appDir);
                 }
 
-                if (!File.Exists(Path.Combine(currentDir, "web_app.py")))
+                if (!File.Exists(Path.Combine(appDir, "web_app.py")))
                 {
                     Console.ForegroundColor = ConsoleColor.Red;
                     Console.WriteLine("\n❌ لم يتم العثور على ملفات النظام (web_app.py) بعد محاولة التنزيل!");
                     Console.WriteLine("   💡 ملاحظات هامة للحل:");
                     Console.WriteLine("   1. إذا كان مستودع GitHub مضبوطاً كـ Private (خاص)، يرجى جعله Public (عام)");
                     Console.WriteLine("      حتى يستطيع أي جهاز تنزيل الملفات دون طلب أي مفتاح أو حساب.");
-                    Console.WriteLine("   2. أو تأكد من وجود برنامج Git على الجهاز، أو انسخ ملف Lelbai_Launcher.exe لمجلد المشروع.");
+                    Console.WriteLine("   2. أو تأكد من وجود برنامج Git على الجهاز.");
                     SafeWaitForKey();
                     return;
                 }
@@ -102,21 +117,249 @@ namespace LelbaiLauncher
                 Console.WriteLine("\n[1/3] 🔍 جاري فحص وجود تحديثات جديدة على GitHub...");
                 Console.ResetColor();
 
-                if (Directory.Exists(Path.Combine(currentDir, ".git")))
+                if (Directory.Exists(Path.Combine(appDir, ".git")))
                 {
-                    UpdateViaGit(currentDir);
+                    UpdateViaGit(appDir);
                 }
                 else
                 {
-                    UpdateViaApi(currentDir);
+                    UpdateViaApi(appDir);
                 }
             }
 
-            // 3. عرض تاريخ آخر تحديث للنظام
-            ShowLastUpdateDate(currentDir);
+            // إعادة فحص سطح المكتب لتأكيد النظافة التامة
+            CleanDesktopArtifacts(appDir);
 
-            // 4. تشغيل السيرفر المحلي وفتح لوحة التحكم
-            LaunchApplication(currentDir);
+            // 7. عرض تاريخ آخر تحديث للنظام
+            ShowLastUpdateDate(appDir);
+
+            // 8. تشغيل السيرفر المحلي وفتح لوحة التحكم
+            LaunchApplication(appDir);
+        }
+
+        static string DetermineAppDirectory(string[] args)
+        {
+            foreach (string arg in args)
+            {
+                if (arg.Equals("--here", StringComparison.OrdinalIgnoreCase) || arg.Equals("--dev", StringComparison.OrdinalIgnoreCase))
+                {
+                    return AppDomain.CurrentDomain.BaseDirectory;
+                }
+            }
+
+            string primaryDir = @"C:\Lelbai_Control_Center";
+            try
+            {
+                if (!Directory.Exists(primaryDir))
+                {
+                    Directory.CreateDirectory(primaryDir);
+                }
+                return primaryDir;
+            }
+            catch
+            {
+                string fallback = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Lelbai_Control_Center");
+                if (!Directory.Exists(fallback))
+                {
+                    Directory.CreateDirectory(fallback);
+                }
+                return fallback;
+            }
+        }
+
+        static void EnsureLauncherInAppDir(string appDir)
+        {
+            try
+            {
+                string targetExe = Path.Combine(appDir, "Lelbai_Launcher.exe");
+                string currentExe = Process.GetCurrentProcess().MainModule.FileName;
+                if (!string.Equals(Path.GetFullPath(currentExe), Path.GetFullPath(targetExe), StringComparison.OrdinalIgnoreCase))
+                {
+                    if (File.Exists(currentExe))
+                    {
+                        File.Copy(currentExe, targetExe, true);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        static void EnsureDesktopShortcut(string appDir)
+        {
+            try
+            {
+                string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                if (string.IsNullOrEmpty(desktop) || !Directory.Exists(desktop)) return;
+
+                string shortcutPath = Path.Combine(desktop, "منصة للبيع - مركز التحكم.lnk");
+                string exePath = Path.Combine(appDir, "Lelbai_Launcher.exe");
+                if (!File.Exists(shortcutPath) && File.Exists(exePath))
+                {
+                    string psScript = string.Format(
+                        "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('{0}'); $s.TargetPath = '{1}'; $s.WorkingDirectory = '{2}'; $s.Save()",
+                        shortcutPath, exePath, appDir
+                    );
+                    ProcessStartInfo psi = new ProcessStartInfo("powershell", "-NoProfile -ExecutionPolicy Bypass -Command \"" + psScript + "\"")
+                    {
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+                    using (Process p = Process.Start(psi))
+                    {
+                        p.WaitForExit(4000);
+                    }
+                }
+            }
+            catch { }
+        }
+
+        static void CleanDesktopArtifacts(string appDir)
+        {
+            try
+            {
+                string desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+                if (string.IsNullOrEmpty(desktop) || !Directory.Exists(desktop)) return;
+
+                if (string.Equals(Path.GetFullPath(appDir).TrimEnd('\\'), Path.GetFullPath(desktop).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+                    return;
+
+                string[] projectFiles = new string[]
+                {
+                    "web_app.py",
+                    "control_dashboard.html",
+                    "scraper.py",
+                    "publisher.py",
+                    "syria_filter.py",
+                    "login.py",
+                    "login.bat",
+                    "run.bat",
+                    "start_app.bat",
+                    "make_shortcuts.vbs",
+                    "start_hidden.vbs",
+                    "requirements.txt",
+                    "README.md",
+                    "last_update.json",
+                    "mock_group_page.html",
+                    "setup.py",
+                    "upload_to_github.bat",
+                    "Lelbai_Launcher.cs",
+                    "test_append_preserve.py",
+                    "test_browser_flow.py",
+                    "test_city_sub_classifier.py",
+                    "test_filter.py",
+                    "test_gemini_moderation_pipeline.py",
+                    "test_group_removal.py",
+                    "test_image_processor.py",
+                    "test_output_ads.json",
+                    "test_bg.py",
+                    "temp_update.zip"
+                };
+
+                string[] projectDirs = new string[]
+                {
+                    "_temp_clone",
+                    ".git",
+                    ".github",
+                    "temp_extracted",
+                    "__pycache__"
+                };
+
+                bool cleanedAny = false;
+
+                // 1. نقل الصور إذا كانت قد وُجدت على سطح المكتب
+                string desktopImgs = Path.Combine(desktop, "imgs");
+                if (Directory.Exists(desktopImgs))
+                {
+                    string targetImgs = Path.Combine(appDir, "imgs");
+                    if (!Directory.Exists(targetImgs)) Directory.CreateDirectory(targetImgs);
+                    try
+                    {
+                        foreach (string f in Directory.GetFiles(desktopImgs))
+                        {
+                            string dest = Path.Combine(targetImgs, Path.GetFileName(f));
+                            if (!File.Exists(dest)) File.Copy(f, dest, true);
+                        }
+                        RemoveReadonlyAttributes(desktopImgs);
+                        Directory.Delete(desktopImgs, true);
+                        cleanedAny = true;
+                    }
+                    catch { }
+                }
+
+                // 2. الحفاظ على ملفات البيانات إذا كانت موجودة على سطح المكتب
+                string[] dataFiles = new string[] { "config.json", "pending_review.json", "published_ads.json", "flagged_ads.json", "groups_data.json" };
+                foreach (string df in dataFiles)
+                {
+                    string src = Path.Combine(desktop, df);
+                    string dst = Path.Combine(appDir, df);
+                    if (File.Exists(src))
+                    {
+                        if (!File.Exists(dst))
+                        {
+                            try { File.Copy(src, dst, true); } catch { }
+                        }
+                        try { File.Delete(src); cleanedAny = true; } catch { }
+                    }
+                }
+
+                // 3. حذف ملفات الكود والمستودع من سطح المكتب
+                foreach (string file in projectFiles)
+                {
+                    string p = Path.Combine(desktop, file);
+                    if (File.Exists(p))
+                    {
+                        try
+                        {
+                            File.SetAttributes(p, FileAttributes.Normal);
+                            File.Delete(p);
+                            cleanedAny = true;
+                        }
+                        catch { }
+                    }
+                }
+
+                // 4. حذف مجلدات المشروع ومجلد git من سطح المكتب
+                foreach (string dir in projectDirs)
+                {
+                    string p = Path.Combine(desktop, dir);
+                    if (Directory.Exists(p))
+                    {
+                        try
+                        {
+                            RemoveReadonlyAttributes(p);
+                            Directory.Delete(p, true);
+                            cleanedAny = true;
+                        }
+                        catch { }
+                    }
+                }
+
+                if (cleanedAny)
+                {
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("  🧹 تم تنظيف وإزالة كافة ملفات المستودع والمشروع من سطح المكتب بنجاح.");
+                    Console.ResetColor();
+                }
+            }
+            catch { }
+        }
+
+        static void RemoveReadonlyAttributes(string dirPath)
+        {
+            try
+            {
+                DirectoryInfo di = new DirectoryInfo(dirPath);
+                di.Attributes = FileAttributes.Normal;
+                foreach (FileInfo file in di.GetFiles("*", SearchOption.AllDirectories))
+                {
+                    file.Attributes = FileAttributes.Normal;
+                }
+                foreach (DirectoryInfo sub in di.GetDirectories("*", SearchOption.AllDirectories))
+                {
+                    sub.Attributes = FileAttributes.Normal;
+                }
+            }
+            catch { }
         }
 
         static void ReadCustomConfig(string dir)
@@ -159,27 +402,27 @@ namespace LelbaiLauncher
                 string tempClone = Path.Combine(targetDir, "_temp_clone");
                 if (Directory.Exists(tempClone))
                 {
-                    try { Directory.Delete(tempClone, true); } catch { }
+                    try { RemoveReadonlyAttributes(tempClone); Directory.Delete(tempClone, true); } catch { }
                 }
 
-                // استنساخ المستودع في مجلد مؤقت لتفادي حجز Lelbai_Launcher.exe المشغل حالياً
                 RunCommand("git", "clone \"" + repoUrl + "\" \"" + tempClone + "\"", targetDir, 90000);
 
                 if (Directory.Exists(tempClone) && File.Exists(Path.Combine(tempClone, "web_app.py")))
                 {
-                    // نقل مجلد .git إلى targetDir للارتباط بالمستودع
                     string gitSrc = Path.Combine(tempClone, ".git");
                     string gitDst = Path.Combine(targetDir, ".git");
                     if (Directory.Exists(gitSrc))
                     {
-                        if (Directory.Exists(gitDst)) try { Directory.Delete(gitDst, true); } catch { }
+                        if (Directory.Exists(gitDst))
+                        {
+                            try { RemoveReadonlyAttributes(gitDst); Directory.Delete(gitDst, true); } catch { }
+                        }
                         try { Directory.Move(gitSrc, gitDst); } catch { }
                     }
 
-                    // نسخ كافة الملفات مع تجاوز استبدال ملف المشغل قيد التشغيل
                     CopyDirectory(tempClone, targetDir);
 
-                    try { Directory.Delete(tempClone, true); } catch { }
+                    try { RemoveReadonlyAttributes(tempClone); Directory.Delete(tempClone, true); } catch { }
 
                     bool ok = File.Exists(Path.Combine(targetDir, "web_app.py"));
                     if (ok)
@@ -211,16 +454,19 @@ namespace LelbaiLauncher
                 }
 
                 string extractTemp = Path.Combine(targetDir, "temp_extracted");
-                if (Directory.Exists(extractTemp)) Directory.Delete(extractTemp, true);
+                if (Directory.Exists(extractTemp))
+                {
+                    try { RemoveReadonlyAttributes(extractTemp); Directory.Delete(extractTemp, true); } catch { }
+                }
+
                 ZipFile.ExtractToDirectory(tempZip, extractTemp);
 
-                // نقل الملفات من المجلد الفرعي إذا كان مضغوطاً داخله
                 string[] dirs = Directory.GetDirectories(extractTemp);
                 string sourceDir = (dirs.Length == 1) ? dirs[0] : extractTemp;
 
                 CopyDirectory(sourceDir, targetDir);
 
-                Directory.Delete(extractTemp, true);
+                try { RemoveReadonlyAttributes(extractTemp); Directory.Delete(extractTemp, true); } catch { }
                 if (File.Exists(tempZip)) File.Delete(tempZip);
 
                 Console.ForegroundColor = ConsoleColor.Green;
@@ -256,7 +502,7 @@ namespace LelbaiLauncher
                 string fileName = Path.GetFileName(file);
                 if (fileName.Equals("Lelbai_Launcher.exe", StringComparison.OrdinalIgnoreCase))
                 {
-                    continue; // تجاوز الملف التنفيذي المشغل حالياً لتجنب خطأ الحجز
+                    continue;
                 }
 
                 string fileToCopy = file.Replace(sourceDir, destDir);
@@ -407,7 +653,6 @@ namespace LelbaiLauncher
             Console.WriteLine("[2/2] 🚀 جاري تشغيل سيرفر لوحة التحكم وفتح المتصفح...");
             Console.ResetColor();
 
-            // فحص ما إذا كان السيرفر يعمل بالفعل على منفذ 5000
             bool alreadyRunning = IsPortOpen(5000);
             if (alreadyRunning)
             {
@@ -425,7 +670,6 @@ namespace LelbaiLauncher
                 return;
             }
 
-            // العثور على مفسر بايثون
             string pythonExe = FindPythonExecutable();
             string webAppScript = Path.Combine(dir, "web_app.py");
 
@@ -446,7 +690,6 @@ namespace LelbaiLauncher
                 Console.WriteLine("  ⏳ جاري الانتظار حتى اكتمال إقلاع السيرفر...");
                 Console.ResetColor();
 
-                // الانتظار حتى يصبح المنفذ 5000 متاحاً ثم فتح المتصفح
                 new Thread(() =>
                 {
                     for (int i = 0; i < 30; i++)

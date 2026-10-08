@@ -24,8 +24,8 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PUBLISHED_FILE = os.path.join(BASE_DIR, "published_ads.json")
 IMGS_DIR = os.path.join(BASE_DIR, "asstes", "imgs")
 
-# مسار مجلد الاستيراد للموقع
-DESKTOP_IMPORT_DIR = r"C:\Users\mwyda\Desktop\إعلانات_للاستيراد"
+# مسار مجلد الاستيراد للموقع (ديناميكي لسطح مكتب أي مستخدم)
+DESKTOP_IMPORT_DIR = os.path.join(os.path.expanduser("~"), "Desktop", "إعلانات_للاستيراد")
 
 # خريطة معرفات الأقسام لتوليد القسم_id بدقة
 CATEGORY_ID_MAP = {

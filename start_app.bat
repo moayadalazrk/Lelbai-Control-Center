@@ -6,12 +6,17 @@ echo ========================================================
 echo   Starting Lelbai Control Center Server...
 echo ========================================================
 
+if exist "C:\Lelbai_Control_Center\Lelbai_Launcher.exe" (
+    "C:\Lelbai_Control_Center\Lelbai_Launcher.exe"
+    exit /b
+)
+
 if exist "Lelbai_Launcher.exe" (
     Lelbai_Launcher.exe
 ) else (
-    py app_launcher.py
+    py web_app.py
     if %errorlevel% neq 0 (
-        python app_launcher.py
+        python web_app.py
     )
 )
 
