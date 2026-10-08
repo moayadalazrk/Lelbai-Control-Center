@@ -21,6 +21,7 @@ asstes/imgs/*
 # Local logs and environments
 *.log
 .env
+last_update.json
 venv/
 .venv/
 env/

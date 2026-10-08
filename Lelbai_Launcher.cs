@@ -5,6 +5,7 @@ using System.Text;
 using System.Diagnostics;
 using System.Threading;
 using System.IO.Compression;
+using System.Collections.Generic;
 
 namespace LelbaiLauncher
 {
@@ -518,25 +519,94 @@ namespace LelbaiLauncher
         {
             try
             {
-                RunCommand("git", "fetch origin", dir, 20000);
-                string status = RunCommandWithOutput("git", "status -uno", dir);
+                RunCommand("git", "fetch origin --prune", dir, 30000);
 
-                if (status.Contains("behind") || status.Contains("Your branch is behind"))
+                string localHead = RunCommandWithOutput("git", "rev-parse HEAD", dir).Trim();
+                string remoteHead = RunCommandWithOutput("git", "rev-parse origin/main", dir).Trim();
+                if (string.IsNullOrEmpty(remoteHead) || remoteHead.Length < 10)
+                {
+                    remoteHead = RunCommandWithOutput("git", "rev-parse origin/master", dir).Trim();
+                }
+
+                bool isBehind = false;
+                if (!string.IsNullOrEmpty(remoteHead) && !string.IsNullOrEmpty(localHead) && !localHead.Equals(remoteHead, StringComparison.OrdinalIgnoreCase))
+                {
+                    isBehind = true;
+                }
+                else
+                {
+                    string status = RunCommandWithOutput("git", "status -uno", dir);
+                    if (status.Contains("behind") || status.Contains("Your branch is behind"))
+                    {
+                        isBehind = true;
+                    }
+                }
+
+                if (isBehind)
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("      ⚡ تم العثور على تحديث جديد! جاري سحب التحديث وتطبيقه...");
+                    Console.WriteLine("      ⚡ تم العثور على تحديث جديد! جاري سحب التحديث وتطبيقه بأمان...");
                     Console.ResetColor();
 
-                    string pullOut = RunCommandWithOutput("git", "pull", dir);
-                    Console.ForegroundColor = ConsoleColor.Green;
-                    Console.WriteLine("      ✅ تم تحديث الملفات بنجاح!");
-                    Console.ResetColor();
+                    // حفظ بيانات المستخدم الهامة في الذاكرة حتى لا تُفقد أثناء المزامنة
+                    string[] userFiles = new string[] {
+                        "config.json",
+                        "pending_review.json",
+                        "published_ads.json",
+                        "flagged_ads.json",
+                        "groups_data.json"
+                    };
 
-                    if (pullOut.Contains("requirements.txt"))
+                    Dictionary<string, byte[]> backupData = new Dictionary<string, byte[]>();
+                    foreach (string f in userFiles)
                     {
-                        Console.WriteLine("      📦 تحديث مكتبات Python المطلوبة...");
-                        RunCommand("pip", "install -r requirements.txt", dir, 60000);
+                        string p = Path.Combine(dir, f);
+                        if (File.Exists(p))
+                        {
+                            try { backupData[f] = File.ReadAllBytes(p); } catch { }
+                        }
                     }
+
+                    // تطبيق التحديث باستخدام reset --hard لضمان عدم التعليق أو رفض الدمج بسبب اختلافات الملفات المحلية
+                    string targetBranch = !string.IsNullOrEmpty(remoteHead) ? (RunCommandWithOutput("git", "branch -r", dir).Contains("origin/main") ? "origin/main" : "origin/master") : "origin/main";
+
+                    RunCommand("git", "checkout -B main " + targetBranch, dir, 25000);
+                    RunCommand("git", "reset --hard " + targetBranch, dir, 25000);
+                    RunCommand("git", "clean -fd -e imgs/ -e *.json", dir, 15000);
+
+                    // استعادة بيانات المستخدم المحفوظة
+                    foreach (var kvp in backupData)
+                    {
+                        try
+                        {
+                            string p = Path.Combine(dir, kvp.Key);
+                            if (kvp.Value != null && kvp.Value.Length > 0)
+                            {
+                                File.WriteAllBytes(p, kvp.Value);
+                            }
+                        }
+                        catch { }
+                    }
+
+                    string newLocalHead = RunCommandWithOutput("git", "rev-parse HEAD", dir).Trim();
+                    if (!string.IsNullOrEmpty(remoteHead) && newLocalHead.Equals(remoteHead, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("      ✅ تم تحديث وتطبيق كافة الملفات البرمجية بنجاح 100%!");
+                        Console.ResetColor();
+                    }
+                    else
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("      ✅ تم سحب التحديث بنجاح!");
+                        Console.ResetColor();
+                    }
+
+                    try
+                    {
+                        RunCommand("pip", "install -r requirements.txt", dir, 45000);
+                    }
+                    catch { }
                 }
                 else
                 {
@@ -555,6 +625,25 @@ namespace LelbaiLauncher
         {
             try
             {
+                string gitCheck = RunCommandWithOutput("git", "--version", dir);
+                if (gitCheck.Contains("git version"))
+                {
+                    Console.WriteLine("      [+] جاري تفعيل المزامنة التلقائية عبر Git...");
+                    RunCommand("git", "init", dir, 15000);
+                    RunCommand("git", "remote remove origin", dir, 5000);
+                    RunCommand("git", "remote add origin " + DefaultRepoUrl, dir, 15000);
+                    RunCommand("git", "fetch origin", dir, 30000);
+                    RunCommand("git", "checkout -B main origin/main", dir, 20000);
+                    RunCommand("git", "reset --hard origin/main", dir, 20000);
+                    if (Directory.Exists(Path.Combine(dir, ".git")))
+                    {
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.WriteLine("      ✅ تم تفعيل وتحديث المنظومة عبر Git بنجاح!");
+                        Console.ResetColor();
+                        return;
+                    }
+                }
+
                 using (WebClient client = new WebClient())
                 {
                     client.Headers.Add("User-Agent", "Lelbai-Launcher/1.0");
