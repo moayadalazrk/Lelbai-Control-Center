@@ -140,15 +140,30 @@ namespace LelbaiLauncher
 
         static string DetermineAppDirectory(string[] args)
         {
+            string currentBase = AppDomain.CurrentDomain.BaseDirectory;
+
             foreach (string arg in args)
             {
                 if (arg.Equals("--here", StringComparison.OrdinalIgnoreCase) || arg.Equals("--dev", StringComparison.OrdinalIgnoreCase))
                 {
-                    return AppDomain.CurrentDomain.BaseDirectory;
+                    return currentBase;
                 }
             }
 
             string primaryDir = @"C:\Lelbai_Control_Center";
+
+            // إذا تم تشغيل المشغل من مجلد محمل جديد يحتوي على ملفات النظام
+            try
+            {
+                if (File.Exists(Path.Combine(currentBase, "web_app.py")) && 
+                    !string.Equals(Path.GetFullPath(currentBase).TrimEnd('\\'), Path.GetFullPath(primaryDir).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!Directory.Exists(primaryDir)) Directory.CreateDirectory(primaryDir);
+                    CopyDirectory(currentBase, primaryDir);
+                }
+            }
+            catch { }
+
             try
             {
                 if (!Directory.Exists(primaryDir))
