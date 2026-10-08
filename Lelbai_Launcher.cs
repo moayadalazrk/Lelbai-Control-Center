@@ -743,28 +743,49 @@ namespace LelbaiLauncher
             catch { }
         }
 
+        static void KillExistingServer(int port)
+        {
+            try
+            {
+                string netstat = RunCommandWithOutput("netstat", "-ano -p tcp", AppDomain.CurrentDomain.BaseDirectory);
+                foreach (string line in netstat.Split(new char[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
+                {
+                    if (line.Contains(":" + port) && line.Contains("LISTENING"))
+                    {
+                        string[] parts = line.Trim().Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
+                        if (parts.Length > 0)
+                        {
+                            string pidStr = parts[parts.Length - 1];
+                            int pid;
+                            if (int.TryParse(pidStr, out pid) && pid > 0)
+                            {
+                                try
+                                {
+                                    Process p = Process.GetProcessById(pid);
+                                    if (p != null && !p.HasExited)
+                                    {
+                                        p.Kill();
+                                        p.WaitForExit(2000);
+                                    }
+                                }
+                                catch { }
+                            }
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
         static void LaunchApplication(string dir)
         {
             Console.ForegroundColor = ConsoleColor.Yellow;
             Console.WriteLine("[2/2] 🚀 جاري تشغيل سيرفر لوحة التحكم وفتح المتصفح...");
             Console.ResetColor();
 
-            bool alreadyRunning = IsPortOpen(5000);
-            if (alreadyRunning)
-            {
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("  🟢 سيرفر لوحة التحكم يعمل بنشاط على: http://localhost:5000");
-                Console.ResetColor();
-                OpenBrowser("http://localhost:5000");
-                Console.ForegroundColor = ConsoleColor.Cyan;
-                Console.WriteLine("\n==========================================================================");
-                Console.WriteLine("  🌐 لوحة التحكم مفتوحة وتعمل الآن في المتصفح.");
-                Console.WriteLine("  💡 يمكنك الضغط على [Enter] هنا في أي وقت لإغلاق هذه النافذة.");
-                Console.WriteLine("==========================================================================");
-                Console.ResetColor();
-                Console.ReadLine();
-                return;
-            }
+            // إغلاق أي عملية بايثون قديمة معلقة على نفس المنفذ لضمان تشغيل النسخة المحدثة فوراً
+            KillExistingServer(5000);
+            Thread.Sleep(500);
 
             string pythonExe = FindPythonExecutable();
             string webAppScript = Path.Combine(dir, "web_app.py");
