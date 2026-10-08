@@ -782,7 +782,7 @@ task_manager = ScrapingTaskManager()
 # ==============================================================================
 # واجهة الويب الشاملة (Unified 3-Pillar HTML Control Center)
 # ==============================================================================
-HTML_PAGE = """<!DOCTYPE html>
+HTML_PAGE = r"""<!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="UTF-8">
@@ -1938,7 +1938,9 @@ def check_and_apply_updates() -> dict:
                 if os.path.exists(uf_path):
                     try:
                         with open(uf_path, "rb") as f:
-                            backup[uf] = f.read()
+                            data = f.read()
+                            if len(data.strip()) > 10:
+                                backup[uf] = data
                     except Exception:
                         pass
 
@@ -1954,7 +1956,7 @@ def check_and_apply_updates() -> dict:
             subprocess.run(["git", "clean", "-fd", "-e", "imgs/", "-e", "*.json"], cwd=BASE_DIR, capture_output=True, timeout=15)
 
             for uf, data in backup.items():
-                if data:
+                if data and len(data.strip()) > 10:
                     try:
                         with open(os.path.join(BASE_DIR, uf), "wb") as f:
                             f.write(data)

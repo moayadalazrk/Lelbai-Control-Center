@@ -564,7 +564,13 @@ namespace LelbaiLauncher
                         string p = Path.Combine(dir, f);
                         if (File.Exists(p))
                         {
-                            try { backupData[f] = File.ReadAllBytes(p); } catch { }
+                            try {
+                                byte[] raw = File.ReadAllBytes(p);
+                                if (raw != null && raw.Length > 10)
+                                {
+                                    backupData[f] = raw;
+                                }
+                            } catch { }
                         }
                     }
 
@@ -575,13 +581,13 @@ namespace LelbaiLauncher
                     RunCommand("git", "reset --hard " + targetBranch, dir, 25000);
                     RunCommand("git", "clean -fd -e imgs/ -e *.json", dir, 15000);
 
-                    // استعادة بيانات المستخدم المحفوظة
+                    // استعادة بيانات المستخدم المحفوظة إذا كانت تحتوي على بيانات حقيقية
                     foreach (var kvp in backupData)
                     {
                         try
                         {
                             string p = Path.Combine(dir, kvp.Key);
-                            if (kvp.Value != null && kvp.Value.Length > 0)
+                            if (kvp.Value != null && kvp.Value.Length > 10)
                             {
                                 File.WriteAllBytes(p, kvp.Value);
                             }
