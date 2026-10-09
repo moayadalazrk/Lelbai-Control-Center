@@ -283,7 +283,7 @@ def query_remote_db(sql: str, bindings: list = None) -> dict:
             f"{BRIDGE_URL}?action=query",
             json=payload,
             headers={"X-Bridge-Secret": BRIDGE_SECRET, "Content-Type": "application/json"},
-            timeout=3
+            timeout=10
         )
         return resp.json()
     except Exception as e:
@@ -299,7 +299,7 @@ def execute_remote_db(sql: str, bindings: list = None) -> dict:
             f"{BRIDGE_URL}?action=statement",
             json=payload,
             headers={"X-Bridge-Secret": BRIDGE_SECRET, "Content-Type": "application/json"},
-            timeout=3
+            timeout=10
         )
         return resp.json()
     except Exception as e:

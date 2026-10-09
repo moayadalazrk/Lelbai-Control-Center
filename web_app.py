@@ -2671,13 +2671,26 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/ads":
             raw_pending = read_json_file(PENDING_FILE)
-            if not raw_pending:
-                all_ads = read_json_file(ALL_ADS_FILE)
-                if all_ads:
-                    raw_pending = all_ads
-                    write_json_file(PENDING_FILE, raw_pending)
             published = read_json_file(PUBLISHED_FILE)
             flagged = read_json_file(FLAGGED_FILE)
+
+            # استبعاد أي إعلان تم نشره أو حذفه مسبقاً من قائمة المراجعة تلقائياً
+            published_ids = {p.get("ad_url", "").strip() for p in published if p.get("ad_url")} | {p.get("clean_title", "").strip() for p in published if p.get("clean_title")}
+            flagged_ids = {f.get("ad_url", "").strip() for f in flagged if f.get("ad_url")} | {f.get("clean_title", "").strip() for f in flagged if f.get("clean_title")}
+
+            clean_pending = []
+            for ad in raw_pending:
+                u = ad.get("ad_url", "").strip()
+                t = ad.get("clean_title", "").strip()
+                if (u and u in published_ids) or (t and t in published_ids):
+                    continue
+                if (u and u in flagged_ids) or (t and t in flagged_ids):
+                    continue
+                clean_pending.append(ad)
+
+            if len(clean_pending) != len(raw_pending):
+                raw_pending = clean_pending
+                write_json_file(PENDING_FILE, raw_pending)
 
             enriched_pending = [enrich_ad_status(ad) for ad in raw_pending]
             enriched_published = [enrich_ad_status(ad) for ad in published]
@@ -2708,10 +2721,13 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                 time_str = f"{h:02d}:{m:02d}:{s:02d}"
 
                 raw_pending = read_json_file(PENDING_FILE)
-                if not raw_pending:
-                    raw_pending = read_json_file(ALL_ADS_FILE)
                 published = read_json_file(PUBLISHED_FILE)
                 flagged = read_json_file(FLAGGED_FILE)
+
+                published_ids = {p.get("ad_url", "").strip() for p in published if p.get("ad_url")} | {p.get("clean_title", "").strip() for p in published if p.get("clean_title")}
+                flagged_ids = {f.get("ad_url", "").strip() for f in flagged if f.get("ad_url")} | {f.get("clean_title", "").strip() for f in flagged if f.get("clean_title")}
+
+                raw_pending = [p for p in raw_pending if not ((p.get("ad_url", "").strip() and p.get("ad_url", "").strip() in published_ids) or (p.get("clean_title", "").strip() and p.get("clean_title", "").strip() in published_ids) or (p.get("ad_url", "").strip() and p.get("ad_url", "").strip() in flagged_ids) or (p.get("clean_title", "").strip() and p.get("clean_title", "").strip() in flagged_ids))]
 
                 ready_ads = [p for p in raw_pending if enrich_ad_status(p).get("evaluation", {}).get("is_ready_to_publish")]
 
