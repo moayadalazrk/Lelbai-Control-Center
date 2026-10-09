@@ -2020,16 +2020,6 @@ HTML_PAGE = r"""<!DOCTYPE html>
         console.error("renderPublishedGrid error:", err);
       }
     }
-                <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openImportFolder()">📂 فتح مجلد الاستيراد</button>
-                <button class="btn btn-warning btn-sm" onclick="revertPublishedAd(${idx})" title="إلغاء النشر وإعادة الإعلان للمسودة">🔄 إعادة للمراجعة</button>
-                <button class="btn btn-danger btn-sm" onclick="deletePublishedAd(${idx})" title="حذف من سجل المنشورات">🗑️</button>
-              </div>
-
-            </div>
-          </div>
-        `;
-      }).join('');
-    }
 
     async function openImportFolder() {
       try {
