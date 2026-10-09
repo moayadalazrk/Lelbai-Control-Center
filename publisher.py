@@ -479,6 +479,8 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
                 if not account_disp:
                     account_disp = ad.get("publisher_name") or f"حساب #{bot_uid}"
                 msg_detail = f"🚀 تم نشر الإعلان بنجاح في الموقع وتصديره لمجلد الاستيراد!\nمعرف الإعلان: {server_ad_id or ''}"
+            elif resp.status_code == 401:
+                msg_detail = "📁 تم تجهيز وتصدير الإعلان بنجاح إلى مجلد (إعلانات_للاستيراد) على سطح المكتب! ✅\n(💡 ملاحظة: مفتاح API الموقع غير مصرح أو منتهي الصلاحية، يمكنك استيراد الإعلان مباشرة من المجلد)."
             elif resp.status_code == 422:
                 err_text = ""
                 try:
@@ -493,12 +495,12 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
                         err_text = str(errs)
                 except Exception:
                     err_text = resp.text[:120]
-                msg_detail = f"📁 تم تصدير الإعلان بنجاح إلى مجلد الاستيراد على سطح المكتب! ✅\n(خادم الأونلاين رد برمز 422: {err_text})"
+                msg_detail = f"📁 تم تجهيز وتصدير الإعلان بنجاح إلى مجلد (إعلانات_للاستيراد) على سطح المكتب! ✅\n(تنبيه الخادم: {err_text})"
             else:
-                msg_detail = f"📁 تم تصدير الإعلان بنجاح إلى مجلد الاستيراد على سطح المكتب! ✅\n(حالة خادم الموقع: {resp.status_code})"
+                msg_detail = f"📁 تم تجهيز وتصدير الإعلان بنجاح إلى مجلد (إعلانات_للاستيراد) على سطح المكتب! ✅"
 
         except Exception as e:
-            msg_detail = f"📁 تم تصدير وتجهيز الإعلان بنجاح في مجلد (إعلانات_للاستيراد) على سطح المكتب! 📁"
+            msg_detail = "📁 تم تجهيز وتصدير الإعلان بنجاح إلى مجلد (إعلانات_للاستيراد) على سطح المكتب! ✅"
         finally:
             for fh in open_handles:
                 try:
