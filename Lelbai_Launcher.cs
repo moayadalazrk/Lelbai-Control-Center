@@ -534,6 +534,13 @@ namespace LelbaiLauncher
         {
             try
             {
+                try
+                {
+                    string lockFile = Path.Combine(dir, ".git", "index.lock");
+                    if (File.Exists(lockFile)) File.Delete(lockFile);
+                }
+                catch { }
+
                 RunCommand("git", "remote set-url origin " + DefaultRepoUrl, dir, 10000);
                 RunCommand("git", "fetch origin --prune --tags", dir, 30000);
 

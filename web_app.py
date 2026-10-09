@@ -2541,6 +2541,13 @@ def check_and_apply_updates() -> dict:
     git_dir = os.path.join(BASE_DIR, ".git")
     if os.path.exists(git_dir):
         try:
+            lock_file = os.path.join(git_dir, "index.lock")
+            if os.path.exists(lock_file):
+                try:
+                    os.remove(lock_file)
+                except Exception:
+                    pass
+
             user_files = ["config.json", "pending_review.json", "published_ads.json", "flagged_ads.json", "groups_data.json", "ads_syria.json"]
             backup = {}
             for uf in user_files:
