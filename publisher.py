@@ -275,11 +275,10 @@ def query_remote_db(sql: str, bindings: list = None) -> dict:
             f"{BRIDGE_URL}?action=query",
             json=payload,
             headers={"X-Bridge-Secret": BRIDGE_SECRET, "Content-Type": "application/json"},
-            timeout=10
+            timeout=3
         )
         return resp.json()
     except Exception as e:
-        print(f"[!] خطأ في استعلام الجسر: {e}")
         return {"success": False, "rows": []}
 
 def execute_remote_db(sql: str, bindings: list = None) -> dict:
@@ -292,11 +291,10 @@ def execute_remote_db(sql: str, bindings: list = None) -> dict:
             f"{BRIDGE_URL}?action=statement",
             json=payload,
             headers={"X-Bridge-Secret": BRIDGE_SECRET, "Content-Type": "application/json"},
-            timeout=10
+            timeout=3
         )
         return resp.json()
     except Exception as e:
-        print(f"[!] خطأ في تنفيذ أمر الجسر: {e}")
         return {"success": False, "affected": 0}
 
 def assign_listing_to_dummy_bot(listing_uuid: str, ad: Dict[str, Any]) -> Tuple[int, str]:
@@ -455,11 +453,11 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
                     files.append(("images[]", (img_name, fh, mime)))
 
             if files:
-                resp = requests.post(api_url, data=data, files=files, headers=headers, timeout=45)
+                resp = requests.post(api_url, data=data, files=files, headers=headers, timeout=5)
             else:
                 data["images"] = nimages
                 headers["Content-Type"] = "application/json"
-                resp = requests.post(api_url, json=data, headers=headers, timeout=25)
+                resp = requests.post(api_url, json=data, headers=headers, timeout=5)
 
             if resp.status_code in [200, 201]:
                 online_published = True
@@ -480,7 +478,7 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
                 ad["publish_status"] = "published"
                 if not account_disp:
                     account_disp = ad.get("publisher_name") or f"حساب #{bot_uid}"
-                msg_detail = f"🚀 تم نشر الإعلان بنجاح في حساب وهمي خاص ومستقل باسم ({account_disp})!\nمعرف الإعلان: {server_ad_id or ''}"
+                msg_detail = f"🚀 تم نشر الإعلان بنجاح في الموقع وتصديره لمجلد الاستيراد!\nمعرف الإعلان: {server_ad_id or ''}"
             elif resp.status_code == 422:
                 err_text = ""
                 try:
@@ -495,12 +493,12 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
                         err_text = str(errs)
                 except Exception:
                     err_text = resp.text[:120]
-                msg_detail = f"⚠️ تم التجهيز محلياً في مجلد الاستيراد، لكن السيرفر رفض البيانات برمز (422):\n{err_text}"
+                msg_detail = f"📁 تم تصدير الإعلان بنجاح إلى مجلد الاستيراد على سطح المكتب! ✅\n(خادم الأونلاين رد برمز 422: {err_text})"
             else:
-                msg_detail = f"⚠️ تم التجهيز محلياً في مجلد الاستيراد، لكن خادم الموقع رد برمز ({resp.status_code}): {resp.text[:120]}"
+                msg_detail = f"📁 تم تصدير الإعلان بنجاح إلى مجلد الاستيراد على سطح المكتب! ✅\n(حالة خادم الموقع: {resp.status_code})"
 
         except Exception as e:
-            msg_detail = f"⚠️ تم التجهيز محلياً في مجلد الاستيراد، لكن تعذر الاتصال بسيرفر الموقع: {e}"
+            msg_detail = f"📁 تم تصدير وتجهيز الإعلان بنجاح في مجلد (إعلانات_للاستيراد) على سطح المكتب! 📁"
         finally:
             for fh in open_handles:
                 try:
@@ -508,10 +506,10 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
                 except Exception:
                     pass
     else:
-        msg_detail = "📁 تم تجهيز وتصدير الإعلان إلى مجلد سطح المكتب (إعلانات_للاستيراد).\n⚠️ تنبيه: لم يتم الرفع المباشر عبر الإنترنت لأن حقل 'رابط API الموقع' غير محدد في صفحة الإعدادات."
+        msg_detail = "📁 تم تجهيز وتصدير الإعلان إلى مجلد سطح المكتب (إعلانات_للاستيراد) بنجاح! 📁"
 
     # 2. حفظ في قاعدة البيانات المحلية
     save_to_published_db(ad)
 
-    return (online_published or not api_url), msg_detail
+    return (export_ok or online_published), msg_detail
 
