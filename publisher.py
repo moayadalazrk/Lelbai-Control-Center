@@ -158,8 +158,16 @@ def export_ad_to_import_folder(ad: Dict[str, Any]) -> Tuple[bool, str]:
         nimages = ad.get("nimages", [])
         copied_images_count = 0
         for img_name in nimages:
-            src_img = os.path.join(IMGS_DIR, img_name)
-            if os.path.exists(src_img):
+            candidate_paths = [
+                os.path.join(IMGS_DIR, img_name),
+                os.path.join(BASE_DIR, "imgs", img_name),
+                os.path.join(BASE_DIR, "asstes", "imgs", img_name),
+                os.path.join(BASE_DIR, "assets", "imgs", img_name),
+                os.path.expanduser(os.path.join("~/Desktop/1/imgs", img_name)),
+                os.path.expanduser(os.path.join("~/Desktop/تنزيل الاعلانات/asstes/imgs", img_name))
+            ]
+            src_img = next((p for p in candidate_paths if os.path.exists(p)), None)
+            if src_img:
                 dst_img = os.path.join(ad_folder_path, img_name)
                 shutil.copy2(src_img, dst_img)
                 copied_images_count += 1
@@ -373,7 +381,8 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
                     pub_data = json.loads(c)
                     for item in pub_data:
                         if (ad_url and item.get("ad_url") == ad_url) or (ad_title and item.get("clean_title") == ad_title):
-                            return True, "⚠️ هذا الإعلان تم نشره بالفعل مسبقاً في سجل المنشورات!"
+                            if item.get("server_uuid") or item.get("server_status") == "active":
+                                return True, "⚠️ هذا الإعلان تم نشره بالفعل مسبقاً على خادم الموقع!"
         except Exception:
             pass
 
@@ -392,7 +401,7 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
 
     cfg = load_config()
     api_url = cfg.get("website_api_url", "").strip() or "https://api.lelbai.com/public/api/listings"
-    api_key = cfg.get("website_api_key", "").strip() or "67|5181926855ca52522dec3990517f272b027b745f"
+    api_key = cfg.get("website_api_key", "").strip() or "4|b232da56236d18d5461ad56e14476a4d71b69b0e"
 
     online_published = False
     server_ad_id = None
@@ -440,8 +449,16 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
         nimages = ad.get("nimages", [])
         try:
             for img_name in nimages[:10]:
-                img_path = os.path.join(IMGS_DIR, img_name)
-                if os.path.exists(img_path):
+                candidate_paths = [
+                    os.path.join(IMGS_DIR, img_name),
+                    os.path.join(BASE_DIR, "imgs", img_name),
+                    os.path.join(BASE_DIR, "asstes", "imgs", img_name),
+                    os.path.join(BASE_DIR, "assets", "imgs", img_name),
+                    os.path.expanduser(os.path.join("~/Desktop/1/imgs", img_name)),
+                    os.path.expanduser(os.path.join("~/Desktop/تنزيل الاعلانات/asstes/imgs", img_name))
+                ]
+                img_path = next((p for p in candidate_paths if os.path.exists(p)), None)
+                if img_path:
                     ext = os.path.splitext(img_name)[1].lower()
                     mime = "image/webp"
                     if ext in [".jpg", ".jpeg"]:
@@ -453,11 +470,11 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
                     files.append(("images[]", (img_name, fh, mime)))
 
             if files:
-                resp = requests.post(api_url, data=data, files=files, headers=headers, timeout=5)
+                resp = requests.post(api_url, data=data, files=files, headers=headers, timeout=10)
             else:
                 data["images"] = nimages
                 headers["Content-Type"] = "application/json"
-                resp = requests.post(api_url, json=data, headers=headers, timeout=5)
+                resp = requests.post(api_url, json=data, headers=headers, timeout=10)
 
             if resp.status_code in [200, 201]:
                 online_published = True

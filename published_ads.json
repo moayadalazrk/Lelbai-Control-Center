@@ -219,7 +219,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:12:59",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 2,
+    "is_scraped": true,
+    "server_uuid": "bbfd6c56-66d9-4f8c-91bc-92032d3d50c8",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1630177111893735/",
@@ -309,7 +313,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:14:08",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 3,
+    "is_scraped": true,
+    "server_uuid": "09bc2206-b41d-4726-8459-c489654f7836",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1629932911918155/",
@@ -404,7 +412,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:24",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 4,
+    "is_scraped": true,
+    "server_uuid": "adfb81b7-13d0-45e2-8f96-f868bfbcec3d",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/415586248957637/posts/2640562799793293/",
@@ -497,7 +509,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:24",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 5,
+    "is_scraped": true,
+    "server_uuid": "d0909ec1-d612-4c16-b5a2-0dbba3d38899",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/415586248957637/posts/2640546756461564/",
@@ -685,7 +701,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:24",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 6,
+    "is_scraped": true,
+    "server_uuid": "b6ff2b64-9d9e-4ecd-af88-459a8172646a",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1629651671946279/",
@@ -1530,7 +1550,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:25",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 7,
+    "is_scraped": true,
+    "server_uuid": "041af413-9b52-420c-bffa-176b1ea540d3",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/5259742280745703/posts/28745822361711031/",
@@ -1623,7 +1647,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:25",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 8,
+    "is_scraped": true,
+    "server_uuid": "e77a530c-6116-4e90-b0bd-8e6d0117826d",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1629341765310603/",
@@ -1708,7 +1736,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:25",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 9,
+    "is_scraped": true,
+    "server_uuid": "6cbc4e1c-74a4-42de-bd22-c846dcac2f6c",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1629340468644066/",
@@ -1789,7 +1821,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:25",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 10,
+    "is_scraped": true,
+    "server_uuid": "ef212a59-a9d5-4c19-85ce-9390cf6467a7",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1629318031979643/",
@@ -1883,7 +1919,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:25",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 11,
+    "is_scraped": true,
+    "server_uuid": "9a1855f8-5b1c-4e74-92c3-2a83d93878b6",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1629311251980321/",
@@ -1962,7 +2002,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:25",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 12,
+    "is_scraped": true,
+    "server_uuid": "4abd6977-f6c6-4bb9-9897-c49a211c76bb",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1629265968651516/",
@@ -2055,7 +2099,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:25",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 13,
+    "is_scraped": true,
+    "server_uuid": "98fd2b7b-d016-4d38-832a-2013e51dbe4d",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/5259742280745703/posts/28744119611881306/",
@@ -2150,7 +2198,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 14,
+    "is_scraped": true,
+    "server_uuid": "d923df94-1a28-44d9-b453-494c3aa05d6d",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/415586248957637/posts/2640542599795313/",
@@ -2232,7 +2284,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 15,
+    "is_scraped": true,
+    "server_uuid": "bf1b25c6-cc0e-47a6-a324-a9754d59d21f",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1629123025332477/",
@@ -2321,7 +2377,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 16,
+    "is_scraped": true,
+    "server_uuid": "1b41f22b-433e-43e6-a398-8c1b69a3b86a",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/5259742280745703/posts/28754919454134655/",
@@ -2415,7 +2475,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 17,
+    "is_scraped": true,
+    "server_uuid": "4cdf1fb4-ace0-4853-8d0b-35d6d62e4281",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1628162188761894/",
@@ -2502,7 +2566,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 18,
+    "is_scraped": true,
+    "server_uuid": "6299cb79-4b15-4025-b5ae-ffc1b19f8c08",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/5259742280745703/posts/28747296651563602/",
@@ -2591,7 +2659,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 19,
+    "is_scraped": true,
+    "server_uuid": "f301810d-d9e4-4dda-9190-a171d1706e2f",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/415586248957637/posts/2640507433132163/",
@@ -2669,7 +2741,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 20,
+    "is_scraped": true,
+    "server_uuid": "50ed7dea-8f72-4da2-a082-8145470ac4da",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1628028565441923/",
@@ -2764,7 +2840,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 21,
+    "is_scraped": true,
+    "server_uuid": "3fa93c46-17c7-4b49-b3ae-318e3e716b95",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/5259742280745703/posts/28744996501793617/",
@@ -2861,7 +2941,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 22,
+    "is_scraped": true,
+    "server_uuid": "ab931ea6-ca29-463e-89c7-db8eff627190",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1627901785454601/",
@@ -2937,7 +3021,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 23,
+    "is_scraped": true,
+    "server_uuid": "b112f1e9-0f97-4a95-aacd-cb47020b4708",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/357304532514339/posts/1627897765455003/",
@@ -3023,7 +3111,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 24,
+    "is_scraped": true,
+    "server_uuid": "5c076fae-c313-4b7c-be6f-761d471d2be1",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/415586248957637/posts/2640502296466010/",
@@ -3118,7 +3210,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-07 15:17:26",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 4,
+    "is_scraped": true,
+    "server_uuid": "2c84a7a0-60bb-445f-b17b-de06283d29d5",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/415586248957637/posts/2640703106445929/",
@@ -3746,7 +3842,11 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-09 14:19:00",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 25,
+    "is_scraped": true,
+    "server_uuid": "9b25ecc0-a49c-4448-ac7e-0062f3fdfa98",
+    "server_status": "active"
   },
   {
     "ad_url": "https://www.facebook.com/groups/5259742280745703/posts/28223878603905412/",
@@ -3817,6 +3917,10 @@
       "ready_status_label": "جاهز للنشر الفوري 🚀"
     },
     "published_at": "2026-10-09 14:19:51",
-    "publish_status": "published"
+    "publish_status": "published",
+    "assigned_user_id": 26,
+    "is_scraped": true,
+    "server_uuid": "3a0eca20-e76a-444a-8935-f1e5bb2bffbe",
+    "server_status": "active"
   }
 ]
