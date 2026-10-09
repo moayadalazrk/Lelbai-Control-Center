@@ -534,7 +534,8 @@ namespace LelbaiLauncher
         {
             try
             {
-                RunCommand("git", "fetch origin --prune", dir, 30000);
+                RunCommand("git", "remote set-url origin " + DefaultRepoUrl, dir, 10000);
+                RunCommand("git", "fetch origin --prune --tags", dir, 30000);
 
                 string localHead = RunCommandWithOutput("git", "rev-parse HEAD", dir).Trim();
                 string remoteHead = RunCommandWithOutput("git", "rev-parse origin/main", dir).Trim();
@@ -551,7 +552,7 @@ namespace LelbaiLauncher
                 else
                 {
                     string status = RunCommandWithOutput("git", "status -uno", dir);
-                    if (status.Contains("behind") || status.Contains("Your branch is behind"))
+                    if (status.Contains("behind") || status.Contains("Your branch is behind") || status.Contains("diverged"))
                     {
                         isBehind = true;
                     }
@@ -654,7 +655,7 @@ namespace LelbaiLauncher
                     RunCommand("git", "init", dir, 15000);
                     RunCommand("git", "remote remove origin", dir, 5000);
                     RunCommand("git", "remote add origin " + DefaultRepoUrl, dir, 15000);
-                    RunCommand("git", "fetch origin", dir, 30000);
+                    RunCommand("git", "fetch origin --prune --tags", dir, 30000);
                     RunCommand("git", "checkout -f -B main origin/main", dir, 20000);
                     RunCommand("git", "reset --hard origin/main", dir, 20000);
                     if (Directory.Exists(Path.Combine(dir, ".git")))
@@ -664,6 +665,50 @@ namespace LelbaiLauncher
                         Console.ResetColor();
                         return;
                     }
+                }
+
+                Console.WriteLine("      [+] جاري تنزيل أحدث ملفات التحديث من GitHub عبر HTTPS...");
+
+                // حفظ بيانات المستخدم الهامة
+                string[] userFiles = new string[] {
+                    "config.json",
+                    "pending_review.json",
+                    "published_ads.json",
+                    "flagged_ads.json",
+                    "groups_data.json",
+                    "ads_syria.json"
+                };
+
+                Dictionary<string, byte[]> backupData = new Dictionary<string, byte[]>();
+                foreach (string f in userFiles)
+                {
+                    string p = Path.Combine(dir, f);
+                    if (File.Exists(p))
+                    {
+                        try {
+                            byte[] raw = File.ReadAllBytes(p);
+                            if (raw != null && raw.Length > 10)
+                            {
+                                backupData[f] = raw;
+                            }
+                        } catch { }
+                    }
+                }
+
+                DownloadAndExtractZip(DefaultZipUrl, dir);
+
+                // استعادة بيانات المستخدم
+                foreach (var kvp in backupData)
+                {
+                    try
+                    {
+                        string p = Path.Combine(dir, kvp.Key);
+                        if (kvp.Value != null && kvp.Value.Length > 10)
+                        {
+                            File.WriteAllBytes(p, kvp.Value);
+                        }
+                    }
+                    catch { }
                 }
 
                 using (WebClient client = new WebClient())
@@ -680,7 +725,10 @@ namespace LelbaiLauncher
                     }
                 }
             }
-            catch { }
+            catch (Exception ex)
+            {
+                Console.WriteLine("      ℹ️ تعذر استكمال التحديث عبر API: " + ex.Message);
+            }
         }
 
         static void ShowLastUpdateDate(string dir)
