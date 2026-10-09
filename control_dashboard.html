@@ -271,6 +271,8 @@
             <label>📁 مجلد استيراد الموقع:</label>
             <input type="text" class="form-control" id="inpImportDir" value="" placeholder="تلقائي: سطح المكتب \ إعلانات_للاستيراد (أو اختر مساراً مخصصاً)">
           </div>
+        </div>
+
         <div class="form-group" style="margin-top:14px; background:rgba(255,255,255,0.03); border:1px solid var(--border); border-radius:12px; padding:12px 14px;">
           <label style="font-weight:700; color:#60a5fa; display:flex; align-items:center; gap:6px; margin-bottom:6px;">
             <span>🎯 نقطة انطلاق السحب:</span>
@@ -451,6 +453,16 @@
     let currentFilter = 'all';
     let isServerConnected = false;
 
+    function escapeHtml(str) {
+      if (str === null || str === undefined) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
     function updateServerStatusBadge(online) {
       isServerConnected = online;
       const badge = document.getElementById('serverStatusBadge');
@@ -489,9 +501,17 @@
       const targetTab = document.getElementById(tabId);
       if (targetTab) targetTab.classList.add('active');
       if (el) el.classList.add('active');
-      if (tabId === 'tab-links') loadGroups();
-      if (tabId === 'tab-review') loadAllAds();
-      if (tabId === 'tab-published') loadPublishedAds();
+      if (tabId === 'tab-links') {
+        if (!groupsData || groupsData.length === 0) loadGroups();
+      }
+      if (tabId === 'tab-review') {
+        if (!adsData || adsData.length === 0) loadAllAds();
+        else renderAdsGrid();
+      }
+      if (tabId === 'tab-published') {
+        if (!publishedAdsData || publishedAdsData.length === 0) loadPublishedAds();
+        else renderPublishedGrid();
+      }
     }
 
     async function init() {
@@ -758,169 +778,179 @@
     }
 
     function renderAdsGrid() {
-      const grid = document.getElementById('adsCardsGrid');
-      let filtered = adsData;
-      if (currentFilter === 'ready') filtered = adsData.filter(a => a.evaluation && a.evaluation.is_ready_to_publish);
-      if (currentFilter === 'review') filtered = adsData.filter(a => a.evaluation && !a.evaluation.is_ready_to_publish);
+      try {
+        const grid = document.getElementById('adsCardsGrid');
+        if (!grid) return;
+        let filtered = Array.isArray(adsData) ? adsData : [];
+        if (currentFilter === 'ready') filtered = filtered.filter(a => a && a.evaluation && a.evaluation.is_ready_to_publish);
+        if (currentFilter === 'review') filtered = filtered.filter(a => a && (!a.evaluation || !a.evaluation.is_ready_to_publish));
 
-      if (filtered.length === 0) {
-        grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; background:var(--card-bg); border-radius:16px; color:var(--text-muted);">🎉 لا توجد إعلانات مطابقة لفلتر العرض!</div>`;
-        return;
-      }
+        if (filtered.length === 0) {
+          grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; background:var(--card-bg); border-radius:16px; color:var(--text-muted);">🎉 لا توجد إعلانات مطابقة لفلتر العرض!</div>`;
+          return;
+        }
 
-      const visibleAds = filtered.slice(0, adsLimit);
-      const cardsHtml = visibleAds.map((ad, idx) => {
-        const ev = ad.evaluation || {};
-        const sp = ev.specs_details || {};
-        const sh = ev.sharia_details || {};
+        const visibleAds = filtered.slice(0, adsLimit);
+        const cardsHtml = visibleAds.map((ad, idx) => {
+          if (!ad) return '';
+          const ev = ad.evaluation || {};
+          const sp = ev.specs_details || {};
+          const sh = ev.sharia_details || {};
 
-        const title = ad.clean_title || (ad.description || '').substring(0, 60);
-        const city = sp.city_name || (ad.location_detected || 'دمشق');
-        const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : '';
-        const cat = ad.category || 'عام';
-        const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
-        const accountName = ad.publisher_name || 'أبو محمد الشامي';
-        const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${ad.price_info.currency}` : 'السعر: على السوم';
-        
-        const images = ad.nimages || [];
-        const firstImg = images.length > 0 ? `${API_BASE}/imgs/${images[0]}` : '';
+          const rawTitle = ad.clean_title || ad.title || (ad.description || '').substring(0, 60) || 'إعلان بدون عنوان';
+          const title = String(rawTitle);
+          const city = sp.city_name || ad.location_detected || 'دمشق';
+          const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : '';
+          const cat = ad.category || 'عام';
+          const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
+          const accountName = ad.publisher_name || 'أبو محمد الشامي';
+          const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${ad.price_info.currency || 'ل.س'}` : 'السعر: على السوم';
+          
+          const images = Array.isArray(ad.nimages) ? ad.nimages : [];
+          const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
 
-        const thumbsHtml = images.map((img, i) => `
-          <img src="${API_BASE}/imgs/${img}" class="ad-thumb ${i===0?'active':''}" onclick="document.getElementById('adMainImg-${idx}').src='${API_BASE}/imgs/${img}'" />
-        `).join('');
+          const thumbsHtml = images.map((img, i) => `
+            <img src="${API_BASE}/imgs/${encodeURIComponent(img)}" class="ad-thumb ${i===0?'active':''}" onclick="const mainImg=document.getElementById('adMainImg-${idx}'); if(mainImg) mainImg.src='${API_BASE}/imgs/${encodeURIComponent(img)}'" onerror="this.style.display='none'" />
+          `).join('');
 
-        // أشرطة الفحص
-        const specsStatusHtml = sp.has_images && sp.has_desc && sp.has_phone ? 
-          `<span style="color:#34d399;">✔️ مكتمل (${sp.images_count} صور + هاتف + وصف + موقع)</span>` :
-          `<span style="color:#f87171;">⚠️ ناقص بعض الحقول</span>`;
+          // أشرطة الفحص
+          const specsStatusHtml = sp.has_images && sp.has_desc && sp.has_phone ? 
+            `<span style="color:#34d399;">✔️ مكتمل (${sp.images_count || images.length} صور + هاتف + وصف + موقع)</span>` :
+            `<span style="color:#f87171;">⚠️ ناقص بعض الحقول</span>`;
 
-        const shariaStatusHtml = sh.is_safe ?
-          `<span style="color:#34d399;">🟢 مطابق للشريعة والضوابط الرقابية 100%</span>` :
-          `<span style="color:#f87171;">⚠️ مخالف: ${(sh.flags || []).join(', ')}</span>`;
+          const shFlags = Array.isArray(sh.flags) ? sh.flags : [];
+          const shariaStatusHtml = sh.is_safe ?
+            `<span style="color:#34d399;">🟢 مطابق للشريعة والضوابط الرقابية 100%</span>` :
+            `<span style="color:#f87171;">⚠️ مخالف: ${escapeHtml(shFlags.join(', '))}</span>`;
 
-        const dupStatusHtml = ad.is_duplicate ?
-          `<span style="color:#ef4444; font-weight:700;">⚠️ مكرر مسبقاً على الموقع</span>` :
-          `<span style="color:#34d399; font-weight:700;">✔️ جديد كلياً (غير مكرر)</span>`;
+          const dupStatusHtml = ad.is_duplicate ?
+            `<span style="color:#ef4444; font-weight:700;">⚠️ مكرر مسبقاً على الموقع</span>` :
+            `<span style="color:#34d399; font-weight:700;">✔️ جديد كلياً (غير مكرر)</span>`;
 
-        const readyBadgeHtml = ev.is_ready_to_publish ?
-          `<span class="badge badge-success" style="font-size:12px;">🚀 جاهز للنشر الفوري</span>` :
-          `<span class="badge badge-warning" style="font-size:12px;">⏳ بحاجة لمراجعة</span>`;
+          const readyBadgeHtml = ev.is_ready_to_publish ?
+            `<span class="badge badge-success" style="font-size:12px;">🚀 جاهز للنشر الفوري</span>` :
+            `<span class="badge badge-warning" style="font-size:12px;">⏳ بحاجة لمراجعة</span>`;
 
-        // استخراج بادجات المواصفات الفنية
-        const specsObj = ad.specifications || {};
-        const specItems = [];
-        if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
-        if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
-        if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
-        if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
-        if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
-        if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
-        if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
-        if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
-        if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
-        if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
-        if (specsObj.features && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
+          // استخراج بادجات المواصفات الفنية
+          const specsObj = (typeof ad.specifications === 'object' && ad.specifications !== null) ? ad.specifications : {};
+          const specItems = [];
+          if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
+          if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
+          if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
+          if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
+          if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
+          if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
+          if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
+          if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
+          if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
+          if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
+          if (Array.isArray(specsObj.features) && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
 
-        const specsBadgesHtml = specItems.length > 0 ? `
-          <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
-            ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${s}</span>`).join('')}
-          </div>
-        ` : '';
-
-        // رد وتقرير الذكاء الاصطناعي
-        const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
-          ad.ai_review.full_text : 
-          (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية.');
-
-        return `
-          <div class="ad-card" id="adCard-${idx}">
-            <div class="ad-gallery">
-              <img id="adMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
-              <div class="ad-thumbs">${thumbsHtml}</div>
+          const specsBadgesHtml = specItems.length > 0 ? `
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
+              ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${escapeHtml(s)}</span>`).join('')}
             </div>
+          ` : '';
 
-            <div class="ad-body">
-              
-              <!-- التصنيف بأصغر ابن واسم الحساب -->
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
-                <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${catHierarchy}</span>
-                <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${accountName}</span>
+          // رد وتقرير الذكاء الاصطناعي
+          const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
+            ad.ai_review.full_text : 
+            (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية.');
+
+          const descText = ad.clean_description || ad.description || 'لا يوجد وصف متاح';
+
+          return `
+            <div class="ad-card" id="adCard-${idx}">
+              <div class="ad-gallery">
+                <img id="adMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
+                <div class="ad-thumbs">${thumbsHtml}</div>
               </div>
 
-              <!-- صندوق المراحل التفصيلي -->
-              <div class="verification-box">
-                <div class="pillar-row">
-                  <span class="pillar-label">1️⃣ المواصفات والبيانات:</span>
-                  ${specsStatusHtml}
+              <div class="ad-body">
+                
+                <!-- التصنيف بأصغر ابن واسم الحساب -->
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
+                  <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${escapeHtml(catHierarchy)}</span>
+                  <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${escapeHtml(accountName)}</span>
                 </div>
-                <div class="pillar-row">
-                  <span class="pillar-label">2️⃣ الفحص الشرعي والرقابي:</span>
-                  ${shariaStatusHtml}
+
+                <!-- صندوق المراحل التفصيلي -->
+                <div class="verification-box">
+                  <div class="pillar-row">
+                    <span class="pillar-label">1️⃣ المواصفات والبيانات:</span>
+                    ${specsStatusHtml}
+                  </div>
+                  <div class="pillar-row">
+                    <span class="pillar-label">2️⃣ الفحص الشرعي والرقابي:</span>
+                    ${shariaStatusHtml}
+                  </div>
+                  <div class="pillar-row">
+                    <span class="pillar-label">3️⃣ عدم التكرار على الموقع:</span>
+                    ${dupStatusHtml}
+                  </div>
+                  <div class="pillar-row">
+                    <span class="pillar-label">4️⃣ حالة الجاهزية للنشر:</span>
+                    ${readyBadgeHtml}
+                  </div>
                 </div>
-                <div class="pillar-row">
-                  <span class="pillar-label">3️⃣ عدم التكرار على الموقع:</span>
-                  ${dupStatusHtml}
+
+                <!-- بادجات المواصفات المستخرجة -->
+                ${specsBadgesHtml}
+
+                <!-- رد وتقرير الذكاء الاصطناعي الشامل -->
+                <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:10px; padding:10px; margin:8px 0;">
+                  <div style="font-size:11px; font-weight:800; color:#a5b4fc; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between;">
+                    <span>🤖 رد وتقرير فحص الذكاء الاصطناعي:</span>
+                    <span style="color:#34d399; font-size:10px;">✔️ فحص دقيق</span>
+                  </div>
+                  <div style="font-size:11px; color:#cbd5e1; line-height:1.55; white-space:pre-line; background:rgba(15,23,42,0.65); padding:8px 10px; border-radius:6px; font-family:monospace; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(aiReviewText)}</div>
                 </div>
-                <div class="pillar-row">
-                  <span class="pillar-label">4️⃣ حالة الجاهزية للنشر:</span>
-                  ${readyBadgeHtml}
+
+                <div>
+                  <label style="font-size:11px; color:var(--text-muted); font-weight:700;">العنوان المهيكل:</label>
+                  <input type="text" class="ad-title-input" id="titleInp-${idx}" value="${escapeHtml(title)}" />
                 </div>
-              </div>
 
-              <!-- بادجات المواصفات المستخرجة -->
-              ${specsBadgesHtml}
-
-              <!-- رد وتقرير الذكاء الاصطناعي الشامل -->
-              <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:10px; padding:10px; margin:8px 0;">
-                <div style="font-size:11px; font-weight:800; color:#a5b4fc; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between;">
-                  <span>🤖 رد وتقرير فحص الذكاء الاصطناعي:</span>
-                  <span style="color:#34d399; font-size:10px;">✔️ فحص دقيق</span>
+                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
+                  <span style="color:#60a5fa;">📍 ${escapeHtml(city)}${escapeHtml(subDist)}</span>
+                  <span style="color:#fde047;">💰 ${escapeHtml(price)}</span>
                 </div>
-                <div style="font-size:11px; color:#cbd5e1; line-height:1.55; white-space:pre-line; background:rgba(15,23,42,0.65); padding:8px 10px; border-radius:6px; font-family:monospace; border:1px solid rgba(255,255,255,0.05);">${aiReviewText}</div>
+
+                <div class="ad-desc-box">${escapeHtml(descText)}</div>
+
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8;">
+                  <span>📞 ${escapeHtml(ad.phone_number || 'لا يوجد')}</span>
+                  <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
+                </div>
+
+                <div style="display:flex; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border);">
+                  <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
+                  <button id="rejBtn-${idx}" class="btn btn-danger btn-sm" onclick="rejectSingleAd(${idx})">❌ حذف</button>
+                </div>
+
               </div>
-
-              <div>
-                <label style="font-size:11px; color:var(--text-muted); font-weight:700;">العنوان المهيكل:</label>
-                <input type="text" class="ad-title-input" id="titleInp-${idx}" value="${title.replace(/"/g, '&quot;')}" />
-              </div>
-
-              <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
-                <span style="color:#60a5fa;">📍 ${city}${subDist}</span>
-                <span style="color:#fde047;">💰 ${price}</span>
-              </div>
-
-              <div class="ad-desc-box">${ad.clean_description || ad.description}</div>
-
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8;">
-                <span>📞 ${ad.phone_number || 'لا يوجد'}</span>
-                <a href="${ad.ad_url}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
-              </div>
-
-              <div style="display:flex; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border);">
-                <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
-                <button id="rejBtn-${idx}" class="btn btn-danger btn-sm" onclick="rejectSingleAd(${idx})">❌ حذف</button>
-              </div>
-
             </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        }).join('');
 
-      let moreHtml = '';
-      if (filtered.length > adsLimit) {
-        moreHtml = `
-          <div style="grid-column:1/-1; text-align:center; padding:24px; background:var(--card-inner); border-radius:14px; border:1px solid var(--border); margin-top:15px; display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap;">
-            <button class="btn btn-primary" onclick="adsLimit += 60; renderAdsGrid();" style="padding:12px 24px; font-weight:800; font-size:14px;">
-              📥 عرض المزيد من الإعلانات (+60) [المعروض حالياً ${visibleAds.length} من ${filtered.length}]
-            </button>
-            <button class="btn btn-outline" onclick="adsLimit = filtered.length; renderAdsGrid();" style="padding:12px 24px; font-weight:800; font-size:14px;">
-              ⚡ عرض كافة الإعلانات دفعة واحدة (${filtered.length})
-            </button>
-          </div>
-        `;
+        let moreHtml = '';
+        if (filtered.length > adsLimit) {
+          moreHtml = `
+            <div style="grid-column:1/-1; text-align:center; padding:24px; background:var(--card-inner); border-radius:14px; border:1px solid var(--border); margin-top:15px; display:flex; justify-content:center; align-items:center; gap:12px; flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="adsLimit += 60; renderAdsGrid();" style="padding:12px 24px; font-weight:800; font-size:14px;">
+                📥 عرض المزيد من الإعلانات (+60) [المعروض حالياً ${visibleAds.length} من ${filtered.length}]
+              </button>
+              <button class="btn btn-outline" onclick="adsLimit = filtered.length; renderAdsGrid();" style="padding:12px 24px; font-weight:800; font-size:14px;">
+                ⚡ عرض كافة الإعلانات دفعة واحدة (${filtered.length})
+              </button>
+            </div>
+          `;
+        }
+
+        grid.innerHTML = cardsHtml + moreHtml;
+      } catch (err) {
+        console.error("renderAdsGrid error:", err);
       }
-
-      grid.innerHTML = cardsHtml + moreHtml;
     }
 
     const activePublishing = new Set();
@@ -1079,115 +1109,133 @@
     }
 
     function renderPublishedGrid() {
-      const grid = document.getElementById('publishedCardsGrid');
-      if (!grid) return;
+      try {
+        const grid = document.getElementById('publishedCardsGrid');
+        if (!grid) return;
 
-      const hasFilter = (document.getElementById('searchPublishedInput')?.value || '').trim() || (document.getElementById('filterPublishedCat')?.value || '').trim();
-      const list = hasFilter ? filteredPublished : publishedAdsData;
+        const hasFilter = (document.getElementById('searchPublishedInput')?.value || '').trim() || (document.getElementById('filterPublishedCat')?.value || '').trim();
+        const list = hasFilter ? filteredPublished : publishedAdsData;
 
-      if (list.length === 0) {
-        grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; background:var(--card-bg); border-radius:16px; color:var(--text-muted);">
-          <div style="font-size:36px; margin-bottom:12px;">📭</div>
-          <div style="font-size:16px; font-weight:800; color:#f8fafc;">لا توجد إعلانات منشورة حتى الآن مطابقة للبحث!</div>
-          <div style="font-size:13px; margin-top:8px; color:var(--text-muted);">عندما تقوم بنشر الإعلانات من تبويب "مراجعة ونشر الإعلانات"، ستظهر تلقائياً هنا في هذه القائمة المنفصلة.</div>
-        </div>`;
-        return;
-      }
+        if (!list || list.length === 0) {
+          grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; background:var(--card-bg); border-radius:16px; color:var(--text-muted);">
+            <div style="font-size:36px; margin-bottom:12px;">📭</div>
+            <div style="font-size:16px; font-weight:800; color:#f8fafc;">لا توجد إعلانات منشورة حتى الآن مطابقة للبحث!</div>
+            <div style="font-size:13px; margin-top:8px; color:var(--text-muted);">عندما تقوم بنشر الإعلانات من تبويب "مراجعة ونشر الإعلانات"، ستظهر تلقائياً هنا في هذه القائمة المنفصلة.</div>
+          </div>`;
+          return;
+        }
 
-      grid.innerHTML = list.map((ad, idx) => {
-        const title = ad.clean_title || (ad.description || '').substring(0, 60);
-        const city = ad.city_name || (ad.location_detected || 'دمشق');
-        const subDist = ad.sub_district_name && ad.sub_district_name !== 'عام' ? ` (${ad.sub_district_name})` : '';
-        const cat = ad.category || 'عام';
-        const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
-        const accountName = ad.publisher_name || 'أبو محمد الشامي';
-        const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${ad.price_info.currency}` : 'السعر: على السوم';
-        const pubDate = ad.published_at || 'تاريخ غير محدد';
+        grid.innerHTML = list.map((ad, idx) => {
+          if (!ad) return '';
+          const rawTitle = ad.clean_title || ad.title || (ad.description || '').substring(0, 60) || 'إعلان منشور';
+          const title = String(rawTitle);
+          const city = ad.city_name || ad.location_detected || 'دمشق';
+          const subDist = ad.sub_district_name && ad.sub_district_name !== 'عام' ? ` (${ad.sub_district_name})` : '';
+          const cat = ad.category || 'عام';
+          const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
+          const accountName = ad.publisher_name || 'أبو محمد الشامي';
+          const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${ad.price_info.currency || 'ل.س'}` : 'السعر: على السوم';
+          const pubDate = ad.published_at || 'تاريخ غير محدد';
 
-        const images = ad.nimages || [];
-        const firstImg = images.length > 0 ? `${API_BASE}/imgs/${images[0]}` : '';
+          const images = Array.isArray(ad.nimages) ? ad.nimages : [];
+          const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
 
-        const thumbsHtml = images.map((img, i) => `
-          <img src="${API_BASE}/imgs/${img}" class="ad-thumb ${i===0?'active':''}" onclick="document.getElementById('pubMainImg-${idx}').src='${API_BASE}/imgs/${img}'" />
-        `).join('');
+          const thumbsHtml = images.map((img, i) => `
+            <img src="${API_BASE}/imgs/${encodeURIComponent(img)}" class="ad-thumb ${i===0?'active':''}" onclick="const pubMain=document.getElementById('pubMainImg-${idx}'); if(pubMain) pubMain.src='${API_BASE}/imgs/${encodeURIComponent(img)}'" onerror="this.style.display='none'" />
+          `).join('');
 
-        // بادجات المواصفات الفنية
-        const specsObj = ad.specifications || {};
-        const specItems = [];
-        if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
-        if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
-        if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
-        if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
-        if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
-        if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
-        if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
-        if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
-        if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
-        if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
-        if (specsObj.features && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
+          // بادجات المواصفات الفنية
+          const specsObj = (typeof ad.specifications === 'object' && ad.specifications !== null) ? ad.specifications : {};
+          const specItems = [];
+          if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
+          if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
+          if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
+          if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
+          if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
+          if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
+          if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
+          if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
+          if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
+          if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
+          if (Array.isArray(specsObj.features) && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
 
-        const specsBadgesHtml = specItems.length > 0 ? `
-          <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
-            ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${s}</span>`).join('')}
-          </div>
-        ` : '';
-
-        const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
-          ad.ai_review.full_text : 
-          (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية وتم نشره.');
-
-        return `
-          <div class="ad-card" id="pubCard-${idx}" style="border: 1px solid rgba(139,92,246,0.35); box-shadow: 0 4px 20px rgba(139,92,246,0.08);">
-            <div class="ad-gallery">
-              <img id="pubMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
-              <div class="ad-thumbs">${thumbsHtml}</div>
+          const specsBadgesHtml = specItems.length > 0 ? `
+            <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
+              ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${escapeHtml(s)}</span>`).join('')}
             </div>
+          ` : '';
 
-            <div class="ad-body">
-              <!-- شريط الحالة وتاريخ النشر -->
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:8px; flex-wrap:wrap; gap:4px; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:6px;">
-                <span class="badge badge-success" style="font-size:11px;">✅ تم النشر وتصدير الملفات</span>
-                <span style="color:#a78bfa; font-weight:700;">🕒 ${pubDate}</span>
+          const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
+            ad.ai_review.full_text : 
+            (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية وتم نشره.');
+
+          const descText = ad.clean_description || ad.description || 'لا يوجد وصف متاح';
+
+          return `
+            <div class="ad-card" id="pubCard-${idx}" style="border: 1px solid rgba(139,92,246,0.35); box-shadow: 0 4px 20px rgba(139,92,246,0.08);">
+              <div class="ad-gallery">
+                <img id="pubMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
+                <div class="ad-thumbs">${thumbsHtml}</div>
               </div>
 
-              <!-- التصنيف بأصغر ابن واسم الحساب -->
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
-                <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${catHierarchy}</span>
-                <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${accountName}</span>
-              </div>
-
-              <!-- العنوان -->
-              <div style="font-size:14px; font-weight:800; color:#f8fafc; line-height:1.4; margin:4px 0;">${title}</div>
-
-              <!-- بادجات المواصفات -->
-              ${specsBadgesHtml}
-
-              <!-- الموقع والسعر -->
-              <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin:6px 0;">
-                <span style="color:#60a5fa;">📍 ${city}${subDist}</span>
-                <span style="color:#fde047;">💰 ${price}</span>
-              </div>
-
-              <!-- صندوق الوصف -->
-              <div class="ad-desc-box">${ad.clean_description || ad.description}</div>
-
-              <!-- الهاتف ورابط فيسبوك -->
-              <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8; margin:6px 0;">
-                <span>📞 ${ad.phone_number || 'لا يوجد'}</span>
-                <a href="${ad.ad_url}" target="_blank" style="font-size:11px; color:#60a5fa; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">🔗 فتح المنشور في فيسبوك</a>
-              </div>
-
-              <!-- تقرير الفحص والذكاء الاصطناعي -->
-              <div style="background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:8px 10px; margin:6px 0;">
-                <div style="font-size:10px; font-weight:800; color:#a5b4fc; margin-bottom:4px; display:flex; justify-content:space-between;">
-                  <span>🤖 تقرير الذكاء الاصطناعي المعتمد:</span>
-                  <span style="color:#34d399;">✔️ مُدقق ومُعتمد</span>
+              <div class="ad-body">
+                <!-- شريط الحالة وتاريخ النشر -->
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:11px; margin-bottom:8px; flex-wrap:wrap; gap:4px; border-bottom:1px solid rgba(255,255,255,0.06); padding-bottom:6px;">
+                  <span class="badge badge-success" style="font-size:11px;">✅ تم النشر وتصدير الملفات</span>
+                  <span style="color:#a78bfa; font-weight:700;">🕒 ${escapeHtml(pubDate)}</span>
                 </div>
-                <div style="font-size:10px; color:#cbd5e1; line-height:1.5; white-space:pre-line; max-height:80px; overflow-y:auto; font-family:monospace;">${aiReviewText}</div>
-              </div>
 
-              <!-- أزرار الإجراءات الخاصة بالإعلان المنشور -->
-              <div style="display:flex; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border);">
+                <!-- التصنيف بأصغر ابن واسم الحساب -->
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
+                  <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${escapeHtml(catHierarchy)}</span>
+                  <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${escapeHtml(accountName)}</span>
+                </div>
+
+                <!-- العنوان -->
+                <div style="font-size:14px; font-weight:800; color:#f8fafc; line-height:1.4; margin:4px 0;">${escapeHtml(title)}</div>
+
+                <!-- بادجات المواصفات -->
+                ${specsBadgesHtml}
+
+                <!-- الموقع والسعر -->
+                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700; margin:6px 0;">
+                  <span style="color:#60a5fa;">📍 ${escapeHtml(city)}${escapeHtml(subDist)}</span>
+                  <span style="color:#fde047;">💰 ${escapeHtml(price)}</span>
+                </div>
+
+                <!-- صندوق الوصف -->
+                <div class="ad-desc-box">${escapeHtml(descText)}</div>
+
+                <!-- الهاتف ورابط فيسبوك -->
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8; margin:6px 0;">
+                  <span>📞 ${escapeHtml(ad.phone_number || 'لا يوجد')}</span>
+                  <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:#60a5fa; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">🔗 فتح المنشور في فيسبوك</a>
+                </div>
+
+                <!-- تقرير الفحص والذكاء الاصطناعي -->
+                <div style="background:rgba(99,102,241,0.06); border:1px solid rgba(99,102,241,0.25); border-radius:8px; padding:8px 10px; margin:6px 0;">
+                  <div style="font-size:10px; font-weight:800; color:#a5b4fc; margin-bottom:4px; display:flex; justify-content:space-between;">
+                    <span>🤖 تقرير الذكاء الاصطناعي المعتمد:</span>
+                    <span style="color:#34d399;">✔️ مُدقق ومُعتمد</span>
+                  </div>
+                  <div style="font-size:10px; color:#cbd5e1; line-height:1.5; white-space:pre-line; max-height:80px; overflow-y:auto; font-family:monospace;">${escapeHtml(aiReviewText)}</div>
+                </div>
+
+                <!-- أزرار الإجراءات الخاصة بالإعلان المنشور -->
+                <div style="display:flex; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border);">
+                  <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openImportFolder()">📂 فتح مجلد الاستيراد</button>
+                  <button class="btn btn-warning btn-sm" onclick="revertPublishedAd(${idx})" title="إلغاء النشر وإعادة الإعلان للمسودة">🔄 إعادة للمراجعة</button>
+                  <button class="btn btn-danger btn-sm" onclick="deletePublishedAd(${idx})" title="حذف من سجل المنشورات">🗑️</button>
+                </div>
+
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error("renderPublishedGrid error:", err);
+      }
+    }
                 <button class="btn btn-outline btn-sm" style="flex:1;" onclick="openImportFolder()">📂 فتح مجلد الاستيراد</button>
                 <button class="btn btn-warning btn-sm" onclick="revertPublishedAd(${idx})" title="إلغاء النشر وإعادة الإعلان للمسودة">🔄 إعادة للمراجعة</button>
                 <button class="btn btn-danger btn-sm" onclick="deletePublishedAd(${idx})" title="حذف من سجل المنشورات">🗑️</button>
