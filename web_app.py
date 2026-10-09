@@ -2548,7 +2548,7 @@ def check_and_apply_updates() -> dict:
                 except Exception:
                     pass
 
-            user_files = ["config.json", "pending_review.json", "published_ads.json", "flagged_ads.json", "groups_data.json", "ads_syria.json"]
+            user_files = ["config.json", "groups_data.json"]
             backup = {}
             for uf in user_files:
                 uf_path = os.path.join(BASE_DIR, uf)

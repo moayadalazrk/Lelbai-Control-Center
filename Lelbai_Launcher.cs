@@ -571,14 +571,10 @@ namespace LelbaiLauncher
                     Console.WriteLine("      ⚡ تم العثور على تحديث جديد! جاري سحب التحديث وتطبيقه بأمان...");
                     Console.ResetColor();
 
-                    // حفظ بيانات المستخدم الهامة في الذاكرة حتى لا تُفقد أثناء المزامنة
+                    // حفظ إعدادات المستخدم وروابط المجموعات فقط
                     string[] userFiles = new string[] {
                         "config.json",
-                        "pending_review.json",
-                        "published_ads.json",
-                        "flagged_ads.json",
-                        "groups_data.json",
-                        "ads_syria.json"
+                        "groups_data.json"
                     };
 
                     Dictionary<string, byte[]> backupData = new Dictionary<string, byte[]>();
