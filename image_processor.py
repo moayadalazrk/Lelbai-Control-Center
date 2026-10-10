@@ -71,8 +71,25 @@ def download_and_convert_to_webp(
         elif image.mode != "RGB":
             image = image.convert("RGB")
 
-        # تصغير الأبعاد مع الحفاظ على النسبة الأصلية إذا تجاوزت 1280px
+        # التحقق من أبعاد الصورة واستبعاد الأيقونات وصور البروفايل المصغرة
         orig_width, orig_height = image.size
+        if orig_width < 200 or orig_height < 200:
+            return None
+
+        # استبعاد الصور المشوهة أو أشرطة الفواصل
+        aspect = max(orig_width, orig_height) / max(min(orig_width, orig_height), 1)
+        if aspect > 4.5:
+            return None
+
+        # فحص نسبة التعري السريع قبل الحفظ
+        try:
+            from image_safety_filter import analyze_skin_ratio
+            if analyze_skin_ratio(image) > 0.30:
+                return None
+        except Exception:
+            pass
+
+        # تصغير الأبعاد مع الحفاظ على النسبة الأصلية إذا تجاوزت 1280px
         if orig_width > max_dimension or orig_height > max_dimension:
             image.thumbnail((max_dimension, max_dimension), Image.Resampling.LANCZOS)
 

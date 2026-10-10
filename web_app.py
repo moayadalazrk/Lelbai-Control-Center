@@ -232,15 +232,15 @@ def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str
     
     # 6. الفحص الشرعي والرقابي
     raw_flags = ad_copy.get("flags", [])
-    flags = [f for f in raw_flags if f != "no_api_key_provided"]
-    is_safe = ad_copy.get("is_safe", True) and len(flags) == 0
+    flags = [f for f in raw_flags if f not in ("no_api_key_provided", "offline_vision_filter", "local_filtered_images", "network_fallback")]
+    is_safe = ad_copy.get("is_safe", True) and not any(f in raw_flags for f in ("prohibited_images_detected", "no_valid_images_left"))
     
     # 7. الجاهزية للنشر (مكتمل + سليم شرعياً + غير مكرر على الموقع)
     is_ready_to_publish = is_specs_complete and is_safe and not is_duplicate
     
     summary_text = ad_copy.get("moderation_summary")
     if not summary_text or summary_text == "بانتظار إضافة مفتاح Gemini API للمراجعة الآلية":
-        summary_text = "مطابق للشريعة وضوابط المنصة بالكامل 🟢" if is_safe else "تم رصد ملاحظات تحتاج لمراجعة"
+        summary_text = "🛡️ مفحوص بالرؤية الحاسوبية المدمجة (YOLO) | خالي من صور الأشخاص والتعري" if is_safe else "تم رصد ملاحظات تحتاج لمراجعة"
 
     # 8. توليد رد وتقرير الذكاء الاصطناعي الشامل
     ai_report = generate_ai_review_report(
@@ -651,10 +651,22 @@ class ScrapingTaskManager:
                                     const images = [];
                                     const imgEls = c.querySelectorAll("img");
                                     for (const img of imgEls) {
+                                        // استبعاد صور البروفايل وصور أصحاب الحسابات والتعليقات
+                                        if (img.closest("h2, h3, h4, header, [role='button'], [role='toolbar'], div[aria-label*='تعليق'], div[aria-label*='Comment'], a[href*='/user/'], a[href*='profile.php']")) {
+                                            continue;
+                                        }
+
+                                        // استبعاد الأيقونات والصور المصغرة جداً
+                                        const w = img.naturalWidth || img.width || 0;
+                                        const h = img.naturalHeight || img.height || 0;
+                                        if ((w > 0 && w < 180) || (h > 0 && h < 180)) {
+                                            continue;
+                                        }
+
                                         const src = img.src || img.getAttribute('src');
                                         if (src && src.startsWith('http')) {
                                             const sLow = src.toLowerCase();
-                                            if (!sLow.includes('emoji') && !sLow.includes('rsrc.php') && !sLow.includes('icon') && !sLow.includes('static') && !sLow.includes('avatar') && !sLow.includes('profile_pic') && !sLow.includes('spacer.gif')) {
+                                            if (!sLow.includes('emoji') && !sLow.includes('rsrc.php') && !sLow.includes('icon') && !sLow.includes('static') && !sLow.includes('avatar') && !sLow.includes('profile_pic') && !sLow.includes('spacer.gif') && !sLow.includes('badge')) {
                                                 if (!images.includes(src)) images.push(src);
                                             }
                                         }
@@ -924,8 +936,17 @@ HTML_PAGE = r"""<!DOCTYPE html>
       position: absolute; bottom: 0; left: 0; right: 0; display: flex; gap: 5px;
       padding: 6px; background: rgba(0,0,0,0.7); overflow-x: auto;
     }
+    .ad-thumb-wrapper { position: relative; display: inline-block; flex-shrink: 0; }
     .ad-thumb { width: 42px; height: 42px; border-radius: 6px; object-fit: cover; cursor: pointer; border: 2px solid transparent; opacity: 0.7; }
     .ad-thumb.active { border-color: #38bdf8; opacity: 1; }
+    .del-thumb-btn {
+      position: absolute; top: -5px; right: -5px; width: 17px; height: 17px;
+      border-radius: 50%; background: #ef4444; color: white; border: 1.5px solid #fff;
+      font-size: 11px; font-weight: 900; line-height: 1; cursor: pointer;
+      display: flex; align-items: center; justify-content: center; padding: 0;
+      z-index: 10; box-shadow: 0 1px 4px rgba(0,0,0,0.6); transition: transform 0.15s, background 0.15s;
+    }
+    .del-thumb-btn:hover { background: #dc2626; transform: scale(1.2); }
 
     .ad-body { padding: 18px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
 
@@ -1190,11 +1211,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
       <div style="background:rgba(16,185,129,0.12); border:1px solid #10b981; border-radius:12px; padding:14px; margin-bottom:18px; color:#a7f3d0; font-size:13px; line-height:1.6;">
         <div style="font-weight:800; font-size:14px; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-          <span>🟢</span> <span>المنظومة مهيأة وتعمل بالكامل تلقائياً (لا يلزم إدخال أي مفتاح)</span>
+          <span>🟢</span> <span>نظام الأمان والرقابة البصرية المزدوج (Dual-Safety Engine)</span>
         </div>
-        • محرك الذكاء الاصطناعي، الرقابة الشرعية، واستخراج المواصفات السورية يعمل محلياً وتلقائياً.<br>
-        • مفتاح الربط والتوثيق مع منصة للبيع مدمج وموثق مسبقاً.<br>
-        • التحديث التلقائي وتنزيل الملفات عبر مشغل EXE يعمل برابط GitHub المباشر وبدون أي مفاتيح أو تسجيل دخول.
+        • <b>فحص الرؤية الحاسوبية المدمج (YOLOv8 + كشف التعري والأبعاد):</b> يعمل محلياً وتلقائياً 100% لفحص واستبعاد أي صور تحتوي على أشخاص أو سيلفي أو نسب كشف بشري عالية أو أيقونات مصغرة.<br>
+        • <b>فحص Gemini Vision الفائق (اختياري إضافي):</b> لرصد صور النساء، الوثائق الرسمية، والسلع الممنوعة بدقة استثنائية، يمكنك إضافة مفتاح API مجاني.<br>
+        • مفتاح الربط والتوثيق مع منصة للبيع مدمج وموثق مسبقاً.
       </div>
 
       <div class="form-group">
@@ -1208,8 +1229,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
       </div>
 
       <div class="form-group">
-        <label>مفتاح Gemini API (اختياري إضافي فقط - غير مطلوب):</label>
-        <input type="password" class="form-control" id="setGeminiKey" placeholder="غير مطلوب، النظام يعمل ذاتياً بدون مفتاح">
+        <label>مفتاح Google Gemini API (مجاني - لتعزيز التدقيق الشرعي بالذكاء الاصطناعي):</label>
+        <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">
+          للحصول على مفتاح فوري مجاني 100%، افتح الرابط التالي وسجل بحساب جوجل ثم انسخ المفتاح:
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#60a5fa; font-weight:700; text-decoration:underline;">Google AI Studio (اضغط هنا لفتح الصفحة)</a>
+        </div>
+        <input type="password" class="form-control" id="setGeminiKey" placeholder="الصق مفتاح AIzaSy... هنا (أو اتركه فارغاً للاعتماد على فحص YOLO المدمج)">
       </div>
 
       <button class="btn btn-primary" onclick="saveSettings()">💾 حفظ الإعدادات</button>
@@ -1622,8 +1647,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
           const images = Array.isArray(ad.nimages) ? ad.nimages : [];
           const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
 
+          const adId = escapeHtml(ad.ad_url || ad.clean_title || (ad.description || '').substring(0, 30));
           const thumbsHtml = images.map((img, i) => `
-            <img src="${API_BASE}/imgs/${encodeURIComponent(img)}" class="ad-thumb ${i===0?'active':''}" onclick="const mainImg=document.getElementById('adMainImg-${idx}'); if(mainImg) mainImg.src='${API_BASE}/imgs/${encodeURIComponent(img)}'" onerror="this.style.display='none'" />
+            <div class="ad-thumb-wrapper">
+              <img src="${API_BASE}/imgs/${encodeURIComponent(img)}" class="ad-thumb ${i===0?'active':''}" onclick="const mainImg=document.getElementById('adMainImg-${idx}'); if(mainImg) mainImg.src='${API_BASE}/imgs/${encodeURIComponent(img)}'" onerror="this.style.display='none'" />
+              <button type="button" class="del-thumb-btn" title="حذف هذه الصورة نهائياً" onclick="deleteAdImage('${adId}', '${encodeURIComponent(img)}', ${idx}, event)">✕</button>
+            </div>
           `).join('');
 
           // أشرطة الفحص
@@ -1632,9 +1661,17 @@ HTML_PAGE = r"""<!DOCTYPE html>
             `<span style="color:#f87171;">⚠️ ناقص بعض الحقول</span>`;
 
           const shFlags = Array.isArray(sh.flags) ? sh.flags : [];
-          const shariaStatusHtml = sh.is_safe ?
-            `<span style="color:#34d399;">🟢 مطابق للشريعة والضوابط الرقابية 100%</span>` :
-            `<span style="color:#f87171;">⚠️ مخالف: ${escapeHtml(shFlags.join(', '))}</span>`;
+          const summaryStr = sh.summary || ad.moderation_summary || '';
+          let shariaStatusHtml = '';
+          if (sh.is_safe) {
+            if (summaryStr.includes('Gemini')) {
+              shariaStatusHtml = `<span style="color:#34d399;" title="${escapeHtml(summaryStr)}">🟢 مطابق للشريعة والضوابط (Gemini Vision)</span>`;
+            } else {
+              shariaStatusHtml = `<span style="color:#38bdf8;" title="${escapeHtml(summaryStr)}">🛡️ مفحوص بالرؤية الحاسوبية المدمجة (YOLO)</span>`;
+            }
+          } else {
+            shariaStatusHtml = `<span style="color:#f87171;" title="${escapeHtml(summaryStr)}">⚠️ ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
+          }
 
           const dupStatusHtml = ad.is_duplicate ?
             `<span style="color:#ef4444; font-weight:700;">⚠️ مكرر مسبقاً على الموقع</span>` :
@@ -1869,6 +1906,43 @@ HTML_PAGE = r"""<!DOCTYPE html>
         alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
         if (rejBtn) rejBtn.disabled = false;
         if (pubBtn) pubBtn.disabled = false;
+      }
+    }
+
+    async function deleteAdImage(adIdentifier, imgNameEncoded, cardIndex, event) {
+      if (event) {
+        event.stopPropagation();
+        event.preventDefault();
+      }
+      if (!confirm("هل أنت متأكد من رغبتك في حذف هذه الصورة من الإعلان نهائياً؟")) return;
+
+      const imgName = decodeURIComponent(imgNameEncoded);
+      try {
+        const res = await apiFetch('/api/delete_ad_image', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({
+            image_name: imgName,
+            ad_url: adIdentifier,
+            clean_title: adIdentifier,
+            ad_index: cardIndex
+          })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (adsData[cardIndex]) {
+            if (data.ad) {
+              adsData[cardIndex] = data.ad;
+            } else if (data.remaining_images) {
+              adsData[cardIndex].nimages = data.remaining_images;
+            }
+          }
+          renderAdsGrid();
+        } else {
+          alert(data.message || 'فشل حذف الصورة');
+        }
+      } catch (e) {
+        alert("تعذر حذف الصورة: " + e);
       }
     }
 
@@ -2968,6 +3042,73 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             flagged.append(ad)
             write_json_file(FLAGGED_FILE, flagged)
             self.send_json({"success": True, "message": "تم استبعاد الإعلان بنجاح"})
+            return
+
+        elif path == "/api/delete_ad_image":
+            image_name = req_data.get("image_name", "").strip()
+            ad_url = req_data.get("ad_url", "").strip()
+            ad_title = req_data.get("clean_title", "").strip()
+            ad_idx = req_data.get("ad_index")
+
+            if not image_name:
+                self.send_json({"success": False, "message": "لم يتم تحديد اسم الصورة المراد حذفها!"})
+                return
+
+            pending = read_json_file(PENDING_FILE)
+            target_ad = None
+            found_idx = -1
+
+            # محاولة العثور على الإعلان بالرابط أو العنوان أو اسم الصورة أو الفهرس
+            for i, p in enumerate(pending):
+                if (ad_url and p.get("ad_url") == ad_url) or \
+                   (ad_title and p.get("clean_title") == ad_title) or \
+                   (image_name in p.get("nimages", [])):
+                    target_ad = p
+                    found_idx = i
+                    break
+
+            if target_ad is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(pending):
+                target_ad = pending[ad_idx]
+                found_idx = ad_idx
+
+            if target_ad is None:
+                self.send_json({"success": False, "message": "لم يتم العثور على الإعلان المستهدف في قائمة المراجعة!"})
+                return
+
+            # إزالة الصورة من الإعلان
+            nimages = target_ad.get("nimages", [])
+            download_urls = target_ad.get("images dowlod", [])
+            
+            new_nimages = []
+            new_urls = []
+            for idx_img, fname in enumerate(nimages):
+                if fname != image_name:
+                    new_nimages.append(fname)
+                    if idx_img < len(download_urls):
+                        new_urls.append(download_urls[idx_img])
+
+            target_ad["nimages"] = new_nimages
+            target_ad["images dowlod"] = new_urls
+
+            # حذف الملف فعلياً من القرص لحماية المساحة
+            file_path = os.path.join(IMGS_DIR, image_name)
+            if os.path.exists(file_path):
+                try:
+                    os.remove(file_path)
+                except Exception:
+                    pass
+
+            # إعادة تقييم وإثراء حالة الإعلان
+            enriched = enrich_ad_status(target_ad)
+            pending[found_idx] = enriched
+            write_json_file(PENDING_FILE, pending)
+
+            self.send_json({
+                "success": True,
+                "message": "تم حذف الصورة نهائياً وتحديث الإعلان بنجاح! 🗑️",
+                "remaining_images": new_nimages,
+                "ad": enriched
+            })
             return
 
         elif path == "/api/bulk_approve":

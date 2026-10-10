@@ -265,14 +265,26 @@ class SyrianAdScraper:
 
                     if (!text || text.length < 15) continue;
 
-                    // استخراج الصور
+                    // استخراج الصور مع استبعاد صور البروفايل والأيقونات ورؤوس المنشورات
                     const images = [];
                     const imgEls = c.querySelectorAll("img");
                     for (const img of imgEls) {
+                        // استبعاد صور البروفايل وصور أصحاب الحسابات والتعليقات
+                        if (img.closest("h2, h3, h4, header, [role='button'], [role='toolbar'], div[aria-label*='تعليق'], div[aria-label*='Comment'], a[href*='/user/'], a[href*='profile.php']")) {
+                            continue;
+                        }
+
+                        // استبعاد الأيقونات والصور المصغرة جداً
+                        const w = img.naturalWidth || img.width || 0;
+                        const h = img.naturalHeight || img.height || 0;
+                        if ((w > 0 && w < 180) || (h > 0 && h < 180)) {
+                            continue;
+                        }
+
                         const src = img.src || img.getAttribute('src');
                         if (src && src.startsWith('http')) {
                             const sLow = src.toLowerCase();
-                            if (!sLow.includes('emoji') && !sLow.includes('rsrc.php') && !sLow.includes('icon') && !sLow.includes('static') && !sLow.includes('avatar') && !sLow.includes('profile_pic') && !sLow.includes('spacer.gif')) {
+                            if (!sLow.includes('emoji') && !sLow.includes('rsrc.php') && !sLow.includes('icon') && !sLow.includes('static') && !sLow.includes('avatar') && !sLow.includes('profile_pic') && !sLow.includes('spacer.gif') && !sLow.includes('badge')) {
                                 if (!images.includes(src)) images.push(src);
                             }
                         }
