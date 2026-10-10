@@ -15,7 +15,7 @@ MASTER_WEBSITE_API_KEY = "67|5181926855ca52522dec3990517f272b027b745f"
 
 DEFAULT_CONFIG = {
     "gemini_api_key": "",
-    "gemini_model": "gemini-2.0-flash",
+    "gemini_model": "gemini-3.8-flash",
     "website_api_url": MASTER_WEBSITE_API_URL,
     "website_api_key": MASTER_WEBSITE_API_KEY,
     "min_images_required": 1,
@@ -29,7 +29,7 @@ DEFAULT_CONFIG = {
 }
 
 def load_config() -> Dict[str, Any]:
-    """تحميل الإعدادات من ملف config.json مع دعم متغيرات البيئة والقيم الافتراضية الموثوقة"""
+    """تحميل الإعدادات من ملف config.json مع دعم ملف المفتاح المحلي ومتغيرات البيئة"""
     config = DEFAULT_CONFIG.copy()
     
     if os.path.exists(CONFIG_PATH):
@@ -41,21 +41,44 @@ def load_config() -> Dict[str, Any]:
         except Exception:
             pass
 
+    # تحميل المفتاح من ملف gemini_key.txt المحلي (المحمي من الرفع إلى Git)
+    local_key_file = os.path.join(BASE_DIR, "gemini_key.txt")
+    if os.path.exists(local_key_file):
+        try:
+            with open(local_key_file, "r", encoding="utf-8") as kf:
+                k = kf.read().strip()
+                if k:
+                    config["gemini_api_key"] = k
+        except Exception:
+            pass
+
+    # إذا كان مفتاح الـ API متاحاً في متغيرات البيئة
+    env_key = os.environ.get("GEMINI_API_KEY", "").strip()
+    if env_key and not config.get("gemini_api_key"):
+        config["gemini_api_key"] = env_key
+
     # ضمان عدم فقدان توكن الموقع الأساسي إذا تم حفظ حقل فارغ بالخطأ
     if not config.get("website_api_key", "").strip():
         config["website_api_key"] = MASTER_WEBSITE_API_KEY
     if not config.get("website_api_url", "").strip():
         config["website_api_url"] = MASTER_WEBSITE_API_URL
 
-    # إذا كان مفتاح الـ API متاحاً في متغيرات البيئة
-    env_key = os.environ.get("GEMINI_API_KEY", "").strip()
-    if env_key:
-        config["gemini_api_key"] = env_key
+    if not config.get("gemini_model"):
+        config["gemini_model"] = "gemini-3.8-flash"
 
     return config
 
 def save_config(config: Dict[str, Any]):
-    """حفظ الإعدادات في ملف config.json"""
+    """حفظ الإعدادات في ملف config.json وملف gemini_key.txt المحلي"""
+    g_key = config.get("gemini_api_key", "").strip()
+    if g_key:
+        try:
+            local_key_file = os.path.join(BASE_DIR, "gemini_key.txt")
+            with open(local_key_file, "w", encoding="utf-8") as kf:
+                kf.write(g_key)
+        except Exception:
+            pass
+
     try:
         with open(CONFIG_PATH, "w", encoding="utf-8") as f:
             json.dump(config, f, ensure_ascii=False, indent=2)

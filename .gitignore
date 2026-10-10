@@ -21,6 +21,8 @@ asstes/imgs/*
 # Local logs and environments
 *.log
 .env
+gemini_key.txt
+local_key.txt
 venv/
 .venv/
 env/

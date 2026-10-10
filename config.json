@@ -1,6 +1,6 @@
 {
   "gemini_api_key": "",
-  "gemini_model": "gemini-2.0-flash",
+  "gemini_model": "gemini-3.8-flash",
   "website_api_url": "https://api.lelbai.com/public/api/listings",
   "website_api_key": "4|b232da56236d18d5461ad56e14476a4d71b69b0e",
   "min_images_required": 1,

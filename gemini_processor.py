@@ -93,10 +93,10 @@ SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم وم�
 """
 
 class GeminiProcessor:
-    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-2.0-flash"):
+    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-3.8-flash"):
         cfg = load_config()
         self.api_key = api_key.strip() if api_key else cfg.get("gemini_api_key", "").strip()
-        self.model = model or cfg.get("gemini_model", "gemini-2.0-flash")
+        self.model = model or cfg.get("gemini_model", "gemini-3.8-flash")
         self.last_call_time = 0.0
 
     def _prepare_image_part(self, image_path: str) -> Optional[Dict[str, Any]]:
@@ -194,15 +194,16 @@ class GeminiProcessor:
 
         # 2. إرفاق الصور المصغرة التي اجتازت الفحص المحلي
         valid_indices = []
-        for idx in local_appr:
-            if idx < len(nimages):
-                img_filename = nimages[idx]
+        for orig_idx in local_appr:
+            if orig_idx < len(nimages):
+                img_filename = nimages[orig_idx]
                 full_img_path = os.path.join(imgs_dir, img_filename)
                 img_part = self._prepare_image_part(full_img_path)
                 if img_part:
-                    parts.append({"text": f"--- صورة رقم [{idx}] ---"})
+                    slot = len(valid_indices)
+                    parts.append({"text": f"--- صورة رقم [{slot}] ---"})
                     parts.append(img_part)
-                    valid_indices.append(idx)
+                    valid_indices.append(orig_idx)
 
         # 3. إرسال الطلب إلى Gemini REST API
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
@@ -232,13 +233,18 @@ class GeminiProcessor:
                 raw_text = resp_json["candidates"][0]["content"]["parts"][0]["text"].strip()
                 result = json.loads(raw_text)
                 
-                # دمج الصور المستبعدة محلياً مع ما استبعده Gemini
+                # ترجمة فهارس الصور التي وافق عليها Gemini إلى الفهارس الأصلية
                 gemini_appr = result.get("approved_image_indices", [])
-                gemini_rej = result.get("rejected_image_indices", [])
+                final_appr = []
+                for i in gemini_appr:
+                    if isinstance(i, int) and 0 <= i < len(valid_indices):
+                        orig_i = valid_indices[i]
+                        if orig_i not in final_appr:
+                            final_appr.append(orig_i)
+                    elif isinstance(i, int) and i in local_appr and i not in final_appr:
+                        final_appr.append(i)
                 
-                # الصور المعتمدة النهائية هي فقط المعتمدة من الطرفين
-                final_appr = [i for i in gemini_appr if i in local_appr]
-                final_rej = sorted(list(set(local_rej + gemini_rej + [i for i in range(len(nimages)) if i not in final_appr])))
+                final_rej = sorted([i for i in range(len(nimages)) if i not in final_appr])
                 
                 result["approved_image_indices"] = final_appr
                 result["rejected_image_indices"] = final_rej
@@ -249,9 +255,9 @@ class GeminiProcessor:
             else:
                 error_msg = response.text[:200]
                 print(f"[!] تنبيه من Gemini API ({response.status_code}): {error_msg}")
-                # محاولة احتياطية مع gemini-1.5-flash إذا كان 2.0 غير متاح
-                if self.model != "gemini-1.5-flash":
-                    self.model = "gemini-1.5-flash"
+                # محاولة احتياطية مع gemini-flash-latest إذا تعذر النموذج الأساسي
+                if self.model != "gemini-flash-latest":
+                    self.model = "gemini-flash-latest"
                     return self.moderate_and_structure_ad(ad, imgs_dir)
         except Exception as e:
             print(f"[!] خطأ في معالجة الذكاء الاصطناعي: {e}")
