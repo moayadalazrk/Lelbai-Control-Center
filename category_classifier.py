@@ -76,7 +76,9 @@ CAR_BRANDS_MAP = [
     },
     {
         "id": 1226, "name": "مرسيدس-بنز",
-        "keywords": ["مرسيدس", "mercedes", "بنز", "لف", "شبح", "بطة", "تمساح", "c200", "e200", "s350", "s500"]
+        "keywords": ["مرسيدس", "mercedes", "بنز", "لف", "شبح", "بطة", "تمساح", "4matic",
+                     "c200", "c180", "c250", "c300", "e200", "e220", "e240", "e250", "e280", "e300", "e350", "e400", "e500",
+                     "s350", "s500", "s320", "s400", "w123", "w124", "w210", "w211", "w212", "w213", "w202", "w204", "w205"]
     },
     {
         "id": 1235, "name": "بي إم دبليو",
@@ -207,15 +209,20 @@ def extract_detailed_specifications(text: str, leaf_info: Dict[str, Any]) -> Dic
         specs["make"] = leaf_info["brand"]
 
     # 2. الموديل / الطراز
-    models_patterns = [
-        r"(?:طراز|موديل|نوع|سيارة|كيا|هيونداي|تويوتا|نيسان)\s+([a-zA-Z0-9\u0621-\u064A]{2,15})",
-        r"\b(توسان|ريو|فورتي|سيراتو|سبورتاج|كامري|كورولا|يارس|سنتافي|أفانتي|إلنترا|أكسنت|صني|ميجان|كليو|لانوس|ماروتي|سويفت|206|307|405|golf|c200|e200)\b"
-    ]
-    for p in models_patterns:
-        m = re.search(p, t)
-        if m:
-            specs["model"] = m.group(1).strip()
-            break
+    if leaf_info.get("model"):
+        specs["model"] = leaf_info["model"]
+    else:
+        models_patterns = [
+            r"\b(e350|e300|e250|e240|e220|e200|c300|c250|c200|c180|s500|s350|s320|4matic|توسان|ريو|فورتي|سيراتو|سبورتاج|كامري|كورولا|يارس|سنتافي|أفانتي|إلنترا|أكسنت|صني|ميجان|كليو|لانوس|ماروتي|سويفت|206|307|405|golf)\b",
+            r"(?:طراز|نوع|فئة|سيارة|كيا|هيونداي|تويوتا|نيسان|مرسيدس)\s+([a-zA-Z0-9\u0621-\u064A]{2,15})"
+        ]
+        for p in models_patterns:
+            m = re.search(p, t)
+            if m:
+                cand = m.group(1).strip()
+                if not (cand.isdigit() and len(cand) == 4):
+                    specs["model"] = cand.upper()
+                    break
 
     # 3. سنة الصنع / الموديل (1980 - 2026)
     year_match = re.search(r"\b(19[8-9]\d|20[0-2]\d)\b", t)
@@ -240,14 +247,20 @@ def extract_detailed_specifications(text: str, leaf_info: Dict[str, Any]) -> Dic
 
     # 6. حالة الهيكل والبخ
     conditions = []
-    if "خالية العلام" in t or "خالية تماما" in t or "خاليه تماما" in t:
+    if any(k in t for k in ["خالية برا جوا", "خالية برا وجوا", "خالي برا جوا"]):
+        if "عدا قطعتين" in t or "عدا قطعة" in t or "عدا 2" in t:
+            conditions.append("خالية برا جوا عدا قطعتين")
+        else:
+            conditions.append("خالية برا جوا")
+    elif "خالية العلام" in t or "خالية تماما" in t or "خاليه تماما" in t:
         conditions.append("خالية العلام تماماً")
     if "كرتونة" in t or "كرتونه" in t:
         conditions.append("كرتونة")
     if "بخ زنار" in t or "زنار نضافة" in t:
         conditions.append("بخ زنار نضافة")
     if "خالية من الداخل" in t or "خالية جوا" in t or "خاليه جوا" in t:
-        conditions.append("خالية من الداخل (جوا)")
+        if "خالية برا جوا" not in "".join(conditions):
+            conditions.append("خالية من الداخل (جوا)")
     if "شمعات فخدات شاصي زيرو" in t or "شاصي زيرو" in t or "فخدات كفالة" in t:
         conditions.append("شمعات وشاصيه زيرو وكالة")
     if conditions:
@@ -269,10 +282,24 @@ def extract_detailed_specifications(text: str, leaf_info: Dict[str, Any]) -> Dic
             specs["color"] = col_name
             break
 
-    # 8. المسافة المقطوعة / الكيلومتراج
-    km_match = re.search(r"(\d{1,3}(?:[.,]\d{3})*|\d+)\s*(?:ألف|الف)?\s*(?:كم|كيلو|km)", t)
+    # 8. المسافة المقطوعة / الكيلومتراج (مثال: ماشية ٣٣٠ الف، ممشى 120 الف، 85000 كم)
+    arabic_to_western = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+    t_digits = t.translate(arabic_to_western)
+    km_match = re.search(r"(?:ماشية|ماشي|ممشى|العداد|عداد|قاطع)\s*[:\-]?\s*(\d+)\s*(?:ألف|الف|k)?\s*(?:كم|كيلو|كيلومتر|km)?", t_digits)
     if km_match:
-        specs["mileage"] = km_match.group(0).strip()
+        val_str = km_match.group(1)
+        matched_full = km_match.group(0)
+        if any(w in matched_full for w in ["الف", "ألف", "k", "k"]):
+            try:
+                specs["mileage"] = f"{int(val_str) * 1000:,} كم"
+            except Exception:
+                specs["mileage"] = f"{val_str} ألف كم"
+        else:
+            specs["mileage"] = f"{val_str} كم"
+    else:
+        km_match2 = re.search(r"(\d{1,3}(?:[.,]\d{3})*|\d+)\s*(?:ألف|الف)?\s*(?:كم|كيلو|km)", t_digits)
+        if km_match2:
+            specs["mileage"] = km_match2.group(0).strip()
 
     # 9. الميزات الإضافية (Features)
     features = []

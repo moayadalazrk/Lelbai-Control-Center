@@ -106,10 +106,12 @@ BRAND_ALIASES = {
 }
 
 EXTRA_MODEL_ALIASES = {
-    1229: ['شبح', 'فياغرا', 'w140', 'w220', 's350', 's500', 's320'],
-    1230: ['لف', 'بطة', 'w123', 'w124'],
-    1227: ['e200', 'e240', 'e300', 'w210', 'w211'],
-    1228: ['c200', 'c180', 'c250', 'w202'],
+    1229: ['شبح', 'فياغرا', 'فاياغرا', 'w140', 'w220', 'w221', 's350', 's500', 's320', 's400'],
+    1230: ['لف', 'بطة', 'بطه', 'w123', 'w124'],
+    1227: ['e200', 'e220', 'e240', 'e250', 'e280', 'e300', 'e350', 'e400', 'e500', 'w210', 'w211', 'w212', 'w213', '4matic'],
+    1228: ['c180', 'c200', 'c220', 'c230', 'c250', 'c300', 'c350', 'w202', 'w203', 'w204', 'w205'],
+    1231: ['ml350', 'ml320', 'gle', 'glk', 'glc', 'gls'],
+    1232: ['g500', 'g63', 'g55', 'g-class', 'جي كلاس'],
     1164: ['k7', 'كادينزا', 'cadenza'],
     1160: ['k5', 'اوبتيما', 'أوبتيما', 'optima'],
     1157: ['k3', 'سيراتو', 'فورتي', 'cerato', 'forte'],
@@ -119,8 +121,68 @@ EXTRA_MODEL_ALIASES = {
     1357: ['فوغ', 'فوج', 'vogue'],
     1358: ['سبورت', 'sport'],
     1360: ['ايفوك', 'إيفوك', 'evoque', 'فيلار', 'velar'],
-    1220: ['قرش', 'لانسر', 'lancer']
+    1220: ['قرش', 'لانسر', 'lancer', 'بومة']
 }
+
+# موديلات سيارات مستقلة لا تتطلب ذكر اسم الماركة صراحة (مثل E350, 4matic, C200, شبح, توسان, سيراتو, كامري)
+STANDALONE_CAR_MODELS = [
+    # مرسيدس-بنز E-Class (1226 -> 1227)
+    (r'\b(?:e\s*[1-5]\d{2}|w21[0-4]|4matic)\b', 1226, 1227, 'مرسيدس-بنز', 'الفئة E (E-Class)'),
+    # مرسيدس-بنز C-Class (1226 -> 1228)
+    (r'\b(?:c\s*[1-3]\d{2}|w20[2-5])\b', 1226, 1228, 'مرسيدس-بنز', 'الفئة C (C-Class)'),
+    # مرسيدس-بنز S-Class (1226 -> 1229)
+    (r'\b(?:s\s*[2-6]\d{2}|w140|w22[0-2]|شبح|فياغرا|فاياغرا)\b', 1226, 1229, 'مرسيدس-بنز', 'الفئة S (S-Class)'),
+    # مرسيدس-بنز كلاسيكية لف وبطة (1226 -> 1230)
+    (r'\b(?:w123|w124|بطة|بطه|لف)\b', 1226, 1230, 'مرسيدس-بنز', 'الكلاسيكية (W123 / لف)'),
+    # مرسيدس-بنز ML / GLE / GL (1226 -> 1231)
+    (r'\b(?:ml\s*[2-5]\d{2}|gle|glk|glc|gls)\b', 1226, 1231, 'مرسيدس-بنز', 'ML / GLE / GL'),
+    # مرسيدس-بنز G-Class (1226 -> 1232)
+    (r'\b(?:g\s*[3-6]\d{2}|g63|g55|g-class|جي كلاس)\b', 1226, 1232, 'مرسيدس-بنز', 'الفئة G (G-Class)'),
+    # هيونداي
+    (r'\b(?:توسان|tucson)\b', 1144, 1148, 'هيونداي', 'توسان'),
+    (r'\b(?:سانتافي|سنتافي|سنتافيه|سانتا\s*في|santa\s*fe)\b', 1144, 1147, 'هيونداي', 'سانتافي'),
+    (r'\b(?:النترا|إلنترا|elantra|افانتي|أفانتي|avante)\b', 1144, 1146, 'هيونداي', 'إلنترا (أفانتي)'),
+    (r'\b(?:اكسنت|أكسنت|accent|فيرنا|verna)\b', 1144, 1145, 'هيونداي', 'أكسنت (فيرنا)'),
+    (r'\b(?:سوناتا|sonata)\b', 1144, 1149, 'هيونداي', 'سوناتا'),
+    (r'\b(?:ازيرا|أزيرا|azera)\b', 1144, 1151, 'هيونداي', 'أزيرا'),
+    # كيا
+    (r'\b(?:سيراتو|cerato|فورتي|forte|k3)\b', 1155, 1157, 'كيا', 'سيراتو (فورتي)'),
+    (r'\b(?:اوبتيما|أوبتيما|optima|k5)\b', 1155, 1160, 'كيا', 'أوبتيما (K5)'),
+    (r'\b(?:كادينزا|cadenza|k7)\b', 1155, 1164, 'كيا', 'كادينزا (K7)'),
+    (r'\b(?:سبورتاج|sportage)\b', 1155, 1156, 'كيا', 'سبورتاج'),
+    (r'\b(?:ريو|rio)\b', 1155, 1158, 'كيا', 'ريو'),
+    (r'\b(?:بيكانتو|picanto|مورنينغ|morning)\b', 1155, 1159, 'كيا', 'بيكانتو'),
+    (r'\b(?:سورينتو|sorento)\b', 1155, 1161, 'كيا', 'سورينتو'),
+    # تويوتا
+    (r'\b(?:كامري|camry)\b', 1166, 1169, 'تويوتا', 'كامري'),
+    (r'\b(?:كورولا|corolla)\b', 1166, 1167, 'تويوتا', 'كورولا'),
+    (r'\b(?:ياريس|يارس|yaris)\b', 1166, 1168, 'تويوتا', 'ياريس'),
+    (r'\b(?:برادو|prado)\b', 1166, 1171, 'تويوتا', 'برادو'),
+    (r'\b(?:لاند\s*كروزر|لاندكروزر|land\s*cruiser)\b', 1166, 1170, 'تويوتا', 'لاند كروزر'),
+    (r'\b(?:هايلوكس|هيلوكس|هايلكس|hilux)\b', 1166, 1172, 'تويوتا', 'هايلوكس'),
+    (r'\b(?:راف\s*4|راف\s*فور|rav4|rav\s*4)\b', 1166, 1173, 'تويوتا', 'راف 4'),
+    # نيسان
+    (r'\b(?:صني|sunny)\b', 1184, 1186, 'نيسان', 'صني'),
+    (r'\b(?:قشقاي|qashqai)\b', 1184, 1187, 'نيسان', 'قشقاي'),
+    (r'\b(?:باترول|patrol)\b', 1184, 1188, 'نيسان', 'باترول'),
+    (r'\b(?:اكستريل|إكستريل|x-trail|xtrail)\b', 1184, 1189, 'نيسان', 'إكستريل'),
+    # ميتسوبيشي
+    (r'\b(?:لانسر|lancer|قرش|بومة)\b', 1219, 1220, 'ميتسوبيشي', 'لانسر'),
+    (r'\b(?:باجيرو|pajero)\b', 1219, 1221, 'ميتسوبيشي', 'باجيرو'),
+    # فولكس فاجن
+    (r'\b(?:جولف|غولف|golf)\b', 1251, 1252, 'فولكس فاجن', 'جولف'),
+    (r'\b(?:باسات|passat)\b', 1251, 1253, 'فولكس فاجن', 'باسات'),
+    (r'\b(?:تيجوان|tiguan)\b', 1251, 1255, 'فولكس فاجن', 'تيجوان'),
+    # شيفروليه
+    (r'\b(?:كروز|cruze)\b', 1295, 1297, 'شيفروليه', 'كروز'),
+    (r'\b(?:افيو|أفيو|aveo)\b', 1295, 1296, 'شيفروليه', 'أفيو'),
+    (r'\b(?:اوبترا|أوبترا|optra)\b', 1295, 1298, 'شيفروليه', 'أوبترا'),
+    # لاند روفر
+    (r'\b(?:رينج\s*روفر\s*فوج|فوج|hse|vogue)\b', 1356, 1357, 'لاند روفر', 'رينج روفر فوج'),
+    (r'\b(?:رينج\s*روفر\s*سبورت|سبورت)\b', 1356, 1358, 'لاند روفر', 'رينج روفر سبورت'),
+    (r'\b(?:ايفوك|إيفوك|evoque)\b', 1356, 1360, 'لاند روفر', 'إيفوك'),
+    (r'\b(?:ديفندر|defender)\b', 1356, 1361, 'لاند روفر', 'ديفندر')
+]
 
 # خريطة الماركات وموديلاتها لسيارات للبيع مع المعرفات الرسمية لموقع للبيع Lelbai
 CAR_MODELS_DB = [
@@ -486,10 +548,13 @@ CAR_MODELS_DB = [
 
 # الكلمات الدلالية للسيارات والمركبات في اللهجة السورية
 SYRIAN_AUTO_TERMS = [
-    "ماتور", "موتور", "محرك", "دوزان", "براوة", "شمعات", "شاسي", "شاصي", "فراغة", "فراغ",
-    "نمرة جديدة", "نمرة سورية", "زنار", "فتلات", "برمات", "فخدات", "دواليب", "قصة",
-    "غيار عادي", "اوتوماتيك", "تومتيك", "خالية جوا", "خالية برا", "خالية تماما", "خالية العلام",
-    "جنط", "جنوط", "غرفة نظيفة", "بخ زنار", "كرت ال", "كرت 20", "فان ركاب", "صهريج", "بيك اب"
+    "ماتور", "موتور", "محرك", "دوزان", "براوة", "شمعات", "شاسي", "شاصي", "فراغة", "فراغ", "فراغ فوراً", "فراغ فوري",
+    "نمرة جديدة", "نمرة سورية", "زنار", "فتلات", "برمات", "فخدات", "دواليب", "قصة", "بواط", "بواط عادي", "بواط اتوماتيك",
+    "غيار عادي", "اوتوماتيك", "تومتيك", "خالية جوا", "خالية برا", "خالية برا جوا", "خالية تماما", "خالية تماماً", "خالية العلام",
+    "فتحة سقف", "فتحه سقف", "بانوراما", "وارد عمان", "وارد دبي", "وارد كندا", "وارد كوريا", "وارد المانيا", "وارد أمريكا", "وارد خليجي",
+    "ماشية", "ماشي", "ممشى", "العداد", "قاطع مسافة", "جاهزية عالية", "جاهزية تامة", "جاهزية ممتازة", "بحالة الوكالة",
+    "أكمل وصف", "اكمل وصف", "كاملة مسكرة", "كاملة المواصفات", "أعلى صنف", "اعلى صنف", "بخ قطعتين", "عدا قطعتين",
+    "جنط", "جنوط", "غرفة نظيفة", "بخ زنار", "كرت ال", "كرت 20", "فان ركاب", "صهريج", "بيك اب", "شاشة وكاميرا", "فرام abs"
 ]
 
 # الفئات الأخرى (عقارات، طاقة، إلكترونيات، دراجات، مفروشات)
@@ -578,75 +643,101 @@ def detect_car_info(text: str) -> Dict[str, Any]:
         info["category_hierarchy"] = build_category_hierarchy(1832)
         return info
 
-    # 2. فحص مطابقة ماركات السيارات الـ 30 في قاعدة البيانات وموديلاتها الفرعية
-    matched_bid = None
-    for bid, aliases in BRAND_ALIASES.items():
-        for a in aliases:
-            if re.search(rf'(?:^|\W){re.escape(a)}(?:$|\W)', t_clean):
-                matched_bid = bid
-                break
-        if matched_bid:
+    # 2. فحص موديلات السيارات المستقلة التي لا تتطلب ذكر اسم الماركة صراحة (مثل E350, 4matic, C200, شبح, توسان, سيراتو, كامري)
+    matched_standalone = None
+    matched_model_code = None
+    for pattern, bid, mid, bname, mname in STANDALONE_CAR_MODELS:
+        m_st = re.search(pattern, t_clean)
+        if m_st:
+            matched_standalone = (bid, mid, bname, mname)
+            matched_model_code = m_st.group(0).strip().upper()
             break
 
-    if matched_bid:
-        bdata = BRAND_LEAF_MAPPING.get(str(matched_bid), {})
-        brand_name = bdata.get("name") or get_category_name_by_id(matched_bid)
-        info["brand"] = brand_name
-        info["parent_name"] = brand_name
+    if matched_standalone:
+        bid, mid, bname, mname = matched_standalone
+        info["brand"] = bname
+        info["parent_name"] = bname
+        info["category_id"] = mid
+        info["category_name"] = mname
+        info["model"] = mname
+        info["model_code"] = matched_model_code
+        info["category_hierarchy"] = build_category_hierarchy(mid)
+    else:
+        # 3. فحص مطابقة ماركات السيارات الـ 30 في قاعدة البيانات وموديلاتها الفرعية
+        matched_bid = None
+        for bid, aliases in BRAND_ALIASES.items():
+            for a in aliases:
+                if re.search(rf'(?:^|\W){re.escape(a)}(?:$|\W)', t_clean):
+                    matched_bid = bid
+                    break
+            if matched_bid:
+                break
 
-        matched_model_id = None
-        matched_model_name = None
+        if matched_bid:
+            bdata = BRAND_LEAF_MAPPING.get(str(matched_bid), {})
+            brand_name = bdata.get("name") or get_category_name_by_id(matched_bid)
+            info["brand"] = brand_name
+            info["parent_name"] = brand_name
 
-        models = bdata.get("models", [])
-        for m in models:
-            mid = m["id"]
-            # فحص الأسماء المستعارة الإضافية الشائعة
-            if mid in EXTRA_MODEL_ALIASES:
-                for ex in EXTRA_MODEL_ALIASES[mid]:
-                    if re.search(rf'(?:^|\W){re.escape(ex)}(?:$|\W)', t_clean):
+            matched_model_id = None
+            matched_model_name = None
+
+            models = bdata.get("models", [])
+            for m in models:
+                mid = m["id"]
+                # فحص الأسماء المستعارة الإضافية الشائعة
+                if mid in EXTRA_MODEL_ALIASES:
+                    for ex in EXTRA_MODEL_ALIASES[mid]:
+                        if re.search(rf'(?:^|\W){re.escape(ex)}(?:$|\W)', t_clean):
+                            matched_model_id = mid
+                            matched_model_name = m["name"]
+                            break
+                if matched_model_id:
+                    break
+
+                # فحص الكلمات المفتاحية لاسم الموديل وسلاغه
+                mname = m["name"].lower()
+                tokens = [tok.strip() for tok in mname.replace('/', ' ').replace('(', ' ').replace(')', ' ').split() if len(tok.strip()) > 2]
+                for tok in tokens:
+                    if tok in ['الفئة', 'جيبات', 'موديل', 'سيري', 'الكلاسيكية']:
+                        continue
+                    if re.search(rf'(?:^|\W){re.escape(tok)}(?:$|\W)', t_clean):
                         matched_model_id = mid
                         matched_model_name = m["name"]
                         break
-            if matched_model_id:
-                break
-
-            # فحص الكلمات المفتاحية لاسم الموديل وسلاغه
-            mname = m["name"].lower()
-            tokens = [tok.strip() for tok in mname.replace('/', ' ').replace('(', ' ').replace(')', ' ').split() if len(tok.strip()) > 2]
-            for tok in tokens:
-                if tok in ['الفئة', 'جيبات', 'موديل', 'سيري', 'الكلاسيكية']:
-                    continue
-                if re.search(rf'(?:^|\W){re.escape(tok)}(?:$|\W)', t_clean):
-                    matched_model_id = mid
-                    matched_model_name = m["name"]
+                if matched_model_id:
                     break
+
             if matched_model_id:
-                break
+                info["category_id"] = matched_model_id
+                info["category_name"] = matched_model_name
+                info["model"] = matched_model_name
+            else:
+                # موديلات أخرى خاصة بتلك الماركة (Leaf)
+                fallback_id = bdata.get("other_id") or 1832
+                info["category_id"] = fallback_id
+                info["category_name"] = get_category_name_by_id(fallback_id)
+                info["model"] = None
 
-        if matched_model_id:
-            info["category_id"] = matched_model_id
-            info["category_name"] = matched_model_name
-            info["model"] = matched_model_name
-        else:
-            # موديلات أخرى خاصة بتلك الماركة (Leaf)
-            fallback_id = bdata.get("other_id") or 1832
-            info["category_id"] = fallback_id
-            info["category_name"] = get_category_name_by_id(fallback_id)
-            info["model"] = None
+            info["category_hierarchy"] = build_category_hierarchy(info["category_id"])
 
-        info["category_hierarchy"] = build_category_hierarchy(info["category_id"])
+    # فحص الكود التفصيلي للموديل إذا كان متاحاً في النص (مثل E350 4matic أو C200 أو S350)
+    if info.get("brand") == "مرسيدس-بنز":
+        m_code = re.search(r'\b([eEcCsSgG]\s*\d{3}(?:\s*4matic)?|4matic)\b', text, re.IGNORECASE)
+        if m_code:
+            info["model_code"] = m_code.group(0).strip().upper()
 
-    # 3. فحص مصطلحات المركبات السورية في حال عدم ذكر الماركة صراحة (ماتور، دوزان، شمعات، فراغة، إلخ)
-    auto_matches = sum(1 for term in SYRIAN_AUTO_TERMS if term in t_clean)
-    if auto_matches >= 2:
-        if not info["brand"]:
+    # 4. فحص مصطلحات المركبات السورية في حال عدم ذكر الماركة صراحة (ماتور، دوزان، شمعات، فراغة، إلخ)
+    if not info["brand"]:
+        auto_matches = sum(1 for term in SYRIAN_AUTO_TERMS if term in t_clean)
+        if auto_matches >= 2:
             info["brand"] = "سيارة للبيع"
             info["category_id"] = 1832
             info["category_name"] = "ماركات أخرى"
             info["parent_name"] = "سيارات للبيع"
             info["category_hierarchy"] = build_category_hierarchy(1832)
 
-    # 4. فحص سنة الصنع (موديل YYYY أو سنة YYYY أو كرت YYYY أو 98)
+    # 5. فحص سنة الصنع (موديل YYYY أو سنة YYYY أو كرت YYYY أو 98)
     year_match = re.search(r'(?:موديل|سنة|عام|صنع|كرت|سيري)?\s*(20[0-2]\d|199\d)\b', t_digits)
     if year_match:
         info["year"] = year_match.group(1)
@@ -761,6 +852,33 @@ def extract_smart_price(text: str) -> Optional[Tuple[str, str]]:
         return None
 
     t_clean = clean_raw_text(text)
+
+    # فحص مؤشرات عدم وجود سعر في المنشور صراحة (السعر على الخاص، علق بنقطة، على السوم، إلخ)
+    no_price_patterns = [
+        r'نقطة\s*(?:ليصلك|بيوصلك|ليوصلك)?\s*السعر',
+        r'علق\s*ب?نقطة',
+        r'نقطة\s*بالتعليق',
+        r'نقطة\s*منك',
+        r'السعر\s*(?:ع|عال|على|في)?\s*الخاص',
+        r'السعر\s*خاص',
+        r'تواصل\s*(?:خاص|للسعر|لمعرفة\s*السعر)',
+        r'للسعر\s*(?:تواصل|خاص)',
+        r'السعر\s*ع\s*السوم',
+        r'على\s*السوم',
+        r'ع\s*السوم',
+        r'بدون\s*سعر',
+        r'السعر\s*عند\s*الاتصال',
+        r'السعر\s*بعد\s*المعاينة',
+        r'للاستفسار\s*عن\s*السعر',
+        r'السعر\s*عالهاتف',
+        r'السعر\s*على\s*الهاتف',
+        r'البيع\s*عالخاص',
+        r'البيع\s*ع\s*الخاص'
+    ]
+    for np_pat in no_price_patterns:
+        if re.search(np_pat, text, re.IGNORECASE) or re.search(np_pat, t_clean, re.IGNORECASE):
+            return None
+
     arabic_to_western = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
     t = t_clean.translate(arabic_to_western)
 
@@ -777,7 +895,8 @@ def extract_smart_price(text: str) -> Optional[Tuple[str, str]]:
     # 4. إخفاء المساحات (مثال: 150 متر، 200 م2)
     t = re.sub(r'\d+\s*(?:متر|م2|متر\s*مربع|دونوم|دونم)\b', ' __AREA__ ', t)
 
-    # 5. إخفاء المسافات المقطوعة بالكيلومتر (مثال: ماشية 120 ألف كم)
+    # 5. إخفاء المسافات المقطوعة والعداد لمنع التداخل مع السعر (مثال: ماشية 330 ألف، ماشي 120 الف، ممشى 80 الف)
+    t = re.sub(r'(?:ماشية|ماشي|ممشى|العداد|عداد|عدادها|قاطع|مسافة)\s*[:\-]?\s*\d+\s*(?:ألف|الف|k|كم|كيلو|كيلومتر)?\b', ' __KM__ ', t, flags=re.IGNORECASE)
     t = re.sub(r'\d+\s*(?:ألف|الف)?\s*(?:كم|كيلو|كيلومتر|km)\b', ' __KM__ ', t, flags=re.IGNORECASE)
 
     # 6. إزالة الفواصل والمسافات داخل الأرقام الكبيرة (مثل 10,500 أو 150,000,000)
@@ -858,7 +977,9 @@ def extract_smart_price(text: str) -> Optional[Tuple[str, str]]:
     # -------------------------------------------------------------
     # القاعدة 6: آلاف الليرات السورية (مثال: 75 الف، 500 ألف ليرة)
     # -------------------------------------------------------------
-    m_th_syp = re.search(r'(\d+(?:\.\d+)?)\s*(?:ألف|الف)\s*(?:ليرة|ل\.س)?', t)
+    m_th_syp = re.search(r'(?:السعر|سعر|سعرها|سعره|مطلوب|بـ|ب)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:ألف|الف)\s*(?:ليرة|ل\.س)?', t)
+    if not m_th_syp:
+        m_th_syp = re.search(r'(\d+(?:\.\d+)?)\s*(?:ألف|الف)\s*(?:ليرة|ل\.س)\b', t)
     if m_th_syp:
         val = float(m_th_syp.group(1)) * 1000
         return str(int(val)), "SYP"
@@ -873,6 +994,7 @@ def extract_smart_price(text: str) -> Optional[Tuple[str, str]]:
         return str(int(val)), curr
 
     return None
+
 
 def generate_smart_title(text: str, ad: Dict[str, Any]) -> str:
     """
@@ -893,15 +1015,20 @@ def generate_smart_title(text: str, ad: Dict[str, Any]) -> str:
 
     # 2. سياق السيارات العامة
     car = detect_car_info(t_clean)
-    if car.get("brand") or car.get("model"):
+    if car.get("brand") or car.get("model") or car.get("model_code"):
         brand_str = car.get("brand") or ""
-        model_str = car.get("model") or ""
+        model_str = car.get("model_code") or car.get("model") or ""
         year_str = f"موديل {car.get('year')}" if car.get("year") else ""
         
         # استخراج الحالة الفنية الأبرز
         condition_str = ""
         if any(k in t_clean for k in ["كسر زيرو", "كسر الزيرو", "زيرو 0 كم", "زيرووو"]):
             condition_str = "كسر زيرو"
+        elif any(k in t_clean for k in ["خالية برا جوا", "خالية برا وجوا", "خالي برا جوا"]):
+            if "عدا قطعتين" in t_clean or "عدا قطعة" in t_clean or "عدا 2" in t_clean:
+                condition_str = "خالية برا جوا عدا قطعتين"
+            else:
+                condition_str = "خالية برا جوا"
         elif any(k in t_clean for k in ["خالية تماما", "خالية من الداخل والخارج", "خالية تماماً"]):
             condition_str = "خالية تماماً"
         elif any(k in t_clean for k in ["خالية جوا", "خالية من الداخل"]):
@@ -917,6 +1044,8 @@ def generate_smart_title(text: str, ad: Dict[str, Any]) -> str:
             feature_str = "بانوراما"
         elif "فتحة سقف" in t_clean:
             feature_str = "فتحة سقف"
+        elif "وارد عمان" in t_clean:
+            feature_str = "وارد عمان"
         elif "ديزل" in t_clean:
             feature_str = "ديزل"
         elif "أوتوماتيك" in t_clean or "اوتوماتيك" in t_clean:
@@ -973,10 +1102,19 @@ def generate_smart_title(text: str, ad: Dict[str, Any]) -> str:
 
     if valid_lines:
         base_title = valid_lines[0]
-        base_title = re.sub(r'^(للبيع|مطلوب|عرض خاص|إعلان)\s*[:\-]?\s*', '', base_title)
-        if city and city not in base_title:
-            base_title = f"{base_title} - {city}"
-        return base_title[:80].strip()
+        base_title = re.sub(r'^(للبيع|مطلوب|عرض خاص|إعلان)\s*[:\-]?\s*', '', base_title).strip()
+        # إذا كان السطر فقط "في دمشق" أو "بدمشق" أو مجرد اسم مدينة، نتجاوزه للسطر التالي
+        if re.match(r'^(?:في|بـ?|بال)?\s*(?:دمشق|حلب|حمص|حماة|اللاذقية|طرطوس|درعا|السويداء|إدلب|الرقة|دير الزور|الحسكة|القنيطرة|ريف دمشق|سوريا|الشام)\s*$', base_title):
+            if len(valid_lines) > 1:
+                base_title = valid_lines[1]
+                base_title = re.sub(r'^(للبيع|مطلوب|عرض خاص|إعلان)\s*[:\-]?\s*', '', base_title).strip()
+            else:
+                base_title = ""
+
+        if base_title and len(base_title) >= 10:
+            if city and city not in base_title:
+                base_title = f"{base_title} - {city}"
+            return base_title[:80].strip()
 
     return f"إعلان مميز للبيع بحالة ممتازة {('- ' + city) if city else ''}".strip()
 
