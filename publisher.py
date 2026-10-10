@@ -101,8 +101,8 @@ def format_price(amount: Any) -> str:
         val = float(clean)
         if val < 0:
             val = 0
-        if val > 999999999:
-            val = 999999999
+        if val > 999999999999:
+            val = 999999999999
         if val == int(val):
             return str(int(val))
         return str(val)

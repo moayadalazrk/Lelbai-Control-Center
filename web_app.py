@@ -210,7 +210,17 @@ def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str
     ad_copy["is_duplicate"] = is_duplicate
     ad_copy["duplicate_reason"] = dup_reason
 
-    # 5. اكتمال المواصفات
+    # 5. اكتمال المواصفات وتدقيق المدينة والسعر
+    if not ad_copy.get("id-citie") or not ad_copy.get("city_name"):
+        from syria_filter import classify_location
+        loc_res = classify_location(full_text)
+        if loc_res.get("id-citie"):
+            ad_copy["id-citie"] = loc_res.get("id-citie")
+            ad_copy["id-sub_districts"] = loc_res.get("id-sub_districts")
+            ad_copy["city_name"] = loc_res.get("city_name")
+            ad_copy["sub_district_name"] = loc_res.get("sub_district_name")
+            ad_copy["location_detected"] = loc_res.get("location_detected")
+
     has_images = len(ad_copy.get("nimages", [])) > 0
     has_desc = bool(ad_copy.get("clean_description") or ad_copy.get("description"))
     has_title = bool(ad_copy.get("clean_title") or ad_copy.get("title"))
@@ -244,6 +254,7 @@ def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str
     )
     ad_copy["ai_review"] = ai_report
 
+    resolved_city = ad_copy.get("city_name") or (ad_copy.get("location_detected", "").split("(")[0].strip() if ad_copy.get("location_detected") else "دمشق")
     ad_copy["evaluation"] = {
         "is_specs_complete": is_specs_complete,
         "specs_details": {
@@ -254,7 +265,7 @@ def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str
             "has_phone": has_phone,
             "has_city": has_city,
             "has_price": has_price,
-            "city_name": ad_copy.get("city_name") or ad_copy.get("location_detected") or "دمشق",
+            "city_name": resolved_city,
             "sub_district_name": ad_copy.get("sub_district_name") or "عام"
         },
         "is_sharia_compliant": is_safe,
@@ -534,6 +545,23 @@ class ScrapingTaskManager:
                     group_ads_count = 0
                     last_ad_time = time.time()
 
+                    # استخراج عنوان واسم المجموعة لتمريره كسياق جغرافي للمنشورات
+                    group_page_title = ""
+                    try:
+                        group_page_title = await page.title()
+                    except Exception:
+                        pass
+                    group_saved_name = ""
+                    try:
+                        all_groups = read_json_file(GROUPS_DATA_FILE)
+                        for g_item in all_groups:
+                            if g_item.get("url") and normalize_group_url(g_item.get("url")) == normalize_group_url(group_url):
+                                group_saved_name = g_item.get("name", "")
+                                break
+                    except Exception:
+                        pass
+                    full_group_context = f"{group_saved_name} {group_page_title}".strip()
+
                     while scroll_attempts < 250 and group_ads_count < max_ads_per_group and not self.stop_requested:
                         scroll_attempts += 1
 
@@ -662,7 +690,7 @@ class ScrapingTaskManager:
                             if not raw_images or len(raw_images) == 0:
                                 continue
 
-                            validation = validate_ad(text_content)
+                            validation = validate_ad(text_content, group_context=full_group_context)
                             if not validation["is_valid"]:
                                 continue
 
@@ -1583,12 +1611,13 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
           const rawTitle = ad.clean_title || ad.title || (ad.description || '').substring(0, 60) || 'إعلان بدون عنوان';
           const title = String(rawTitle);
-          const city = sp.city_name || ad.location_detected || 'دمشق';
-          const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : '';
+          const city = sp.city_name || ad.city_name || ad.location_detected || 'دمشق';
+          const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : (ad.sub_district_name ? ` (${ad.sub_district_name})` : '');
           const cat = ad.category || 'عام';
           const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
           const accountName = ad.publisher_name || 'أبو محمد الشامي';
-          const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${ad.price_info.currency || 'ل.س'}` : 'السعر: على السوم';
+          const currSymbol = (ad.price_info && ad.price_info.currency === 'USD') ? '$' : 'ل.س';
+          const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${currSymbol}` : 'السعر: على السوم';
           
           const images = Array.isArray(ad.nimages) ? ad.nimages : [];
           const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
@@ -1918,7 +1947,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
           const cat = ad.category || 'عام';
           const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
           const accountName = ad.publisher_name || 'أبو محمد الشامي';
-          const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${ad.price_info.currency || 'ل.س'}` : 'السعر: على السوم';
+          const currSymbol = (ad.price_info && ad.price_info.currency === 'USD') ? '$' : 'ل.س';
+          const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${currSymbol}` : 'السعر: على السوم';
           const pubDate = ad.published_at || 'تاريخ غير محدد';
 
           const images = Array.isArray(ad.nimages) ? ad.nimages : [];

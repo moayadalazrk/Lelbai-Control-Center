@@ -35,6 +35,18 @@ SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم وم�
    - 🚫 الألعاب الإلكترونية: أسطوانات وأكواد وحسابات الألعاب مثل حسابات ببجي وبلايستيشن ألعاب (ممنوعة).
    - 🚫 المحتوى الإجرامي والاتجار بالبشر: أي إعلان صريح لـ (عرض أشخاص، أطفال للتبني/البيع، مخدرات، روابط احتيالية، ألفاظ مخلة) = مخالفة صارمة (مخالفة: prohibited_goods_or_human_trafficking).
 
+3. 💰 ضوابط استخراج الأسعار والعملات في السوق السوري:
+   - العملات المقبولة: "USD" أو "SYP".
+   - أسعار السيارات في سوريا عادة بالدولار (مثل 8200$, 10500 وسكرا، 82 ورقة) أو بمئات الملايين بالليرة السورية.
+   - إذا ذُكر السعر بالملايين (مثل: "150 مليون" أو "450 م"): اكتب الرقم كاملاً في amount (مثلاً 150000000) والعملة "SYP".
+   - إذا ذُكر بآلاف الدولارات (مثل: "12 الف دولار" أو "8.5 الف $"): اكتب الرقم كاملاً (مثلاً 12000) والعملة "USD".
+   - إذا ذُكر بالورقة (مثل: "82 ورقة"): الورقة تعني 100 دولار، فيكون amount = 8200 و currency = "USD".
+   - إذا كان السعر غير محدد أو على السوم أو خاص: يكون amount = null و is_negotiable = true.
+
+4. 📍 ضوابط استخراج المدينة والمنطقة:
+   - حدد المدينة السورية الأساسية (دمشق، ريف دمشق، حلب، ريف حلب، حمص، حماة، إدلب، اللاذقية، طرطوس، درعا، السويداء، القنيطرة، دير الزور، الحسكة، الرقة).
+   - إذا ذُكرت منطقة فرعية (مثل: المزة، كفرسوسة، جرمانا، صحنايا، جبلة، سلمية، سرمدا)، اذكرها في sub_district.
+
 ⛔ أشياء مسموحة تماماً ويُمنع رفض الإعلان بسببها (DO NOT REJECT FOR THESE):
 - ✅ عدم تطابق الصور مع العنوان أو الوصف: مسموح ومقبول ولا يعتبر مخالفة إطلاقاً.
 - ✅ الأطفال: ظهور الأطفال في الصور مسموح وتمريره عادي.
@@ -60,6 +72,10 @@ SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم وم�
   "structured_ad": {
     "category": "سيارات",
     "clean_title": "عنوان جذاب ومختصر من 5-8 كلمات",
+    "location": {
+      "city_name": "دمشق",
+      "sub_district": null
+    },
     "price": {
       "amount": null,
       "currency": "SYP",
@@ -271,11 +287,49 @@ class GeminiProcessor:
         processed_ad["moderation_summary"] = summary
         processed_ad["rejection_reason"] = rejection_reason
         
-        # دمج البيانات المهيكلة
+        # دمج البيانات المهيكلة وتدقيق السعر بدقة فائقة
+        from ai_ad_enhancer import extract_smart_price
+        gemini_price = structured.get("price", {})
+        price_amt = gemini_price.get("amount") if isinstance(gemini_price, dict) else None
+        price_curr = gemini_price.get("currency", "SYP") if isinstance(gemini_price, dict) else "SYP"
+        is_neg = gemini_price.get("is_negotiable", True) if isinstance(gemini_price, dict) else True
+
+        # استخراج وتدقيق السعر المحلي فائق الدقة
+        extracted = extract_smart_price(ad.get("description", ""))
+        if not price_amt or str(price_amt) == "0":
+            if extracted:
+                price_amt = extracted[0]
+                price_curr = extracted[1]
+        elif extracted:
+            try:
+                g_val = float(str(price_amt).replace(",", ""))
+                e_val = float(extracted[0])
+                # إذا أعاد الذكاء الاصطناعي رقماً صغيراً بالخطأ بينما النص يذكر الملايين
+                if e_val >= 1000000 and g_val < 10000:
+                    price_amt = extracted[0]
+                    price_curr = extracted[1]
+            except Exception:
+                pass
+
         processed_ad["category"] = structured.get("category", "عام")
         processed_ad["clean_title"] = structured.get("clean_title") or ad.get("description", "")[:60]
-        processed_ad["price_info"] = structured.get("price", {"amount": None, "currency": "SYP", "is_negotiable": True})
+        processed_ad["price_info"] = {
+            "amount": price_amt,
+            "currency": price_curr,
+            "is_negotiable": is_neg
+        }
         processed_ad["specifications"] = structured.get("specifications", {})
         processed_ad["clean_description"] = structured.get("clean_description") or ad.get("description", "")
-        
+
+        # التأكد من عدم فقدان المدينة والمنطقة
+        if not processed_ad.get("id-citie") or not processed_ad.get("city_name"):
+            from syria_filter import classify_location
+            loc = classify_location(ad.get("description", ""))
+            if loc.get("id-citie"):
+                processed_ad["id-citie"] = loc.get("id-citie")
+                processed_ad["id-sub_districts"] = loc.get("id-sub_districts")
+                processed_ad["city_name"] = loc.get("city_name")
+                processed_ad["sub_district_name"] = loc.get("sub_district_name")
+                processed_ad["location_detected"] = loc.get("location_detected")
+
         return processed_ad

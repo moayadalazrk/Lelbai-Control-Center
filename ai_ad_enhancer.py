@@ -746,17 +746,132 @@ def detect_smart_category(text: str) -> Dict[str, Any]:
     }
 
 def extract_smart_price(text: str) -> Optional[Tuple[str, str]]:
-    """استخراج السعر والعملة بذكاء من نص الإعلان (دولار أو ليرة سورية)"""
+    """
+    استخراج السعر والعملة بدقة استثنائية من نص الإعلان (دولار أو ليرة سورية):
+    - معالجة كافة الصيغ الشائعة في الأسواق السورية (سيارات، عقارات، إلكترونيات، إلخ)
+    - دعم الملايين والمليارات: (150 مليون = 150000000 ل.س، 450 م = 450000000 ل.س، 1.5 مليون)
+    - دعم آلاف الدولارات: (12 الف دولار = 12000 $، 8.5 الف $)
+    - دعم الدولار المباشر: (8200$، $8200، 8200 دولار، 8200 أمريكي)
+    - دعم الورقة السورية: (82 ورقة = 8200 $، 105 ورقة = 10500 $)
+    - دعم مصطلحات السوق: (10500 وسكرا، 8500 وبازار، 12000 منهي)
+    - دعم آلاف الليرات: (75 ألف = 75000 ل.س)
+    - استبعاد أرقام الهواتف، سنوات الموديل، سعات المحركات، ومساحات العقارات من التداخل.
+    """
+    if not text:
+        return None
+
     t_clean = clean_raw_text(text)
     arabic_to_western = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
-    t_digits = t_clean.translate(arabic_to_western)
+    t = t_clean.translate(arabic_to_western)
 
-    p_match = re.search(r'(?:السعر|سعر|بـ|ب)\s*[:\-]?\s*(\d{3,8})\s*(?:وبازار|بازار|دولار|\$|الف|ألف|مليون)?', t_digits)
-    if p_match:
-        val_str = p_match.group(1)
-        val = int(val_str)
-        currency = "USD" if val <= 50000 else "SYP"
-        return str(val), currency
+    # 1. إخفاء أرقام الهواتف السورية لمنع مطابقتها كأسعار
+    t = re.sub(r'09\d{8}', ' __PHONE__ ', t)
+    t = re.sub(r'\+?963\d+', ' __PHONE__ ', t)
+
+    # 2. إخفاء سنة الموديل (مثال: موديل 2011، سنة 2008)
+    t = re.sub(r'(?:موديل|سنة|عام)\s*(?:19\d{2}|20[0-2]\d)\b', ' __YEAR__ ', t)
+
+    # 3. إخفاء سعة المحرك (مثال: محرك 1600، سعة 2000)
+    t = re.sub(r'(?:محرك|سعة|موتور)\s*\d{3,4}\b', ' __ENGINE__ ', t)
+
+    # 4. إخفاء المساحات (مثال: 150 متر، 200 م2)
+    t = re.sub(r'\d+\s*(?:متر|م2|متر\s*مربع|دونوم|دونم)\b', ' __AREA__ ', t)
+
+    # 5. إخفاء المسافات المقطوعة بالكيلومتر (مثال: ماشية 120 ألف كم)
+    t = re.sub(r'\d+\s*(?:ألف|الف)?\s*(?:كم|كيلو|كيلومتر|km)\b', ' __KM__ ', t, flags=re.IGNORECASE)
+
+    # 6. إزالة الفواصل والمسافات داخل الأرقام الكبيرة (مثل 10,500 أو 150,000,000)
+    t = re.sub(r'(\d+)[,\s](\d{3})\b', r'\1\2', t)
+    t = t.replace(',', '')
+
+    # -------------------------------------------------------------
+    # القاعدة 1: المليارات والملايين بالليرة السورية أو الدولار
+    # -------------------------------------------------------------
+    # أ) المليارات (مثال: 2 مليار، 1.5 مليار)
+    m_bill = re.search(r'(\d+(?:\.\d+)?)\s*(?:مليار|مليارات)\s*(دولار|\$|اميركي|أمريكي|usd)?', t, re.IGNORECASE)
+    if m_bill:
+        val = float(m_bill.group(1)) * 1000000000
+        curr = "USD" if m_bill.group(2) else "SYP"
+        return str(int(val)), curr
+
+    # ب) الملايين بالأرقام (مثال: 150 مليون، 1.5 مليون، 450مليون)
+    m_mill = re.search(r'(\d+(?:\.\d+)?)\s*(?:مليون|ملايين)\s*(دولار|\$|اميركي|أمريكي|usd)?', t, re.IGNORECASE)
+    if m_mill:
+        val = float(m_mill.group(1)) * 1000000
+        curr = "USD" if m_mill.group(2) else "SYP"
+        return str(int(val)), curr
+
+    # ج) اختصار "م" للمليون الشائع في العقارات والسيارات (مثال: السعر 450 م، بـ 350م)
+    m_m = re.search(r'(?:السعر|سعر|سعرها|سعره|مطلوب|بـ|ب)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:م)\b', t)
+    if m_m:
+        val = float(m_m.group(1)) * 1000000
+        return str(int(val)), "SYP"
+
+    # د) الصياغات النصية للملايين (مثال: مليون ونص، مليونين)
+    if re.search(r'مليون\s*و\s*نصف?|مليون\s*ونصف?', t):
+        return "1500000", "SYP"
+    if re.search(r'مليونين|مليونان', t):
+        return "2000000", "SYP"
+    if re.search(r'(?:السعر|سعر|سعرها|سعره|مطلوب|بـ|ب)\s*[:\-]?\s*مليون\b', t):
+        return "1000000", "SYP"
+
+    # -------------------------------------------------------------
+    # القاعدة 2: آلاف الدولارات (مثال: 12 الف دولار، 8.5 ألف $)
+    # -------------------------------------------------------------
+    m_th_usd = re.search(r'(\d+(?:\.\d+)?)\s*(?:ألف|الف|k)\s*(?:\$|دولار|اميركي|أمريكي|usd)', t, re.IGNORECASE)
+    if m_th_usd:
+        val = float(m_th_usd.group(1)) * 1000
+        return str(int(val)), "USD"
+
+    # -------------------------------------------------------------
+    # القاعدة 3: مبالغ الدولار الصريحة (مثال: 8200$، $8200، 8200 دولار، 8200 أمريكي)
+    # -------------------------------------------------------------
+    m_usd = re.search(r'(\d+(?:\.\d+)?)\s*(?:\$|دولار|اميركي|أمريكي|usd)', t, re.IGNORECASE)
+    if not m_usd:
+        m_usd = re.search(r'(?:\$)\s*(\d+(?:\.\d+)?)', t)
+    if m_usd:
+        val = float(m_usd.group(1))
+        if val >= 10:
+            return str(int(val)), "USD"
+
+    # -------------------------------------------------------------
+    # القاعدة 4: ورقة الدولار في السوق السوري (1 ورقة = 100$)
+    # -------------------------------------------------------------
+    m_waraqa = re.search(r'(?:السعر|سعر|سعرها|سعره|مطلوب|بـ|ب)?\s*(\d+)\s*ورقة\b', t)
+    if m_waraqa:
+        w_val = int(m_waraqa.group(1))
+        if 10 <= w_val <= 999:
+            return str(w_val * 100), "USD"
+
+    # -------------------------------------------------------------
+    # القاعدة 5: مصطلحات سوق السيارات (وسكرا / وسكرة / وبازار / منهي / نهائي)
+    # -------------------------------------------------------------
+    m_slang = re.search(
+        r'(?:السعر|سعر|سعرها|سعره|مطلوب|بـ|ب)?\s*(\d{3,6})\s*(?:وسكرا|وسكرة|وسكره|سكرا|سكرة|منهي|نهائي|وبازار|بازار)\b',
+        t
+    )
+    if m_slang:
+        val = int(m_slang.group(1))
+        curr = "USD" if val <= 80000 else "SYP"
+        return str(val), curr
+
+    # -------------------------------------------------------------
+    # القاعدة 6: آلاف الليرات السورية (مثال: 75 الف، 500 ألف ليرة)
+    # -------------------------------------------------------------
+    m_th_syp = re.search(r'(\d+(?:\.\d+)?)\s*(?:ألف|الف)\s*(?:ليرة|ل\.س)?', t)
+    if m_th_syp:
+        val = float(m_th_syp.group(1)) * 1000
+        return str(int(val)), "SYP"
+
+    # -------------------------------------------------------------
+    # القاعدة 7: السعر المباشر بعد كلمة السعر أو مطلوب
+    # -------------------------------------------------------------
+    m_dir = re.search(r'(?:السعر|سعرها|سعره|مطلوب|السعر\s*المطلوب|حد)\s*[:\-]?\s*(\d+(?:\.\d+)?)\s*(?:ليرة|ل\.س)?', t)
+    if m_dir:
+        val = float(m_dir.group(1))
+        curr = "USD" if 500 <= val <= 80000 else "SYP"
+        return str(int(val)), curr
+
     return None
 
 def generate_smart_title(text: str, ad: Dict[str, Any]) -> str:
@@ -925,8 +1040,12 @@ def generate_smart_description(raw_desc: str, ad: Dict[str, Any]) -> str:
     
     price_info = ad.get("price_info", {})
     if price_info.get("amount"):
+        try:
+            formatted_amt = f"{int(float(str(price_info['amount']).replace(',', ''))):,}"
+        except Exception:
+            formatted_amt = str(price_info['amount'])
         curr_str = "$" if price_info.get("currency") == "USD" else (price_info.get("currency") or "ل.س")
-        out_sections.append(f"• السعر المطلوب: {price_info['amount']} {curr_str} (وبازار)")
+        out_sections.append(f"• السعر المطلوب: {formatted_amt} {curr_str} (وبازار)")
     else:
         out_sections.append("• السعر: قابل للتفاوض المناسب عند الجدية")
     if phone:
@@ -946,15 +1065,35 @@ def enhance_ad_with_super_ai(ad: Dict[str, Any]) -> Dict[str, Any]:
     ad_copy = ad.copy()
     raw_desc = ad_copy.get("description") or ad_copy.get("clean_description") or ""
 
-    # 1. استخراج السعر بذكاء إن لم يكن موجوداً
-    if not ad_copy.get("price_info") or not ad_copy["price_info"].get("amount"):
-        extracted_price = extract_smart_price(raw_desc)
-        if extracted_price:
-            ad_copy["price_info"] = {
-                "amount": extracted_price[0],
-                "currency": extracted_price[1],
-                "is_negotiable": True
-            }
+    # 1. استخراج وتدقيق السعر بذكاء
+    current_amount = ad_copy.get("price_info", {}).get("amount") if ad_copy.get("price_info") else None
+    extracted_price = extract_smart_price(raw_desc)
+
+    should_update_price = False
+    if not current_amount or current_amount == "0" or current_amount == 0:
+        should_update_price = True
+    elif extracted_price:
+        try:
+            curr_val = float(str(current_amount).replace(",", ""))
+            ext_val = float(extracted_price[0])
+            # إذا كان السعر الحالي رقم صغير بالخطأ (مثل 450 أو 150) بينما المستخرج بالملايين
+            if ext_val >= 1000000 and curr_val < 10000:
+                should_update_price = True
+        except Exception:
+            should_update_price = True
+
+    if should_update_price and extracted_price:
+        ad_copy["price_info"] = {
+            "amount": extracted_price[0],
+            "currency": extracted_price[1],
+            "is_negotiable": True
+        }
+    elif not ad_copy.get("price_info"):
+        ad_copy["price_info"] = {
+            "amount": None,
+            "currency": "SYP",
+            "is_negotiable": True
+        }
 
     # 2. التصنيف في أصغر فئة
     cat_info = detect_smart_category(raw_desc)

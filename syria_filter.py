@@ -109,57 +109,50 @@ def load_location_database():
 # تحميل الفهارس عند استيراد الوحدة
 load_location_database()
 
-# مرادفات وصيغ شائعة للمدن السورية لربطها بـ ID المدينة في cities.csv
-CITY_ALIASES = {
-    "الشام": 1,
-    "شام": 1,
-    "دمشق المدينة": 1,
-    "دمشق": 1,
-    "ريف الشام": 2,
-    "ريف دمشق": 2,
-    "الشهباء": 3,
-    "شهباء": 3,
-    "حلب": 3,
-    "ريف حلب": 4,
-    "ادلب": 5,
-    "إدلب": 5,
-    "حمص": 6,
-    "العدية": 6,
-    "حماة": 7,
-    "حماه": 7,
-    "حما": 7,
-    "اللاذقية": 8,
-    "اللاذقيه": 8,
-    "الاذقية": 8,
-    "الاذقيه": 8,
-    "لاذقية": 8,
-    "لاذقيه": 8,
-    "دير الزور": 9,
-    "ديرالزور": 9,
-    "الدير": 9,
-    "الحسكة": 10,
-    "الحسكه": 10,
-    "حسكة": 10,
-    "القامشلي": 10,
-    "قامشلي": 10,
-    "درعا": 11,
-    "حوران": 11,
-    "طرطوس": 12,
-    "طرطوسية": 12,
-    "طرطوس_المدينة": 12,
-    "طرطوس المدينة": 12,
-    "الرقة": 13,
-    "الرقه": 13,
-    "رقة": 13,
-    "رقه": 13,
-    "السويداء": 14,
-    "السويدا": 14,
-    "سويداء": 14,
-    "سويدا": 14,
-    "القنيطرة": 15,
-    "القنيطره": 15,
-    "الجولان": 15
-}
+# مرادفات وصيغ شائعة للمدن السورية مرتبة من الأطول إلى الأقصر لضمان أسبقية المطابقة الأدق
+# وتجنب مطابقة "دمشق" قبل "ريف دمشق" أو "حلب" قبل "ريف حلب"
+CITY_ALIASES_ORDERED = [
+    ("ريف دمشق", 2),
+    ("ريف الشام", 2),
+    ("ريف حلب", 4),
+    ("ريف الشهباء", 4),
+    ("دير الزور", 9),
+    ("ديرالزور", 9),
+    ("دمشق المدينة", 1),
+    ("حلب المدينة", 3),
+    ("حمص المدينة", 6),
+    ("حماة المدينة", 7),
+    ("طرطوس المدينة", 12),
+    ("اللاذقية", 8),
+    ("اللاذقيه", 8),
+    ("الاذقية", 8),
+    ("الاذقيه", 8),
+    ("السويداء", 14),
+    ("السويدا", 14),
+    ("القنيطرة", 15),
+    ("القنيطره", 15),
+    ("القامشلي", 10),
+    ("الشهباء", 3),
+    ("العدية", 6),
+    ("الجولان", 15),
+    ("حوران", 11),
+    ("دمشق", 1),
+    ("الشام", 1),
+    ("حلب", 3),
+    ("إدلب", 5),
+    ("ادلب", 5),
+    ("حمص", 6),
+    ("حماة", 7),
+    ("حماه", 7),
+    ("درعا", 11),
+    ("طرطوس", 12),
+    ("الرقة", 13),
+    ("الرقه", 13),
+    ("الحسكة", 10),
+    ("الحسكه", 10)
+]
+# قاموس سريع للتوافق الخلفي
+CITY_ALIASES = dict(CITY_ALIASES_ORDERED)
 
 # مرادفات خاصة ببعض المناطق الشائعة لربطها بالـ ID المناسب في sub_districts
 SUB_DISTRICT_ALIASES = {
@@ -178,8 +171,43 @@ SUB_DISTRICT_ALIASES = {
     "شرقي ركن الدين": "ركن الدين",
     "ركن الدين": "ركن الدين",
     "ميسات": "الميسات",
-    "الميسات": "الميسات"
+    "الميسات": "الميسات",
+    "ضاحية قدسيا": "قدسيا",
+    "مشروع دمر": "مشروع دمر"
 }
+
+# رموز مفاتيح المحافظات للخطوط الأرضية السورية
+SYRIAN_LANDLINE_AREA_CODES = {
+    "011": 1,   # دمشق وريف دمشق
+    "021": 3,   # حلب
+    "031": 6,   # حمص
+    "033": 7,   # حماة
+    "041": 8,   # اللاذقية
+    "043": 12,  # طرطوس
+    "015": 11,  # درعا
+    "016": 14,  # السويداء
+    "014": 15,  # القنيطرة
+    "023": 5,   # إدلب
+    "051": 9,   # دير الزور
+    "052": 10,  # الحسكة
+    "022": 13   # الرقة
+}
+
+def match_location_token(token: str, text: str) -> bool:
+    """
+    مطابقة اسم المدينة أو المنطقة بذكاء مع دعم أحرف الجر السورية المتصلة
+    (ب، بال، في، ل، لل، و، ف، من) مع حدود كلمة صارمة تمنع المطابقات الزائفة
+    (مثل 'شام' داخل 'شاملة' أو 'رقة' داخل 'ورقة' أو 'حما' داخل 'حماية').
+    """
+    if not token or not text:
+        return False
+    pattern = (
+        r'(?<![\w\u0600-\u06FF])'
+        r'(?:ب|بال|في\s+|في\s+مدينة\s+|في\s+محافظة\s+|ل|لل|و|ف|من\s+|بـ|بالـ)?'
+        + re.escape(token) +
+        r'(?![\w\u0600-\u06FF])'
+    )
+    return bool(re.search(pattern, text, re.IGNORECASE))
 
 def normalize_text(text: str) -> str:
     """تنظيف وتوحيد النص والأرقام"""
@@ -239,53 +267,134 @@ def extract_syrian_phone_numbers(text: str) -> List[str]:
     for num in direct_pattern:
         found_numbers.add(num)
 
+    # النمط 4: أرقام أرضية محلية تبدأ بمفتاح المحافظة 011, 021, إلخ
+    landline_pattern = re.findall(r'\b(01[1456]|02[123]|03[13]|04[13]|05[12])\d{6,7}\b', norm_text)
+    for num in landline_pattern:
+        found_numbers.add(num)
+
     return sorted(list(found_numbers))
 
 def classify_location(text: str, group_context: str = "") -> Dict[str, Any]:
     """
-    تصنيف الإعلان جغرافياً واستخراج:
+    تصنيف الإعلان جغرافياً بدقة فائقة واستخراج:
     - id-citie: معرف المدينة في cities.csv (أو null)
     - id-sub_districts: معرف المنطقة في sub_districts.csv (أو null)
     - city_name: اسم المدينة بالعربي
     - sub_district_name: اسم المنطقة بالعربي (أو null)
+    - location_detected: الوصف الجغرافي المنسق
     """
     if not text:
         text = ""
 
     # تنظيف الهاشتاغات والشرطات السفلية للبحث
     search_text = text.replace("#", " ").replace("_", " ")
-    norm_text = normalize_text(search_text).lower()
+    norm_text = normalize_text(search_text)
 
     detected_city_id = None
     detected_sub_id = None
     detected_city_name = None
     detected_sub_name = None
 
-    # 1. البحث أولاً عن المناطق الفرعية في نص الإعلان
-    # أ) فحص المرادفات الخاصة بالمناطق
-    for alias_name, target_sub_name in SUB_DISTRICT_ALIASES.items():
-        pattern = r'(?:\b|\s|^|،|,)' + re.escape(alias_name.lower()) + r'(?:\b|\s|$|،|,)'
-        if re.search(pattern, norm_text) or alias_name.lower() in norm_text:
-            # مطابقة اسم المنطقة في قائمة المناطق
+    # -------------------------------------------------------------
+    # 1. فحص عبارات الدلالة المباشرة على الموقع (أعلى أولوية ممكنة)
+    # -------------------------------------------------------------
+    # إذا ذُكر صراحة: (تواجد حلب، الموقع: دمشق، المعاينة بحمص، موجودة باللاذقية)
+    # تعطي الأولوية القصوى للموقع الفعلي للمعاينة حتى لو كانت لوحة السيارة نمرة دمشق
+    ind_match = re.search(
+        r'(?:تواجد|التواجد|الموقع|موقع|مكان|المكان|المعاينة|معاينة|موجود[ةه]?|العنوان|السيارة\s+ب|العقار\s+ب)\s*[:\-]?\s*(?:في|بـ?|بال)?\s*([^\n،,\.]{2,40})',
+        norm_text,
+        re.IGNORECASE
+    )
+    if ind_match:
+        loc_snippet = ind_match.group(0)
+
+        # فحص المرادفات للمناطق أولاً داخل العبارة المباشرة
+        for alias_name, target_sub_name in SUB_DISTRICT_ALIASES.items():
+            if match_location_token(alias_name, loc_snippet):
+                for sub in SUB_DISTRICTS_LIST:
+                    if sub["name_ar"] == target_sub_name or sub["name_ar"] == alias_name:
+                        detected_sub_id = sub["id"]
+                        detected_city_id = sub["city_id"]
+                        detected_sub_name = sub["name_ar"]
+                        if detected_city_id in CITIES_BY_ID:
+                            detected_city_name = CITIES_BY_ID[detected_city_id]["name_ar"]
+                        break
+                if detected_sub_id:
+                    break
+
+        # فحص المناطق الفرعية من قاعدة البيانات داخل العبارة المباشرة
+        if not detected_sub_id:
             for sub in SUB_DISTRICTS_LIST:
-                if sub["name_ar"] == target_sub_name or sub["name_ar"] == alias_name:
+                sub_name = sub["name_ar"]
+                if len(sub_name) >= 3 and match_location_token(sub_name, loc_snippet):
                     detected_sub_id = sub["id"]
                     detected_city_id = sub["city_id"]
                     detected_sub_name = sub["name_ar"]
                     if detected_city_id in CITIES_BY_ID:
                         detected_city_name = CITIES_BY_ID[detected_city_id]["name_ar"]
                     break
-            if detected_sub_id:
+
+        # فحص المدن داخل العبارة المباشرة (الأطول فالأقصر)
+        if not detected_city_id:
+            for alias, cid in CITY_ALIASES_ORDERED:
+                if match_location_token(alias, loc_snippet):
+                    detected_city_id = cid
+                    if cid in CITIES_BY_ID:
+                        detected_city_name = CITIES_BY_ID[cid]["name_ar"]
+                    break
+
+    # -------------------------------------------------------------
+    # 2. البحث عن المناطق الفرعية في كامل نص الإعلان
+    # -------------------------------------------------------------
+    if not detected_sub_id and not detected_city_id:
+        # أ) فحص المرادفات الخاصة بالمناطق
+        for alias_name, target_sub_name in SUB_DISTRICT_ALIASES.items():
+            if match_location_token(alias_name, norm_text):
+                for sub in SUB_DISTRICTS_LIST:
+                    if sub["name_ar"] == target_sub_name or sub["name_ar"] == alias_name:
+                        detected_sub_id = sub["id"]
+                        detected_city_id = sub["city_id"]
+                        detected_sub_name = sub["name_ar"]
+                        if detected_city_id in CITIES_BY_ID:
+                            detected_city_name = CITIES_BY_ID[detected_city_id]["name_ar"]
+                        break
+                if detected_sub_id:
+                    break
+
+        # ب) فحص كافة المناطق الفرعية من قاعدة البيانات (مرتبة بالأطول أولاً)
+        if not detected_sub_id:
+            for sub in SUB_DISTRICTS_LIST:
+                sub_name = sub["name_ar"]
+                if len(sub_name) < 3:
+                    continue
+                if match_location_token(sub_name, norm_text):
+                    detected_sub_id = sub["id"]
+                    detected_city_id = sub["city_id"]
+                    detected_sub_name = sub["name_ar"]
+                    if detected_city_id in CITIES_BY_ID:
+                        detected_city_name = CITIES_BY_ID[detected_city_id]["name_ar"]
+                    break
+
+    # -------------------------------------------------------------
+    # 3. البحث عن اسم المدينة الرئيسية في كامل نص الإعلان (الأطول فالأقصر)
+    # -------------------------------------------------------------
+    if not detected_city_id:
+        for alias, cid in CITY_ALIASES_ORDERED:
+            if match_location_token(alias, norm_text):
+                detected_city_id = cid
+                if cid in CITIES_BY_ID:
+                    detected_city_name = CITIES_BY_ID[cid]["name_ar"]
                 break
 
-    # ب) فحص كافة المناطق الفرعية من قاعدة البيانات
-    if not detected_sub_id:
+    # -------------------------------------------------------------
+    # 4. البحث في سياق واسم المجموعة (Group Context)
+    # -------------------------------------------------------------
+    if not detected_city_id and group_context:
+        norm_group = normalize_text(group_context)
+        # فحص المناطق في سياق المجموعة
         for sub in SUB_DISTRICTS_LIST:
-            sub_name = sub["name_ar"].lower()
-            if len(sub_name) < 3:
-                continue
-            pattern = r'(?:\b|\s|^|،|,)' + re.escape(sub_name) + r'(?:\b|\s|$|،|,)'
-            if re.search(pattern, norm_text) or sub_name in norm_text:
+            sub_name = sub["name_ar"]
+            if len(sub_name) >= 3 and match_location_token(sub_name, norm_group):
                 detected_sub_id = sub["id"]
                 detected_city_id = sub["city_id"]
                 detected_sub_name = sub["name_ar"]
@@ -293,25 +402,29 @@ def classify_location(text: str, group_context: str = "") -> Dict[str, Any]:
                     detected_city_name = CITIES_BY_ID[detected_city_id]["name_ar"]
                 break
 
-    # 2. إذا لم يتم اكتشاف منطقة فرعية، نبحث عن اسم المدينة الرئيسية في النص
-    if not detected_city_id:
-        for alias, cid in CITY_ALIASES.items():
-            pattern = r'(?:\b|\s|^|،|,)' + re.escape(alias.lower()) + r'(?:\b|\s|$|،|,)'
-            if re.search(pattern, norm_text) or alias.lower() in norm_text:
-                detected_city_id = cid
-                if cid in CITIES_BY_ID:
-                    detected_city_name = CITIES_BY_ID[cid]["name_ar"]
-                break
+        # فحص المدن في سياق المجموعة
+        if not detected_city_id:
+            for alias, cid in CITY_ALIASES_ORDERED:
+                if match_location_token(alias, norm_group):
+                    detected_city_id = cid
+                    if cid in CITIES_BY_ID:
+                        detected_city_name = CITIES_BY_ID[cid]["name_ar"]
+                    break
 
-    # 3. إذا لم يذكر في النص، نبحث في سياق واسم المجموعة (مثل: سيارات للبيع في دمشق)
-    if not detected_city_id and group_context:
-        norm_group = normalize_text(group_context).lower()
-        for alias, cid in CITY_ALIASES.items():
-            pattern = r'(?:\b|\s|^|،|,)' + re.escape(alias.lower()) + r'(?:\b|\s|$|،|,)'
-            if re.search(pattern, norm_group) or alias.lower() in norm_group:
-                detected_city_id = cid
-                if cid in CITIES_BY_ID:
-                    detected_city_name = CITIES_BY_ID[cid]["name_ar"]
+    # -------------------------------------------------------------
+    # 5. استخراج المدينة من مفتاح الهاتف الأرضي السوري (إن وجد)
+    # -------------------------------------------------------------
+    if not detected_city_id:
+        phones = extract_syrian_phone_numbers(text)
+        for ph in phones:
+            clean_digits = re.sub(r'[^0-9]', '', ph)
+            for prefix, cid in SYRIAN_LANDLINE_AREA_CODES.items():
+                if clean_digits.startswith(prefix):
+                    detected_city_id = cid
+                    if cid in CITIES_BY_ID:
+                        detected_city_name = CITIES_BY_ID[cid]["name_ar"]
+                    break
+            if detected_city_id:
                 break
 
     # تركيب الوصف المكتشف للقراءة المباشرة
