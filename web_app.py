@@ -2601,6 +2601,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
         alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
         if (btn) btn.innerHTML = oldHtml;
       }
+    }
+
     async function deleteSingleAd(idx) {
       const ad = adsData[idx];
       if (!ad) return;
