@@ -596,9 +596,30 @@ namespace LelbaiLauncher
                     // تطبيق التحديث باستخدام reset --hard لضمان عدم التعليق أو رفض الدمج بسبب اختلافات الملفات المحلية
                     string targetBranch = !string.IsNullOrEmpty(remoteHead) ? (RunCommandWithOutput("git", "branch -r", dir).Contains("origin/main") ? "origin/main" : "origin/master") : "origin/main";
 
+                    // في ويندوز، لا يمكن تعديل ملف .exe قيد التشغيل بواسطة Git، لذا نعيد تسميته مؤقتاً
+                    string currentLauncher = Path.Combine(dir, "Lelbai_Launcher.exe");
+                    string oldLauncherBackup = Path.Combine(dir, "Lelbai_Launcher.exe.old");
+                    bool launcherRenamed = false;
+                    try
+                    {
+                        if (File.Exists(oldLauncherBackup)) File.Delete(oldLauncherBackup);
+                        if (File.Exists(currentLauncher))
+                        {
+                            File.Move(currentLauncher, oldLauncherBackup);
+                            launcherRenamed = true;
+                        }
+                    }
+                    catch { }
+
                     RunCommand("git", "checkout -f -B main " + targetBranch, dir, 25000);
                     RunCommand("git", "reset --hard " + targetBranch, dir, 25000);
                     RunCommand("git", "clean -fd -e imgs/ -e *.json", dir, 15000);
+
+                    // إذا لم يقم Git بإنشاء ملف Lelbai_Launcher.exe جديد، نستعيد الملف الأصلي
+                    if (launcherRenamed && !File.Exists(currentLauncher) && File.Exists(oldLauncherBackup))
+                    {
+                        try { File.Move(oldLauncherBackup, currentLauncher); } catch { }
+                    }
 
                     // استعادة بيانات المستخدم المحفوظة إذا كانت تحتوي على بيانات حقيقية
                     foreach (var kvp in backupData)
@@ -623,9 +644,10 @@ namespace LelbaiLauncher
                     }
                     else
                     {
-                        Console.ForegroundColor = ConsoleColor.Green;
-                        Console.WriteLine("      ✅ تم سحب التحديث بنجاح!");
+                        Console.ForegroundColor = ConsoleColor.Yellow;
+                        Console.WriteLine("      ⚠️ لم تكتمل المزامنة الكاملة عبر Git، جاري التحديث التلقائي للحزمة عبر HTTPS...");
                         Console.ResetColor();
+                        DownloadAndExtractZip(DefaultZipUrl, dir);
                     }
 
                     try
@@ -675,11 +697,7 @@ namespace LelbaiLauncher
                 // حفظ بيانات المستخدم الهامة
                 string[] userFiles = new string[] {
                     "config.json",
-                    "pending_review.json",
-                    "published_ads.json",
-                    "flagged_ads.json",
-                    "groups_data.json",
-                    "ads_syria.json"
+                    "groups_data.json"
                 };
 
                 Dictionary<string, byte[]> backupData = new Dictionary<string, byte[]>();
