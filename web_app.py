@@ -1252,7 +1252,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
         <div style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); border-radius:12px; padding:14px; margin-bottom:14px;">
           <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-            <span style="font-weight:800; color:#38bdf8; font-size:14px;">📊 الرصيد اليومي الفعلي (Gemini 3.8 Flash):</span>
+            <span style="font-weight:800; color:#38bdf8; font-size:14px;">📊 الرصيد اليومي الفعلي (Gemini Flash Vision):</span>
             <span id="aiModelBadgeStatus" class="badge badge-success" style="font-size:11px;">متصل ونشط 🟢</span>
           </div>
           <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; text-align:center;">
@@ -1284,7 +1284,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <div style="display:flex; flex-direction:column; gap:8px;" id="aiModelsTableContainer">
           <div style="background:rgba(15,23,42,0.8); border:1px solid #10b981; border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:800; color:#34d399; font-size:13px;">⚡ gemini-3.8-flash (النموذج الافتراضي المعتمد)</div>
+              <div style="font-weight:800; color:#34d399; font-size:13px;">⚡ gemini-flash-latest (النموذج الافتراضي المعتمد)</div>
               <div style="font-size:11px; color:var(--text-muted);">فحص صور + نصوص فائق السرعة والدقة | 1,500 طلب/يوم | 15 RPM</div>
             </div>
             <span class="badge badge-success">نشط ومعتمد تلقائياً 🟢</span>
@@ -1292,15 +1292,15 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
           <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:800; color:#60a5fa; font-size:13px;">⚡ gemini-2.5-flash</div>
-              <div style="font-size:11px; color:var(--text-muted);">فحص صور + نصوص (سريع وخفيف) | 1,500 طلب/يوم | 15 RPM</div>
+              <div style="font-weight:800; color:#60a5fa; font-size:13px;">⚡ gemini-3.8-flash</div>
+              <div style="font-size:11px; color:var(--text-muted);">فحص صور + نصوص تجريبي | 1,500 طلب/يوم | 15 RPM</div>
             </div>
             <span class="badge badge-info">مدعوم واحتياطي ✅</span>
           </div>
 
           <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:800; color:#a78bfa; font-size:13px;">🧠 gemini-2.5-pro</div>
+              <div style="font-weight:800; color:#a78bfa; font-size:13px;">🧠 gemini-pro-latest</div>
               <div style="font-size:11px; color:var(--text-muted);">أعلى دقة تفكير واستنتاج للمحتوى والسلع الحساسة | 50 طلب/يوم</div>
             </div>
             <span class="badge badge-warning">مدعوم (حد 50 يومياً) ⚠️</span>
@@ -3066,12 +3066,13 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_cors_headers()
             self.end_headers()
-            dash_file = os.path.join(BASE_DIR, "control_dashboard.html")
-            if os.path.exists(dash_file):
-                with open(dash_file, "r", encoding="utf-8") as f:
-                    self.wfile.write(f.read().encode("utf-8"))
-            else:
-                self.wfile.write(HTML_PAGE.encode("utf-8"))
+            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            try:
+                dash_file = os.path.join(BASE_DIR, "control_dashboard.html")
+                with open(dash_file, "w", encoding="utf-8") as f:
+                    f.write(HTML_PAGE)
+            except Exception:
+                pass
             return
 
         elif path == "/api/groups":
@@ -3164,28 +3165,28 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             usage = get_gemini_usage_info(cfg.get("gemini_api_key", ""))
             models_info = [
                 {
-                    "name": "gemini-3.8-flash (النموذج الافتراضي المعتمد)",
-                    "model_id": "gemini-3.8-flash",
+                    "name": "gemini-flash-latest (النموذج الافتراضي المعتمد)",
+                    "model_id": "gemini-flash-latest",
                     "supports_vision": True,
-                    "vision_desc": "فحص صور + نصوص فائق الدقة (YOLO + Gemini Vision)",
+                    "vision_desc": "فحص صور + نصوص فائق الدقة والسرعة (YOLO + Gemini Vision)",
                     "daily_limit": 1500,
                     "rpm_limit": 15,
                     "is_active": True,
                     "status_label": "نشط ومعتمد تلقائياً 🟢"
                 },
                 {
-                    "name": "gemini-2.5-flash",
-                    "model_id": "gemini-2.5-flash",
+                    "name": "gemini-3.8-flash",
+                    "model_id": "gemini-3.8-flash",
                     "supports_vision": True,
-                    "vision_desc": "فحص صور ونصوص سريع وخفيف",
+                    "vision_desc": "أحدث طراز تجريبي لفحص الصور والنصوص",
                     "daily_limit": 1500,
                     "rpm_limit": 15,
                     "is_active": False,
                     "status_label": "مدعوم واحتياطي ✅"
                 },
                 {
-                    "name": "gemini-2.5-pro",
-                    "model_id": "gemini-2.5-pro",
+                    "name": "gemini-pro-latest",
+                    "model_id": "gemini-pro-latest",
                     "supports_vision": True,
                     "vision_desc": "أعلى دقة استنتاج للمحتوى والسلع الحساسة",
                     "daily_limit": 50,
@@ -3671,6 +3672,13 @@ class ThreadedHTTPServer(ThreadingHTTPServer):
         super().handle_error(request, client_address)
 
 def run_app():
+    try:
+        dash_path = os.path.join(BASE_DIR, "control_dashboard.html")
+        with open(dash_path, "w", encoding="utf-8") as f:
+            f.write(HTML_PAGE)
+    except Exception:
+        pass
+
     port = 5000
     server_address = ('', port)
     httpd = ThreadedHTTPServer(server_address, ControlCenterHandler)

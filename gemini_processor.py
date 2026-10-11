@@ -18,8 +18,9 @@ from config import load_config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USAGE_FILE = os.path.join(BASE_DIR, "gemini_usage.json")
+DEFAULT_MODEL = "gemini-flash-latest"
 
-def record_gemini_call(model_name: str = "gemini-3.8-flash") -> Dict[str, Any]:
+def record_gemini_call(model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """تسجيل طلب ذكاء اصطناعي جديد وحفظ العداد اليومي"""
     today_str = time.strftime("%Y-%m-%d")
     data = {"date": today_str, "calls_today": 0, "daily_limit": 1500, "rpm_limit": 15, "model": model_name}
@@ -41,8 +42,10 @@ def record_gemini_call(model_name: str = "gemini-3.8-flash") -> Dict[str, Any]:
         pass
     return data
 
-def get_gemini_usage_info(api_key: str = "", model_name: str = "gemini-3.8-flash") -> Dict[str, Any]:
+def get_gemini_usage_info(api_key: str = "", model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """استرجاع بيانات ورصيد الاستهلاك اليومي المتبقي"""
+    if not api_key:
+        api_key = load_config().get("gemini_api_key", "").strip()
     today_str = time.strftime("%Y-%m-%d")
     data = {"date": today_str, "calls_today": 0, "daily_limit": 1500, "rpm_limit": 15, "model": model_name}
     if os.path.exists(USAGE_FILE):
@@ -141,10 +144,10 @@ SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم وم�
 """
 
 class GeminiProcessor:
-    def __init__(self, api_key: Optional[str] = None, model: str = "gemini-3.8-flash"):
+    def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_MODEL):
         cfg = load_config()
         self.api_key = api_key.strip() if api_key else cfg.get("gemini_api_key", "").strip()
-        self.model = model or cfg.get("gemini_model", "gemini-3.8-flash")
+        self.model = model or cfg.get("gemini_model", DEFAULT_MODEL)
         self.last_call_time = 0.0
 
     def _prepare_image_part(self, image_path: str) -> Optional[Dict[str, Any]]:
@@ -312,8 +315,10 @@ class GeminiProcessor:
             else:
                 error_msg = response.text[:200]
                 print(f"[!] تنبيه من Gemini API ({response.status_code}): {error_msg}")
-                # محاولة احتياطية مع gemini-flash-latest إذا تعذر النموذج الأساسي
-                if self.model != "gemini-flash-latest":
+                if self.model == "gemini-flash-latest":
+                    self.model = "gemini-3.8-flash"
+                    return self.moderate_and_structure_ad(ad, imgs_dir)
+                elif self.model == "gemini-3.8-flash":
                     self.model = "gemini-flash-latest"
                     return self.moderate_and_structure_ad(ad, imgs_dir)
         except Exception as e:
