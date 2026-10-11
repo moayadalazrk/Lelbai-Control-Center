@@ -18,8 +18,8 @@ from config import load_config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USAGE_FILE = os.path.join(BASE_DIR, "gemini_usage.json")
-DEFAULT_MODEL = "gemini-3.5-flash"
-MODEL_CANDIDATES = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-3.8-flash"]
+DEFAULT_MODEL = "gemini-flash-lite-latest"
+MODEL_CANDIDATES = ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.8-flash", "gemini-3.5-flash"]
 
 def record_gemini_call(model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """تسجيل طلب ذكاء اصطناعي جديد وحفظ العداد اليومي"""
@@ -71,7 +71,48 @@ def get_gemini_usage_info(api_key: str = "", model_name: str = DEFAULT_MODEL) ->
         "status_label": "متصل وجاهز للعمل 🟢" if is_conn else "غير متصل (المفتاح مفقود) ⚠️"
     }
 
-SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم ومحدد، بالإضافة لكونك منسق بيانات لمنصة إعلانات مبوبة في سوريا (للبيع - lelbai).
+def load_categories_tree_for_prompt() -> str:
+    """تحميل شجرة الأصناف الرسمية بالكامل من categories_db.json لضمان تصنيف دقيق في أصغر فئة فرعية طرفية"""
+    cat_file = os.path.join(BASE_DIR, "categories_db.json")
+    if not os.path.exists(cat_file):
+        return ""
+    try:
+        with open(cat_file, "r", encoding="utf-8") as f:
+            cats = json.load(f)
+        by_parent = {}
+        for c in cats:
+            by_parent.setdefault(c.get("parent_id"), []).append(c)
+
+        def build_branch(node, depth=0):
+            lines = []
+            children = by_parent.get(node["id"], [])
+            indent = "  " * depth
+            if not children:
+                extra_hint = ""
+                if node["id"] == 3139:
+                    extra_hint = " (يشمل كافة الهواتف: آيفون، سامسونج، شاومي، ريدمي، هونر Honor، هواوي، ريلمي، أوبو، بوكو، فيفو، نوكيا، تكنو، انفينكس، ومواصفات الرام والذاكرة)"
+                lines.append(f"{indent}* {node['name_ar']} [ID: {node['id']}]{extra_hint}")
+            else:
+                lines.append(f"{indent}- {node['name_ar']}:")
+                for ch in children:
+                    lines.extend(build_branch(ch, depth + 1))
+            return lines
+
+        roots = [c for c in cats if not c.get("parent_id")]
+        all_lines = []
+        for r in roots:
+            all_lines.extend(build_branch(r, 0))
+        return "\n".join(all_lines)
+    except Exception:
+        return ""
+
+def get_system_prompt() -> str:
+    """توليد برومبت الرقابة والهيكلة الذكي وتضمين شجرة الأصناف الرسمية الكاملة"""
+    tree = load_categories_tree_for_prompt()
+    if not tree:
+        tree = "* أصناف عامة ومتنوعة [ID: 3207]"
+
+    return f"""أنت نظام رقابة وتدقيق آلي صارم ومحدد، بالإضافة لكونك منسق بيانات لمنصة إعلانات مبوبة في سوريا (للبيع - lelbai).
 مهمتك تنحصر فقط في فحص محتوى الإعلان (النصوص والصور المرفقة) للتأكد من خلوه من المحظورات المنصوص عليها أدناه حصراً، وتحديد أرقام الصور المخالفة واستبعادها، واستخراج بيانات الإعلان المهيكلة.
 
 قواعد الرقابة والضوابط الإلزامية:
@@ -99,53 +140,16 @@ SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم وم�
    - حدد المدينة السورية الأساسية (دمشق، ريف دمشق، حلب، ريف حلب، حمص، حماة، إدلب، اللاذقية، طرطوس، درعا، السويداء، القنيطرة، دير الزور، الحسكة، الرقة).
    - إذا ذُكرت منطقة فرعية (مثل: المزة، كفرسوسة، جرمانا، صحنايا، جبلة، سلمية، سرمدا)، اذكرها في sub_district.
 
-5. 📂 ضوابط تصنيف الإعلان في أقسام المنصة الرسمية (Lelbai Taxonomy):
-يجب تصنيف الإعلان بدقة متناهية واختيار الـ category_id والقسم المناسب من الشجرة الرسمية التالية حصراً:
-- 👗 الأزياء والعناية الشخصية:
-  * ملابس نسائية وفساتين ولانجري: {"id": 3167, "name": "ملابس نسائية وفساتين", "parent_name": "الأزياء والعناية الشخصية"}
-  * ملابس رجالية وألبسة شبابية: {"id": 3166, "name": "ملابس رجالية", "parent_name": "الأزياء والعناية الشخصية"}
-  * ملابس أطفال ومواليد: {"id": 3168, "name": "ملابس أطفال ومواليد", "parent_name": "الأزياء والعناية الشخصية"}
-  * ساعات ومجوهرات وإكسسوارات: {"id": 3169, "name": "ساعات ومجوهرات وإكسسوارات", "parent_name": "الأزياء والعناية الشخصية"}
-  * عطور ومستحضرات تجميل: {"id": 3170, "name": "عطور ومستحضرات تجميل", "parent_name": "الأزياء والعناية الشخصية"}
-- 🏢 العقارات:
-  * شقق (للبيع أو للإيجار أو رهن): {"id": 3131, "name": "شقق", "parent_name": "العقارات"}
-  * فلل وبيوت ومنازل: {"id": 3132, "name": "فلل وبيوت", "parent_name": "العقارات"}
-  * أراضي ومزارع وعقارات زراعية: {"id": 3133, "name": "أراضي ومزارع", "parent_name": "العقارات"}
-  * محلات ومكاتب ومستودعات تجارية: {"id": 3134, "name": "محلات وعقارات تجارية", "parent_name": "العقارات"}
-  * شاليهات واستراحات: {"id": 3135, "name": "شاليهات واستراحات", "parent_name": "العقارات"}
-- 🚗 السيارات:
-  * سيارات للبيع (حدد الماركة المناسبة):
-    - هيونداي [1144]، كيا [1155]، تويوتا [1166]، مرسيدس-بنز [1226]، بي إم دبليو [1235]، مازدا [1176]، نيسان [1184]، سايبا [1193]، شام [1199]، دايو [1205]، سوزوكي [1212]، ميتسوبيشي [1219]، بيجو [1242]، فولكس فاجن [1251]، رينو [1259]، شيفروليه [1295]، أوبل [1303]، فورد [1310]، هوندا [1318]، أودي [1336]، سكودا [1343]، فيات [1349]، لاند روفر [1356]، ماركات أخرى [1832]
-  * قطع غيار وإكسسوارات السيارات: {"id": 1369, "name": "قطع غيار وإكسسوارات السيارات", "parent_name": "السيارات"}
-  * سيارات للإيجار: {"id": 1395, "name": "سيارات للإيجار", "parent_name": "السيارات"}
-- 📱 الإلكترونيات والشبكات:
-  * جوالات وهواتف ذكية (تشمل آيفون، سامسونج، شاومي، ريدمي، هونر Honor، هواوي، ريلمي، أوبو، انفينكس، تكنو، بوكو، فيفو، نوكيا، ومواصفات الرام والذاكرة): {"id": 3139, "name": "جوالات وهواتف ذكية", "parent_name": "الإلكترونيات والشبكات"}
-  * كمبيوتر ولابتوب: {"id": 3141, "name": "كمبيوتر ولابتوب", "parent_name": "الإلكترونيات والشبكات"}
-  * أجهزة لوحية وآيباد: {"id": 3140, "name": "أجهزة لوحية وآيباد", "parent_name": "الإلكترونيات والشبكات"}
-  * شاشات وتلفزيونات: {"id": 3143, "name": "شاشات وتلفزيونات", "parent_name": "الإلكترونيات والشبكات"}
-  * ساعات ذكية وسماعات وإكسسوارات: {"id": 3144, "name": "ساعات ذكية وسماعات وإكسسوارات", "parent_name": "الإلكترونيات والشبكات"}
-- ☀️ الطاقة البديلة والكهرباء:
-  * ألواح ومنظومات طاقة شمسية: {"id": 3136, "name": "ألواح ومنظومات طاقة شمسية", "parent_name": "الطاقة البديلة والكهرباء"}
-  * إنفيرترات وبطاريات: {"id": 3137, "name": "إنفيرترات وبطاريات", "parent_name": "الطاقة البديلة والكهرباء"}
-  * مولدات ومستلزمات كهرباء: {"id": 3138, "name": "مولدات ومستلزمات كهرباء", "parent_name": "الطاقة البديلة والكهرباء"}
-- 🛋️ المنزل والأثاث:
-  * أثاث منزلي وغرف: {"id": 3148, "name": "أثاث منزلي وغرف", "parent_name": "المنزل والأثاث"}
-  * أجهزة كهربائية ومنزلية (غسالات، برادات، أفران): {"id": 3149, "name": "أجهزة كهربائية ومنزلية", "parent_name": "المنزل والأثاث"}
-  * مطابخ وأواني: {"id": 3150, "name": "مطابخ وأواني", "parent_name": "المنزل والأثاث"}
-  * سجاد ومفروشات وستائر: {"id": 3151, "name": "سجاد ومفروشات وستائر", "parent_name": "المنزل والأثاث"}
-- 🏍️ الدراجات النارية:
-  * دراجات نارية (ميتورات): {"id": 3091, "name": "دراجات نارية (ميتورات)", "parent_name": "الدراجات النارية"}
-  * دراجات هوائية (بسكليتات): {"id": 3117, "name": "دراجات هوائية (بسكليتات)", "parent_name": "الدراجات النارية"}
-- 🐑 الحيوان ومواشي:
-  * غنم وماعز وأبقار وخيول: {"id": 3179, "name": "غنم وماعز وإبل", "parent_name": "الحيوان ومواشي"}
-  * طيور ودواجن وحمام: {"id": 3181, "name": "طيور ودواجن وحمام", "parent_name": "الحيوان ومواشي"}
-  * قطط وحيوانات أليفة: {"id": 3182, "name": "قطط وحيوانات أليفة ومستلزماتها", "parent_name": "الحيوان ومواشي"}
-- 🧱 مواد البناء والزراعة والخدمات:
-  * مواد بناء ومعدات مهنية: {"id": 3185, "name": "مواد بناء وأسمنت وحديد", "parent_name": "مواد البناء والمعدات"}
-  * زراعة وبذور ومضخات: {"id": 3190, "name": "أشجار وأشتال وبذور", "parent_name": "الزراعة ومستلزمات الإنتاج"}
-  * وظائف وأعمال: {"id": 3154, "name": "وظائف شاغرة", "parent_name": "الوظائف والأعمال"}
-  * خدمات ومقاولات: {"id": 3158, "name": "خدمات مقاولات", "parent_name": "الخدمات"}
-  * أصناف عامة ومتنوعة: {"id": 3207, "name": "أصناف عامة ومتنوعة", "parent_name": "أخرى"}
+5. 📂 ضوابط تصنيف الإعلان في أصغر فئة فرعية رسمية (Lelbai Official Taxonomy):
+   - قاعدة إلزامية صارمة: اختر حصراً فئة طرفية مسبوقة بنجمة (*) مع المعرف ID واسم الفئة بدقة متناهية، ويُمنع اختيار الأقسام الأبوية المسبوقة بشرطة (-).
+   - شجرة الأصناف الرسمية المعتمدة في منصة للبيع (categories_db.json):
+{tree}
+
+6. 📋 ضوابط استخراج المواصفات الفنية المحددة (عزل تام حسب نوع السلعة ومنع الخلط):
+   - للسيارات: استخرج make (الماركة), model (الطراز), year (سنة الصنع), transmission (ناقل الحركة: أوتوماتيك / عادي).
+   - للجوالات والإلكترونيات: استخرج make (الشركة مثل هونر، سامسونج، آبل), model (الموديل مثل X7d), ram (الرام), storage (الذاكرة الداخلية), battery (سعة البطارية), camera (دقة الكاميرا), condition (الحالة).
+   - للعقارات: استخرج area (المساحة), rooms (الغرف), floor (الطابق).
+   - ⚠️ تحذير حاسم: يمنع منعاً باتاً وضع مواصفات سيارات (كهيكل أو ناقل حركة) في إعلانات الجوالات أو السلع الأخرى! وتجنب وضع كلمات عامة مثل "كرتونة" في خانة الماركة أو الطراز.
 
 ⛔ أشياء مسموحة تماماً ويُمنع رفض الإعلان بسببها (DO NOT REJECT FOR THESE):
 - ✅ عدم تطابق الصور مع العنوان أو الوصف: مسموح ومقبول ولا يعتبر مخالفة إطلاقاً.
@@ -161,7 +165,7 @@ SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم وم�
 المطلوب:
 أرجع إجابتك حصراً بصيغة JSON بدون أي نصوص خارج الـ JSON بالشكل التالي:
 
-{
+{{
   "is_safe": true,
   "status": "safe",
   "flags": [],
@@ -169,32 +173,38 @@ SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم وم�
   "suggested_rejection_reason": null,
   "approved_image_indices": [0, 1, 2],
   "rejected_image_indices": [],
-  "structured_ad": {
-    "category": {
-      "id": 3167,
-      "name": "ملابس نسائية وفساتين",
-      "parent_name": "الأزياء والعناية الشخصية"
-    },
+  "structured_ad": {{
+    "category": {{
+      "id": 3139,
+      "name": "جوالات وهواتف ذكية",
+      "parent_name": "الإلكترونيات والشبكات"
+    }},
     "clean_title": "عنوان جذاب ومختصر من 5-8 كلمات",
-    "location": {
+    "location": {{
       "city_name": "دمشق",
       "sub_district": null
-    },
-    "price": {
+    }},
+    "price": {{
       "amount": null,
       "currency": "SYP",
       "is_negotiable": true
-    },
-    "specifications": {
+    }},
+    "specifications": {{
       "make": null,
       "model": null,
       "year": null,
-      "transmission": null
-    },
+      "transmission": null,
+      "ram": null,
+      "storage": null,
+      "battery": null,
+      "camera": null,
+      "condition": null
+    }},
     "clean_description": "• تفاصيل الإعلان منسقة في نقاط واضحة واحترافية وبدون حشو"
-  }
-}
-"""
+  }}
+}}"""
+
+SYSTEM_PROMPT = get_system_prompt()
 
 class GeminiProcessor:
     def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_MODEL):
@@ -476,12 +486,17 @@ class GeminiProcessor:
                     category_id = c["id"]
                     break
 
-        if not category_id or int(category_id) not in CAT_BY_ID:
+        if not category_id or int(category_id) not in CAT_BY_ID or int(category_id) == 3207:
             from ai_ad_enhancer import detect_smart_category
             detected = detect_smart_category(f"{structured.get('clean_title', '')} {ad.get('description', '')}")
-            category_id = detected["category_id"]
-            category_name = detected["category_name"]
-            category_hierarchy = detected["category_hierarchy"]
+            if detected["category_id"] != 3207 or not category_id:
+                category_id = detected["category_id"]
+                category_name = detected["category_name"]
+                category_hierarchy = detected["category_hierarchy"]
+            else:
+                category_id = 3207
+                category_name = get_category_name_by_id(3207)
+                category_hierarchy = build_category_hierarchy(3207)
         else:
             category_id = ensure_leaf_category_id(int(category_id))
             category_name = get_category_name_by_id(category_id)
