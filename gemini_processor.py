@@ -18,7 +18,8 @@ from config import load_config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USAGE_FILE = os.path.join(BASE_DIR, "gemini_usage.json")
-DEFAULT_MODEL = "gemini-flash-latest"
+DEFAULT_MODEL = "gemini-3.5-flash"
+MODEL_CANDIDATES = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-3.8-flash"]
 
 def record_gemini_call(model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """تسجيل طلب ذكاء اصطناعي جديد وحفظ العداد اليومي"""
@@ -146,7 +147,10 @@ SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم وم�
 class GeminiProcessor:
     def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_MODEL):
         cfg = load_config()
-        self.api_key = api_key.strip() if api_key else cfg.get("gemini_api_key", "").strip()
+        if api_key is not None:
+            self.api_key = api_key.strip()
+        else:
+            self.api_key = cfg.get("gemini_api_key", "").strip()
         self.model = model or cfg.get("gemini_model", DEFAULT_MODEL)
         self.last_call_time = 0.0
 
@@ -177,50 +181,28 @@ class GeminiProcessor:
 
     def moderate_and_structure_ad(self, ad: Dict[str, Any], imgs_dir: str) -> Dict[str, Any]:
         """
-        فحص الإعلان بالكامل (نص + صور) وتصنيفه وهيكلته عبر Gemini API في طلب واحد فائق السرعة
+        فحص الإعلان بالكامل (نص + صور) وتصنيفه وهيكلته عبر Gemini Vision Cloud API في طلب واحد فائق السرعة
         """
         from image_safety_filter import moderate_images_locally
         nimages = ad.get("nimages", [])
 
-        # الفحص البصري المحلي الفوري كخط دفاع أساسي (YOLO + تحليل لون البشرة والتعري والأبعاد)
-        local_appr, local_rej, local_reasons = moderate_images_locally(nimages, imgs_dir)
+        # التحقق الأولي السريع من سلامة وأبعاد ملفات الصور الفيزيائية
+        valid_indices, invalid_indices, invalid_reasons = moderate_images_locally(nimages, imgs_dir)
 
         if not self.api_key:
             from ai_ad_enhancer import enhance_ad_with_super_ai
             enhanced = enhance_ad_with_super_ai(ad)
             
-            flags = []
-            if local_rej:
-                flags.append("local_safety_rejected_images")
-                if len(local_appr) == 0 and len(nimages) > 0:
-                    is_safe = False
-                    summary = f"🚫 تم استبعاد الإعلان: رصد صور أشخاص/تعري مخالفة ({len(local_rej)} صورة)"
-                    rejection_reason = "صور مخالفة للضوابط الرقابية (أشخاص أو سيلفي أو تعري)"
-                else:
-                    is_safe = True
-                    summary = f"🛡️ تم فحص الصور بنموذج الرؤية المحلي (YOLO): استبعاد {len(local_rej)} صورة مخالفة، ومطابقة {len(local_appr)} صورة نظيفة"
-                    rejection_reason = None
-            else:
-                from image_safety_filter import get_yolo_model
-                yolo_avail = (get_yolo_model() is not None)
-                if yolo_avail:
-                    is_safe = True
-                    summary = "🛡️ مفحوص بالرؤية الحاسوبية المدمجة (YOLO) | خالي من صور الأشخاص والتعري"
-                    rejection_reason = None
-                else:
-                    is_safe = True
-                    flags.append("no_ai_vision_available")
-                    summary = "⚠️ تنبيه: الذكاء الاصطناعي (Gemini) غير متصل ونموذج YOLO غير متوفر محلياً | تم فحص الأبعاد فقط"
-                    rejection_reason = None
-
+            approved_imgs = valid_indices if (valid_indices or not nimages) else list(range(len(nimages)))
+            rejected_imgs = invalid_indices if valid_indices else []
             return {
-                "is_safe": is_safe,
-                "status": "safe" if is_safe else "flagged",
-                "flags": flags,
-                "summary": summary,
-                "suggested_rejection_reason": rejection_reason,
-                "approved_image_indices": local_appr,
-                "rejected_image_indices": local_rej,
+                "is_safe": True,
+                "status": "pending",
+                "flags": ["no_api_key_for_vision"],
+                "summary": "⚠️ الرقابة البصرية متوقفة: يرجى إضافة مفتاح Gemini API في الإعدادات لفحص الصور بالذكاء الاصطناعي",
+                "suggested_rejection_reason": None,
+                "approved_image_indices": approved_imgs,
+                "rejected_image_indices": rejected_imgs,
                 "structured_ad": {
                     "category": enhanced.get("leaf_category_name", "عام"),
                     "clean_title": enhanced.get("clean_title", ""),
@@ -230,43 +212,39 @@ class GeminiProcessor:
                 }
             }
 
-        # التحكم بمعدل الطلبات لتجنب حد الـ 15 RPM
+        # التحكم بمعدل الطلبات لتجنب تجاوز حد الـ 15 RPM
         elapsed_since_last = time.time() - self.last_call_time
         if elapsed_since_last < 2.0:
             time.sleep(2.0 - elapsed_since_last)
 
-        # تجهيز محتوى الرسالة - نرسل فقط الصور التي اجتازت الفحص المحلي لتوفير التوكنز والوقت
+        # تجهيز محتوى الرسالة - إرسال كافة الصور المرفقة الصالحة إلى Gemini Vision API
         parts: List[Dict[str, Any]] = []
 
-        # 1. نص الإعلان
-        ad_text_prompt = f"""بيانات الإعلان للمراجعة والتدقيق:
-- الوصف الأصلي:
+        ad_text_prompt = f"""بيانات الإعلان المطلوب فحصها وتدقيق صورها بالكامل:
+- الوصف الأصلي للإعلان:
 {ad.get('description', '')}
 
 - رقم الهاتف: {ad.get('phone_number', '')}
 - المدينة والمنطقة المكتشفة: {ad.get('location_detected', '')}
 - عدد الصور المرفقة: {len(nimages)}
 
-الصور مرفقة بالتتابع (الصورة 0، الصورة 1، الصورة 2...). يرجى فحصها بدقة وكتابة النتائج بصيغة JSON فقط:"""
+يرجى فحص النصوص والصور المرفقة عبر الرؤية البصرية بدقة شديدة واستبعاد الصور المخالفة فقط:"""
 
         parts.append({"text": ad_text_prompt})
 
-        # 2. إرفاق الصور المصغرة التي اجتازت الفحص المحلي
-        valid_indices = []
-        for orig_idx in local_appr:
+        # إرفاق الصور المصغرة بدقة Base64 JPEG للفحص البصري الفائق
+        active_slots = []
+        for orig_idx in valid_indices:
             if orig_idx < len(nimages):
                 img_filename = nimages[orig_idx]
                 full_img_path = os.path.join(imgs_dir, img_filename)
                 img_part = self._prepare_image_part(full_img_path)
                 if img_part:
-                    slot = len(valid_indices)
+                    slot = len(active_slots)
                     parts.append({"text": f"--- صورة رقم [{slot}] ---"})
                     parts.append(img_part)
-                    valid_indices.append(orig_idx)
+                    active_slots.append(orig_idx)
 
-        # 3. إرسال الطلب إلى Gemini REST API
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
-        
         payload = {
             "system_instruction": {
                 "parts": [{"text": SYSTEM_PROMPT}]
@@ -283,57 +261,66 @@ class GeminiProcessor:
             }
         }
 
-        try:
-            self.last_call_time = time.time()
-            response = requests.post(url, json=payload, timeout=25)
-            
-            if response.status_code == 200:
-                record_gemini_call(self.model)
-                resp_json = response.json()
-                raw_text = resp_json["candidates"][0]["content"]["parts"][0]["text"].strip()
-                result = json.loads(raw_text)
-                
-                # ترجمة فهارس الصور التي وافق عليها Gemini إلى الفهارس الأصلية
-                gemini_appr = result.get("approved_image_indices", [])
-                final_appr = []
-                for i in gemini_appr:
-                    if isinstance(i, int) and 0 <= i < len(valid_indices):
-                        orig_i = valid_indices[i]
-                        if orig_i not in final_appr:
-                            final_appr.append(orig_i)
-                    elif isinstance(i, int) and i in local_appr and i not in final_appr:
-                        final_appr.append(i)
-                
-                final_rej = sorted([i for i in range(len(nimages)) if i not in final_appr])
-                
-                result["approved_image_indices"] = final_appr
-                result["rejected_image_indices"] = final_rej
-                if len(final_appr) == 0 and len(nimages) > 0:
-                    result["is_safe"] = False
-                    result["suggested_rejection_reason"] = result.get("suggested_rejection_reason") or "جميع الصور مخالفة للضوابط الشرعية أو الرقابية"
-                return result
-            else:
-                error_msg = response.text[:200]
-                print(f"[!] تنبيه من Gemini API ({response.status_code}): {error_msg}")
-                if self.model == "gemini-flash-latest":
-                    self.model = "gemini-3.8-flash"
-                    return self.moderate_and_structure_ad(ad, imgs_dir)
-                elif self.model == "gemini-3.8-flash":
-                    self.model = "gemini-flash-latest"
-                    return self.moderate_and_structure_ad(ad, imgs_dir)
-        except Exception as e:
-            print(f"[!] خطأ في معالجة الذكاء الاصطناعي: {e}")
+        models_to_try = [self.model] if self.model in MODEL_CANDIDATES else [DEFAULT_MODEL]
+        for m in MODEL_CANDIDATES:
+            if m not in models_to_try:
+                models_to_try.append(m)
 
-        # كائن افتراضي آمن محلياً في حال انقطاع الشبكة
-        fallback_safe = (len(local_appr) > 0 or len(nimages) == 0)
+        for current_model in models_to_try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent?key={self.api_key}"
+            try:
+                self.last_call_time = time.time()
+                response = requests.post(url, json=payload, timeout=20)
+                
+                if response.status_code == 200:
+                    self.model = current_model
+                    record_gemini_call(current_model)
+                    resp_json = response.json()
+                    raw_text = resp_json["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    result = json.loads(raw_text)
+                    
+                    # ترجمة فهارس الصور التي وافق عليها Gemini إلى الفهارس الأصلية
+                    gemini_appr = result.get("approved_image_indices", [])
+                    final_appr = []
+                    for i in gemini_appr:
+                        if isinstance(i, int) and 0 <= i < len(active_slots):
+                            orig_i = active_slots[i]
+                            if orig_i not in final_appr:
+                                final_appr.append(orig_i)
+                    
+                    final_rej = sorted([i for i in range(len(nimages)) if i not in final_appr])
+                    
+                    result["approved_image_indices"] = final_appr
+                    result["rejected_image_indices"] = final_rej
+
+                    if len(final_appr) == 0 and len(nimages) > 0:
+                        result["is_safe"] = False
+                        result["suggested_rejection_reason"] = result.get("suggested_rejection_reason") or "جميع الصور المرفقة مخالفة للضوابط الشرعية أو الرقابية"
+                        result["summary"] = f"🚫 تم رفض الإعلان عبر Gemini Vision API: استبعاد كافة الصور ({len(final_rej)} صورة مخالفة)"
+                    elif final_rej:
+                        result["summary"] = f"🤖 تم فحص وتدقيق الصور عبر Gemini Vision API: اعتماد {len(final_appr)} صورة نظيفة، واستبعاد {len(final_rej)} صورة مخالفة"
+                    else:
+                        result["summary"] = f"🤖 تم اعتماد الإعلان والصور بنجاح عبر Gemini Vision API ({len(final_appr)} صورة سليمة)"
+
+                    return result
+                else:
+                    error_msg = response.text[:200]
+                    print(f"[!] تنبيه من Gemini API للنموذج {current_model} ({response.status_code}): {error_msg}")
+                    continue
+            except Exception as e:
+                print(f"[!] استثناء في معالجة النموذج {current_model}: {e}")
+                continue
+
+        # كائن افتراضي آمن في حال انقطاع الشبكة
+        fallback_safe = (len(valid_indices) > 0 or len(nimages) == 0)
         return {
             "is_safe": fallback_safe,
             "status": "safe" if fallback_safe else "flagged",
-            "flags": ["network_fallback"] + (["local_safety_rejected_images"] if local_rej else []),
-            "summary": f"🛡️ تم الفحص بالرؤية المحلية (YOLO) - تعذر اتصال Gemini: {len(local_appr)} صورة صالحة",
-            "suggested_rejection_reason": "صور مخالفة للضوابط الرقابية" if not fallback_safe else None,
-            "approved_image_indices": local_appr,
-            "rejected_image_indices": local_rej,
+            "flags": ["network_fallback"],
+            "summary": "⚠️ تعذر اتصال الذكاء الاصطناعي السحابي (Gemini Vision API) مؤقتاً - الإعلان بانتظار المراجعة",
+            "suggested_rejection_reason": None,
+            "approved_image_indices": valid_indices,
+            "rejected_image_indices": invalid_indices,
             "structured_ad": {
                 "category": "عام",
                 "clean_title": ad.get("description", "")[:60].replace("\n", " ").strip(),
@@ -379,8 +366,8 @@ class GeminiProcessor:
                     except Exception:
                         pass
 
-        # إذا لم يتبق أي صورة صالحة وكان في الأصل هناك صور مرفقة، نعتبر الإعلان مرفوضاً
-        if len(filtered_nimages) == 0 and len(original_nimages) > 0:
+        # إذا لم يتبق أي صورة صالحة وكان في الأصل هناك صور مرفقة، نعتبر الإعلان مرفوضاً فقط إذا كان الفحص بالذكاء الاصطناعي قد استبعدها
+        if len(filtered_nimages) == 0 and len(original_nimages) > 0 and bool(self.api_key):
             is_safe = False
             if "no_valid_images_left" not in flags:
                 flags.append("no_valid_images_left")

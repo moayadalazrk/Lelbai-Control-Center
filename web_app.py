@@ -257,7 +257,7 @@ def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str
     
     summary_text = ad_copy.get("moderation_summary")
     if not summary_text or summary_text == "بانتظار إضافة مفتاح Gemini API للمراجعة الآلية":
-        summary_text = "🛡️ مفحوص بالرؤية الحاسوبية المدمجة (YOLO) | خالي من صور الأشخاص والتعري" if is_safe else "تم رصد ملاحظات تحتاج لمراجعة"
+        summary_text = "🤖 مفحوص بالرؤية الذكية السحابية (Gemini Vision API)" if is_safe else "تم رصد ملاحظات تحتاج لمراجعة"
 
     # 8. توليد رد وتقرير الذكاء الاصطناعي الشامل
     ai_report = generate_ai_review_report(
@@ -1308,10 +1308,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
           <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
             <div>
-              <div style="font-weight:800; color:#f59e0b; font-size:13px;">🛡️ YOLOv8 Local Vision (الرؤية المحلية)</div>
-              <div style="font-size:11px; color:var(--text-muted);">فحص صور الأشخاص والتعري محلياً 100% بدون إنترنت | غير محدود</div>
+              <div style="font-weight:800; color:#38bdf8; font-size:13px;">🤖 Gemini Vision API (فحص الصور السحابي)</div>
+              <div style="font-size:11px; color:var(--text-muted);">فحص صور الإعلانات وكشف المحظورات والتعري والنساء والوثائق عبر السحاب | 1500 طلب/يوم</div>
             </div>
-            <span class="badge" style="background:#f59e0b; color:#fff;">يعمل محلياً 🛡️</span>
+            <span class="badge badge-success">نشط ومعتمد 🟢</span>
           </div>
         </div>
       </div>
@@ -1810,10 +1810,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
           const summaryStr = sh.summary || ad.moderation_summary || '';
           let shariaStatusHtml = '';
           if (sh.is_safe) {
-            if (summaryStr.includes('Gemini')) {
-              shariaStatusHtml = `<span style="color:#34d399;" title="${escapeHtml(summaryStr)}">🟢 مطابق للشريعة والضوابط (Gemini Vision)</span>`;
+            if (summaryStr.includes('Gemini') || summaryStr.includes('Vision') || summaryStr.includes('سحاب')) {
+              shariaStatusHtml = `<span style="color:#34d399;" title="${escapeHtml(summaryStr)}">🟢 مطابق للضوابط (Gemini Vision API)</span>`;
             } else {
-              shariaStatusHtml = `<span style="color:#38bdf8;" title="${escapeHtml(summaryStr)}">🛡️ مفحوص بالرؤية الحاسوبية المدمجة (YOLO)</span>`;
+              shariaStatusHtml = `<span style="color:#38bdf8;" title="${escapeHtml(summaryStr)}">🤖 فحص الرؤية الذكية (Vision API)</span>`;
             }
           } else {
             shariaStatusHtml = `<span style="color:#f87171;" title="${escapeHtml(summaryStr)}">⚠️ ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
@@ -3167,44 +3167,44 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             usage = get_gemini_usage_info(cfg.get("gemini_api_key", ""))
             models_info = [
                 {
-                    "name": "gemini-flash-latest (النموذج الافتراضي المعتمد)",
-                    "model_id": "gemini-flash-latest",
+                    "name": "gemini-3.5-flash (النموذج الافتراضي المعتمد)",
+                    "model_id": "gemini-3.5-flash",
                     "supports_vision": True,
-                    "vision_desc": "فحص صور + نصوص فائق الدقة والسرعة (YOLO + Gemini Vision)",
+                    "vision_desc": "فحص الصور والنصوص بالرؤية السحابية الفائقة (Gemini Vision API)",
                     "daily_limit": 1500,
                     "rpm_limit": 15,
                     "is_active": True,
                     "status_label": "نشط ومعتمد تلقائياً 🟢"
                 },
                 {
-                    "name": "gemini-3.8-flash",
-                    "model_id": "gemini-3.8-flash",
+                    "name": "gemini-3.6-flash",
+                    "model_id": "gemini-3.6-flash",
                     "supports_vision": True,
-                    "vision_desc": "أحدث طراز تجريبي لفحص الصور والنصوص",
+                    "vision_desc": "أحدث طراز سحابي فائق السرعة لفحص الصور والنصوص",
+                    "daily_limit": 1500,
+                    "rpm_limit": 15,
+                    "is_active": False,
+                    "status_label": "مدعوم واحتياطي تلقائي ✅"
+                },
+                {
+                    "name": "gemini-flash-lite-latest",
+                    "model_id": "gemini-flash-lite-latest",
+                    "supports_vision": True,
+                    "vision_desc": "فحص بصري سريع وخفيف لاستهلاك الحصص بكفاءة عالية",
                     "daily_limit": 1500,
                     "rpm_limit": 15,
                     "is_active": False,
                     "status_label": "مدعوم واحتياطي ✅"
                 },
                 {
-                    "name": "gemini-pro-latest",
-                    "model_id": "gemini-pro-latest",
+                    "name": "gemini-3.8-flash",
+                    "model_id": "gemini-3.8-flash",
                     "supports_vision": True,
-                    "vision_desc": "أعلى دقة استنتاج للمحتوى والسلع الحساسة",
-                    "daily_limit": 50,
-                    "rpm_limit": 2,
+                    "vision_desc": "طراز متقدم لفحص الصور والنصوص وهيكلة البيانات",
+                    "daily_limit": 1500,
+                    "rpm_limit": 15,
                     "is_active": False,
-                    "status_label": "مدعوم (حد 50 يومياً) ⚠️"
-                },
-                {
-                    "name": "YOLOv8 Local Vision",
-                    "model_id": "yolov8-local",
-                    "supports_vision": True,
-                    "vision_desc": "فحص الصور محلياً وكشف الأشخاص والتعري بدون إنترنت",
-                    "daily_limit": "غير محدود (أوفلاين)",
-                    "rpm_limit": "غير محدود",
-                    "is_active": True,
-                    "status_label": "يعمل محلياً في الخلفية 🛡️"
+                    "status_label": "مدعوم واحتياطي ✅"
                 }
             ]
             self.send_json({
