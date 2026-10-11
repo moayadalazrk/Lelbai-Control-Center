@@ -29,7 +29,7 @@ from playwright.async_api import async_playwright
 from playwright.sync_api import sync_playwright
 from syria_filter import validate_ad, normalize_text
 from image_processor import process_ad_images
-from gemini_processor import GeminiProcessor
+from gemini_processor import GeminiProcessor, get_gemini_usage_info
 from config import load_config, save_config
 from publisher import publish_ad_to_website, export_ad_to_import_folder, detect_category_id, PUBLISHED_FILE
 from category_classifier import (
@@ -72,6 +72,23 @@ def write_json_file(file_path: str, data: List[Dict[str, Any]]):
             os.fsync(f.fileno())
     except Exception as e:
         print(f"[!] خطأ أثناء كتابة {file_path}: {e}")
+
+def ensure_storage_files():
+    """توليد ملفات البيانات النظيفة تلقائياً إذا لم تكن موجودة عند تشغيل التطبيق"""
+    for fp in [PENDING_FILE, PUBLISHED_FILE, FLAGGED_FILE, GROUPS_DATA_FILE, ALL_ADS_FILE]:
+        if not os.path.exists(fp):
+            write_json_file(fp, [])
+
+ensure_storage_files()
+
+DEFAULT_STARTER_GROUPS = [
+    {"id": 1, "name": "سوق سيارات سوريا", "url": "https://www.facebook.com/groups/5259742280745703/", "category": "السيارات", "status": "جاهز", "last_scraped_at": "لم يُسحب بعد", "last_ads_count": 0, "total_ads_count": 0, "created_at": time.strftime("%Y-%m-%d %H:%M:%S")},
+    {"id": 2, "name": "سوق السيارات الكبير في إدلب", "url": "https://www.facebook.com/groups/616337179824577/", "category": "السيارات", "status": "جاهز", "last_scraped_at": "لم يُسحب بعد", "last_ads_count": 0, "total_ads_count": 0, "created_at": time.strftime("%Y-%m-%d %H:%M:%S")},
+    {"id": 3, "name": "عقارات دمشق وريفها – بيع وإيجار", "url": "https://www.facebook.com/groups/syria.damascuse/", "category": "العقارات", "status": "جاهز", "last_scraped_at": "لم يُسحب بعد", "last_ads_count": 0, "total_ads_count": 0, "created_at": time.strftime("%Y-%m-%d %H:%M:%S")},
+    {"id": 4, "name": "سوق الموبايلات في دمشق", "url": "https://www.facebook.com/groups/363826584999651/", "category": "الموبايلات والإلكترونيات", "status": "جاهز", "last_scraped_at": "لم يُسحب بعد", "last_ads_count": 0, "total_ads_count": 0, "created_at": time.strftime("%Y-%m-%d %H:%M:%S")},
+    {"id": 5, "name": "الطاقة الشمسية في سورية", "url": "https://www.facebook.com/groups/148516947271390/", "category": "الطاقة البديلة", "status": "جاهز", "last_scraped_at": "لم يُسحب بعد", "last_ads_count": 0, "total_ads_count": 0, "created_at": time.strftime("%Y-%m-%d %H:%M:%S")},
+    {"id": 6, "name": "بيع واشتري أثاث مستعمل بريف دمشق", "url": "https://www.facebook.com/groups/611791440232636/", "category": "الأثاث والمنزل", "status": "جاهز", "last_scraped_at": "لم يُسحب بعد", "last_ads_count": 0, "total_ads_count": 0, "created_at": time.strftime("%Y-%m-%d %H:%M:%S")}
+]
 
 def normalize_group_url(url: str) -> str:
     """توحيد وتنظيف رابط المجموعة أو الصفحة لمنع التكرار بدقة."""
@@ -998,6 +1015,13 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <b id="lblLastUpdate" style="color:#60a5fa;">جاري الفحص...</b>
       </div>
 
+      <!-- شارة حالة ورصيد الذكاء الاصطناعي (Gemini Vision) -->
+      <div id="aiQuotaBadge" style="display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:800; background:rgba(16,185,129,0.12); padding:6px 14px; border-radius:10px; border:1px solid #10b981; color:#34d399; cursor:pointer;" onclick="switchTab('tab-settings', document.getElementById('navBtnSettings'))" title="انقر لعرض تفاصيل الاستهلاك وإعدادات الذكاء الاصطناعي">
+        <span id="aiStatusDot" style="width:8px; height:8px; border-radius:50%; background:#10b981; display:inline-block; box-shadow:0 0 6px #10b981;"></span>
+        <span>🤖 فحص الصور:</span>
+        <span id="aiCallsCounter" style="color:#67e8f9; font-weight:900;">المتبقي: 1,500 / 1,500</span>
+      </div>
+
       <div id="serverStatusBadge" class="badge badge-warning" style="font-size:12px; padding:6px 14px; font-weight:700;">⏳ فحص الاتصال...</div>
       
       <div class="nav-tabs">
@@ -1037,6 +1061,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
       <div class="stat-icon" style="background:rgba(16,185,129,0.15); color:#34d399;">🚀</div>
       <div class="stat-info"><div class="val" id="stReadyAds" style="color:#34d399;">0</div><div class="lbl">إعلانات جاهزة للنشر الفوري</div></div>
     </div>
+    <div class="stat-card" onclick="switchTab('tab-settings', document.getElementById('navBtnSettings'))" style="cursor:pointer;" title="رصيد فحص الذكاء الاصطناعي اليومي">
+      <div class="stat-icon" style="background:rgba(56,189,248,0.15); color:#38bdf8;">🤖</div>
+      <div class="stat-info"><div class="val" id="stAiRemaining" style="color:#38bdf8;">1,500</div><div class="lbl">متبقي فحص ذكاء اصطناعي اليوم</div></div>
+    </div>
     <div class="stat-card" onclick="switchTab('tab-published', document.getElementById('navBtnPublished'))" style="cursor:pointer;" title="عرض قائمة الإعلانات المنشورة">
       <div class="stat-icon" style="background:rgba(139,92,246,0.15); color:#a78bfa;">✔️</div>
       <div class="stat-info"><div class="val" id="stPublishedAds" style="color:#a78bfa;">0</div><div class="lbl">إعلانات تم نشرها للموقع</div></div>
@@ -1050,9 +1078,13 @@ HTML_PAGE = r"""<!DOCTYPE html>
   <!-- تبويب 1: إدارة الروابط وتاريخ السحب -->
   <div class="tab-content active" id="tab-links">
     <div class="card">
-      <div class="card-title">
+      <div class="card-title" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
         <span>📋 قائمة الروابط المحفوظة ومتابعة آخر عمليات السحب</span>
-        <button class="btn btn-primary btn-sm" onclick="openAddGroupModal()">➕ إضافة رابط مجموعة جديد</button>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="btn btn-danger btn-sm" onclick="clearAllGroups()" style="background:#ef4444;" title="مسح كافة الروابط المحفوظة">🗑️ تفريغ كافة الروابط</button>
+          <button class="btn btn-info btn-sm" onclick="loadStarterGroups()" style="background:#0ea5e9;" title="استيراد قائمة روابط مقترحة لمجموعات سورية نشطة">📥 استيراد روابط مقترحة</button>
+          <button class="btn btn-primary btn-sm" onclick="openAddGroupModal()">➕ إضافة رابط جديد</button>
+        </div>
       </div>
 
       <div class="table-container">
@@ -1155,7 +1187,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <button class="btn btn-sm btn-outline" onclick="filterAds('ready', this)">🚀 الجاهز للنشر فقط</button>
         <button class="btn btn-sm btn-outline" onclick="filterAds('review', this)">⚠️ بحاجة لمراجعة</button>
       </div>
-      <div style="display:flex; gap:10px;">
+      <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-danger" onclick="clearAllPendingAds()" style="background:#ef4444;" title="مسح وتفريغ كافة الإعلانات غير المنشورة وصورها دفعة واحدة">🗑️ تفريغ كافة الإعلانات</button>
         <button class="btn btn-success" onclick="bulkPublishReady()">⚡ نشر كافة الإعلانات الجاهزة لمجلد الاستيراد</button>
         <button class="btn btn-outline" onclick="loadAllAds()">🔄 تحديث</button>
       </div>
@@ -1174,6 +1207,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
           <span>✅ سجل الإعلانات التي تم نشرها وتصديرها (<span id="publishedListCount" style="color:#a78bfa; font-weight:900;">0</span> إعلان)</span>
         </div>
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-danger btn-sm" onclick="clearPublishedAds()" style="background:#ef4444;" title="مسح وتفريغ سجل الإعلانات المنشورة">🗑️ تفريغ سجل المنشورات</button>
           <button class="btn btn-primary btn-sm" onclick="openImportFolder()">📂 فتح مجلد إعلانات_للاستيراد</button>
           <button class="btn btn-outline btn-sm" onclick="loadPublishedAds()">🔄 تحديث القائمة</button>
         </div>
@@ -1205,39 +1239,150 @@ HTML_PAGE = r"""<!DOCTYPE html>
   </div>
 
   <!-- تبويب 5: الإعدادات -->
+  <!-- تبويب 5: الإعدادات والتحكم بالبيانات -->
   <div class="tab-content" id="tab-settings">
-    <div class="card" style="max-width:650px; margin:0 auto;">
-      <div class="card-title">⚙️ الإعدادات والربط الآلي</div>
-
-      <div style="background:rgba(16,185,129,0.12); border:1px solid #10b981; border-radius:12px; padding:14px; margin-bottom:18px; color:#a7f3d0; font-size:13px; line-height:1.6;">
-        <div style="font-weight:800; font-size:14px; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
-          <span>🟢</span> <span>نظام الأمان والرقابة البصرية المزدوج (Dual-Safety Engine)</span>
+    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; max-width:1200px; margin:0 auto;">
+      
+      <!-- كارت 1: رصيد ونماذج الذكاء الاصطناعي وفحص الصور -->
+      <div class="card" style="margin:0;">
+        <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;">
+          <span>🤖 رصيد الذكاء الاصطناعي وقدرات النماذج</span>
+          <button class="btn btn-outline btn-sm" onclick="fetchAiQuotaInfo(true)" title="تحديث قراءة العداد">🔄 تحديث الرصيد</button>
         </div>
-        • <b>فحص الرؤية الحاسوبية المدمج (YOLOv8 + كشف التعري والأبعاد):</b> يعمل محلياً وتلقائياً 100% لفحص واستبعاد أي صور تحتوي على أشخاص أو سيلفي أو نسب كشف بشري عالية أو أيقونات مصغرة.<br>
-        • <b>فحص Gemini Vision الفائق (اختياري إضافي):</b> لرصد صور النساء، الوثائق الرسمية، والسلع الممنوعة بدقة استثنائية، يمكنك إضافة مفتاح API مجاني.<br>
-        • مفتاح الربط والتوثيق مع منصة للبيع مدمج وموثق مسبقاً.
-      </div>
 
-      <div class="form-group">
-        <label>رابط API الموقع (مدمج وجاهز):</label>
-        <input type="text" class="form-control" id="setWebUrl" placeholder="https://api.lelbai.com/public/api/listings" readonly style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
-      </div>
-
-      <div class="form-group">
-        <label>مفتاح توثيق الموقع (مدمج وموثق مسبقاً):</label>
-        <input type="password" class="form-control" id="setWebKey" value="●●●●●●●●●●●●●●●●" readonly style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
-      </div>
-
-      <div class="form-group">
-        <label>مفتاح Google Gemini API (مجاني - لتعزيز التدقيق الشرعي بالذكاء الاصطناعي):</label>
-        <div style="font-size:12px; color:var(--text-muted); margin-bottom:6px;">
-          للحصول على مفتاح فوري مجاني 100%، افتح الرابط التالي وسجل بحساب جوجل ثم انسخ المفتاح:
-          <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#60a5fa; font-weight:700; text-decoration:underline;">Google AI Studio (اضغط هنا لفتح الصفحة)</a>
+        <div style="background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.3); border-radius:12px; padding:14px; margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-weight:800; color:#38bdf8; font-size:14px;">📊 الرصيد اليومي الفعلي (Gemini 3.8 Flash):</span>
+            <span id="aiModelBadgeStatus" class="badge badge-success" style="font-size:11px;">متصل ونشط 🟢</span>
+          </div>
+          <div style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:8px; text-align:center;">
+            <div style="background:rgba(15,23,42,0.6); padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+              <div style="font-size:18px; font-weight:900; color:#34d399;" id="aiRemainingBox">1,500</div>
+              <div style="font-size:11px; color:var(--text-muted);">المتبقي اليوم</div>
+            </div>
+            <div style="background:rgba(15,23,42,0.6); padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+              <div style="font-size:18px; font-weight:900; color:#60a5fa;" id="aiUsedBox">0</div>
+              <div style="font-size:11px; color:var(--text-muted);">المستهلك اليوم</div>
+            </div>
+            <div style="background:rgba(15,23,42,0.6); padding:8px; border-radius:8px; border:1px solid rgba(255,255,255,0.05);">
+              <div style="font-size:18px; font-weight:900; color:#cbd5e1;">1,500 / يوم</div>
+              <div style="font-size:11px; color:var(--text-muted);">الحد الأقصى اليومي</div>
+            </div>
+          </div>
+          <div style="font-size:11px; color:#94a3b8; margin-top:8px; text-align:center;">
+            سرعة الاستدعاء المسموحة: <b>15 طلب / دقيقة (RPM)</b> | يتجدد الرصيد مجاناً كل 24 ساعة
+          </div>
         </div>
-        <input type="password" class="form-control" id="setGeminiKey" placeholder="الصق مفتاح AIzaSy... هنا (أو اتركه فارغاً للاعتماد على فحص YOLO المدمج)">
+
+        <div style="font-weight:800; font-size:13px; color:#f8fafc; margin-bottom:8px;">
+          ❓ هل جميع النماذج تفحص الصور؟
+        </div>
+        <div style="font-size:12px; color:#cbd5e1; background:rgba(16,185,129,0.08); border:1px solid rgba(16,185,129,0.25); border-radius:10px; padding:10px; margin-bottom:14px; line-height:1.5;">
+          <b>نعم بالتأكيد!</b> جميع النماذج المعتمدة أدناه مزودة بقدرات الرؤية البصرية (Vision) لفحص صور الإعلانات بدقة متناهية واستبعاد الصور المحظورة (النساء، الوثائق، الأسلحة) وهيكلة بيانات الإعلان:
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;" id="aiModelsTableContainer">
+          <div style="background:rgba(15,23,42,0.8); border:1px solid #10b981; border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:800; color:#34d399; font-size:13px;">⚡ gemini-3.8-flash (النموذج الافتراضي المعتمد)</div>
+              <div style="font-size:11px; color:var(--text-muted);">فحص صور + نصوص فائق السرعة والدقة | 1,500 طلب/يوم | 15 RPM</div>
+            </div>
+            <span class="badge badge-success">نشط ومعتمد تلقائياً 🟢</span>
+          </div>
+
+          <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:800; color:#60a5fa; font-size:13px;">⚡ gemini-2.5-flash</div>
+              <div style="font-size:11px; color:var(--text-muted);">فحص صور + نصوص (سريع وخفيف) | 1,500 طلب/يوم | 15 RPM</div>
+            </div>
+            <span class="badge badge-info">مدعوم واحتياطي ✅</span>
+          </div>
+
+          <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:800; color:#a78bfa; font-size:13px;">🧠 gemini-2.5-pro</div>
+              <div style="font-size:11px; color:var(--text-muted);">أعلى دقة تفكير واستنتاج للمحتوى والسلع الحساسة | 50 طلب/يوم</div>
+            </div>
+            <span class="badge badge-warning">مدعوم (حد 50 يومياً) ⚠️</span>
+          </div>
+
+          <div style="background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.08); border-radius:10px; padding:10px; display:flex; justify-content:space-between; align-items:center;">
+            <div>
+              <div style="font-weight:800; color:#f59e0b; font-size:13px;">🛡️ YOLOv8 Local Vision (الرؤية المحلية)</div>
+              <div style="font-size:11px; color:var(--text-muted);">فحص صور الأشخاص والتعري محلياً 100% بدون إنترنت | غير محدود</div>
+            </div>
+            <span class="badge" style="background:#f59e0b; color:#fff;">يعمل محلياً 🛡️</span>
+          </div>
+        </div>
       </div>
 
-      <button class="btn btn-primary" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+      <!-- العمود الثاني: الإعدادات والربط + إدارة وحذف البيانات -->
+      <div style="display:flex; flex-direction:column; gap:20px;">
+        
+        <!-- كارت 2: الإعدادات والربط الآلي -->
+        <div class="card" style="margin:0;">
+          <div class="card-title">⚙️ الإعدادات ومفاتيح الربط</div>
+
+          <div class="form-group">
+            <label>رابط API الموقع (مدمج وجاهز):</label>
+            <input type="text" class="form-control" id="setWebUrl" placeholder="https://api.lelbai.com/public/api/listings" readonly style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+          </div>
+
+          <div class="form-group">
+            <label>مفتاح توثيق الموقع (مدمج وموثق مسبقاً):</label>
+            <input type="password" class="form-control" id="setWebKey" value="●●●●●●●●●●●●●●●●" readonly style="background:rgba(255,255,255,0.03); color:var(--text-muted);">
+          </div>
+
+          <div class="form-group">
+            <label>مفتاح Google Gemini API (مدمج تلقائياً ويعمل على أي جهاز):</label>
+            <input type="password" class="form-control" id="setGeminiKey" placeholder="مفتاح الذكاء الاصطناعي مدمج ويعمل تلقائياً">
+            <div style="font-size:11px; color:var(--text-muted); margin-top:4px;">
+              المفتاح مدمج ومفعل افتراضياً. يمكنك تغييره بمفتاحك الخاص من <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#60a5fa; text-decoration:underline;">Google AI Studio</a>.
+            </div>
+          </div>
+
+          <button class="btn btn-primary" onclick="saveSettings()">💾 حفظ الإعدادات</button>
+        </div>
+
+        <!-- كارت 3: إدارة ومسح البيانات وتصفير المنظومة -->
+        <div class="card" style="margin:0; border:1px solid rgba(239,68,68,0.3);">
+          <div class="card-title" style="color:#f87171;">
+            <span>🗑️ إدارة وتفريغ البيانات (مسح مخصص وتصفير)</span>
+          </div>
+          <div style="font-size:12px; color:var(--text-muted); margin-bottom:12px;">
+            يمكنك مسح وتفريغ أي قسم تريده بشكل منفصل أو إعادة ضبط المنظومة بالكامل:
+          </div>
+
+          <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+            <button class="btn btn-danger btn-sm" onclick="clearAllPendingAds()" style="background:#dc2626;" title="مسح كافة الإعلانات غير المنشورة وصورها">
+              🗑️ مسح مسودات الإعلانات
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="clearPublishedAds()" style="background:#dc2626;" title="مسح سجل الإعلانات المنشورة">
+              🗑️ مسح سجل المنشورات
+            </button>
+            <button class="btn btn-warning btn-sm" onclick="clearFlaggedAds()" title="مسح سجل الإعلانات المستبعدة">
+              🚫 مسح الإعلانات المخالفة
+            </button>
+            <button class="btn btn-warning btn-sm" onclick="clearAllImages()" title="تنظيف كافة الصور المحملة من القرص">
+              🖼️ تنظيف كافة الصور من القرص
+            </button>
+            <button class="btn btn-danger btn-sm" onclick="clearAllGroups()" style="background:#b91c1c;" title="مسح كافة روابط المجموعات المحفوظة">
+              🔗 تفريغ كافة الروابط
+            </button>
+            <button class="btn btn-info btn-sm" onclick="loadStarterGroups()" style="background:#0284c7;" title="استيراد روابط لمجموعات سورية نشطة">
+              📥 استيراد روابط مقترحة
+            </button>
+          </div>
+
+          <div style="margin-top:14px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08); text-align:center;">
+            <button class="btn btn-danger" onclick="resetAllSystemData()" style="width:100%; background:#991b1b; padding:10px; font-weight:800;" title="مسح كافة البيانات والصور وإعادة المنظومة كأنها نزلت الآن">
+              ⚠️ تصفير المنظومة بالكامل (إعادة ضبط المصنع)
+            </button>
+          </div>
+        </div>
+
+      </div>
+
     </div>
   </div>
 
@@ -1381,6 +1526,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         pollScraperStatus();
         checkManagerStatus();
         fetchUpdateInfo();
+        fetchAiQuotaInfo(false);
         updateServerStatusBadge(true);
         if (isManual) alert("تم الاتصال بالسيرفر بنجاح! 🟢");
       } catch (e) {
@@ -1773,9 +1919,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
                   <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
                 </div>
 
-                <div style="display:flex; gap:8px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border);">
-                  <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
-                  <button id="rejBtn-${idx}" class="btn btn-danger btn-sm" onclick="rejectSingleAd(${idx})">❌ حذف</button>
+                <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
+                  <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1; min-width:140px;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
+                  <button id="rejBtn-${idx}" class="btn btn-warning btn-sm" onclick="rejectSingleAd(${idx})" title="استبعاد الإعلان ونقله للمخالفات">⚠️ استبعاد</button>
+                  <button id="delBtn-${idx}" class="btn btn-danger btn-sm" onclick="deleteSingleAd(${idx})" title="حذف نهائي للإعلان وصوره من الجهاز">🗑️ حذف نهائي</button>
                 </div>
 
               </div>
@@ -2337,6 +2484,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
           document.getElementById('stFlaggedAds').innerText = st.flagged_count || 0;
         }
 
+        if (st.gemini_usage) {
+          updateAiQuotaUI(st.gemini_usage);
+        }
+
         if (st.logs && st.logs.length > 0) {
           const logBox = document.getElementById('liveLogsContainer');
           logBox.innerHTML = st.logs.join('<br>');
@@ -2449,6 +2600,162 @@ HTML_PAGE = r"""<!DOCTYPE html>
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
         if (btn) btn.innerHTML = oldHtml;
+      }
+    async function deleteSingleAd(idx) {
+      const ad = adsData[idx];
+      if (!ad) return;
+      if (!confirm(`هل أنت متأكد من حذف هذا الإعلان نهائياً ومسح صوره من الجهاز؟`)) return;
+      try {
+        const res = await apiFetch('/api/delete_ad', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({ ad, ad_index: idx })
+        });
+        const data = await res.json();
+        if (data.success) {
+          adsData.splice(idx, 1);
+          renderAdsGrid();
+          loadAllAds();
+        } else {
+          alert(data.message || 'فشل حذف الإعلان');
+        }
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function clearAllPendingAds() {
+      if (!confirm("⚠️ هل أنت متأكد تماماً من تفريغ ومسح كافة الإعلانات غير المنشورة (المسودات) ومسح صورها نهائياً؟")) return;
+      try {
+        const res = await apiFetch('/api/clear_pending_ads', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || "تم مسح كافة الإعلانات بنجاح!");
+        await loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function clearAllGroups() {
+      if (!confirm("⚠️ هل أنت متأكد من مسح وتفريغ كافة روابط المجموعات المحفوظة؟")) return;
+      try {
+        const res = await apiFetch('/api/clear_groups', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || "تم تفريغ كافة الروابط بنجاح!");
+        await loadGroups();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function loadStarterGroups() {
+      if (!confirm("هل تريد استيراد قائمة الروابط المقترحة لمجموعات سورية نشطة؟")) return;
+      try {
+        const res = await apiFetch('/api/load_starter_groups', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || "تم استيراد الروابط المقترحة بنجاح!");
+        await loadGroups();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function clearPublishedAds() {
+      if (!confirm("⚠️ هل أنت متأكد من مسح وتفريغ سجل الإعلانات المنشورة؟")) return;
+      try {
+        const res = await apiFetch('/api/clear_published_ads', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || "تم تفريغ سجل المنشورات بنجاح!");
+        await loadPublishedAds();
+        await loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function clearFlaggedAds() {
+      if (!confirm("هل أنت متأكد من مسح سجل الإعلانات المستبعدة (المخالفة)؟")) return;
+      try {
+        const res = await apiFetch('/api/clear_flagged_ads', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || "تم تفريغ سجل الإعلانات المستبعدة بنجاح!");
+        await loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function clearAllImages() {
+      if (!confirm("⚠️ تحذير: هل أنت متأكد من تنظيف وحذف كافة الصور المحملة من مجلد الصور على القرص؟")) return;
+      try {
+        const res = await apiFetch('/api/clear_all_images', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || "تم تنظيف الصور بنجاح!");
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function resetAllSystemData() {
+      const confirmation = prompt("⚠️ تنبيه خطير: سيتم تصفير المنظومة بالكامل ومسح كافة الإعلانات والمنشورات والمخالفات والصور والبدء من الصفر تماماً!\nللتأكيد، اكتب كلمة (تصفير) في المربع أدناه:");
+      if (confirmation !== "تصفير") {
+        alert("تم إلغاء عملية التصفير.");
+        return;
+      }
+      try {
+        const res = await apiFetch('/api/reset_all_data', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || "تمت إعادة ضبط المنظومة بنجاح!");
+        await loadAllAds();
+        await loadPublishedAds();
+        await loadGroups();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
+      }
+    }
+
+    async function fetchAiQuotaInfo(showAlert = false) {
+      try {
+        const res = await apiFetch('/api/gemini_usage');
+        const data = await res.json();
+        updateAiQuotaUI(data.usage, data.models);
+        if (showAlert) {
+          const rem = data.usage ? data.usage.remaining_today : 1500;
+          const used = data.usage ? data.usage.calls_today : 0;
+          alert(`📊 تقرير رصيد الذكاء الاصطناعي اليومي:\n• النموذج الفعال: ${data.usage.model || 'gemini-3.8-flash'}\n• المتبقي اليوم: ${rem} من 1,500 طلب\n• المستهلك اليوم: ${used} طلب\n• حالة الفحص البصري (Vision): يعمل ومفعل بكفاءة عالية 🟢`);
+        }
+      } catch (e) {}
+    }
+
+    function updateAiQuotaUI(usage, models) {
+      if (!usage) return;
+      const rem = (usage.remaining_today !== undefined) ? usage.remaining_today : 1500;
+      const used = (usage.calls_today !== undefined) ? usage.calls_today : 0;
+      const isConn = usage.is_connected !== false;
+
+      const counterEl = document.getElementById('aiCallsCounter');
+      if (counterEl) {
+        counterEl.innerText = `المتبقي: ${rem.toLocaleString()} / 1,500`;
+      }
+      const dotEl = document.getElementById('aiStatusDot');
+      if (dotEl) {
+        dotEl.style.background = isConn ? '#10b981' : '#f59e0b';
+        dotEl.style.boxShadow = isConn ? '0 0 6px #10b981' : '0 0 6px #f59e0b';
+      }
+
+      const stRemEl = document.getElementById('stAiRemaining');
+      if (stRemEl) {
+        stRemEl.innerText = rem.toLocaleString();
+      }
+
+      const remBox = document.getElementById('aiRemainingBox');
+      if (remBox) remBox.innerText = rem.toLocaleString();
+      const usedBox = document.getElementById('aiUsedBox');
+      if (usedBox) usedBox.innerText = used.toLocaleString();
+      const badgeStatus = document.getElementById('aiModelBadgeStatus');
+      if (badgeStatus) {
+        badgeStatus.innerText = usage.status_label || (isConn ? 'متصل ونشط 🟢' : 'بانتظار المفتاح ⚠️');
+        badgeStatus.className = isConn ? 'badge badge-success' : 'badge badge-warning';
       }
     }
 
@@ -2846,9 +3153,61 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                     "pending_count": len(raw_pending),
                     "ready_count": len(ready_ads),
                     "published_count": len(published),
-                    "flagged_count": len(flagged)
+                    "flagged_count": len(flagged),
+                    "gemini_usage": get_gemini_usage_info(load_config().get("gemini_api_key", ""))
                 }
             self.send_json(resp)
+            return
+
+        elif path == "/api/gemini_usage":
+            cfg = load_config()
+            usage = get_gemini_usage_info(cfg.get("gemini_api_key", ""))
+            models_info = [
+                {
+                    "name": "gemini-3.8-flash (النموذج الافتراضي المعتمد)",
+                    "model_id": "gemini-3.8-flash",
+                    "supports_vision": True,
+                    "vision_desc": "فحص صور + نصوص فائق الدقة (YOLO + Gemini Vision)",
+                    "daily_limit": 1500,
+                    "rpm_limit": 15,
+                    "is_active": True,
+                    "status_label": "نشط ومعتمد تلقائياً 🟢"
+                },
+                {
+                    "name": "gemini-2.5-flash",
+                    "model_id": "gemini-2.5-flash",
+                    "supports_vision": True,
+                    "vision_desc": "فحص صور ونصوص سريع وخفيف",
+                    "daily_limit": 1500,
+                    "rpm_limit": 15,
+                    "is_active": False,
+                    "status_label": "مدعوم واحتياطي ✅"
+                },
+                {
+                    "name": "gemini-2.5-pro",
+                    "model_id": "gemini-2.5-pro",
+                    "supports_vision": True,
+                    "vision_desc": "أعلى دقة استنتاج للمحتوى والسلع الحساسة",
+                    "daily_limit": 50,
+                    "rpm_limit": 2,
+                    "is_active": False,
+                    "status_label": "مدعوم (حد 50 يومياً) ⚠️"
+                },
+                {
+                    "name": "YOLOv8 Local Vision",
+                    "model_id": "yolov8-local",
+                    "supports_vision": True,
+                    "vision_desc": "فحص الصور محلياً وكشف الأشخاص والتعري بدون إنترنت",
+                    "daily_limit": "غير محدود (أوفلاين)",
+                    "rpm_limit": "غير محدود",
+                    "is_active": True,
+                    "status_label": "يعمل محلياً في الخلفية 🛡️"
+                }
+            ]
+            self.send_json({
+                "usage": usage,
+                "models": models_info
+            })
             return
 
         elif path == "/api/config":
@@ -3180,13 +3539,114 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             self.send_json({"success": True, "message": "تم إعادة الإعلان إلى قائمة المراجعة"})
             return
 
-        elif path == "/api/delete_published":
+        elif path in ["/api/delete_published", "/api/delete_published_ad"]:
             ad = req_data.get("ad", {})
-            ad_url = ad.get("ad_url") or ad.get("clean_title")
+            ad_url = ad.get("ad_url") or req_data.get("ad_url") or ad.get("clean_title") or req_data.get("clean_title")
             published = read_json_file(PUBLISHED_FILE)
             published = [p for p in published if (p.get("ad_url") or p.get("clean_title")) != ad_url]
             write_json_file(PUBLISHED_FILE, published)
-            self.send_json({"success": True, "message": "تم حذف الإعلان من سجل المنشورات"})
+            self.send_json({"success": True, "message": "تم حذف الإعلان من سجل المنشورات بنجاح! 🗑️"})
+            return
+
+        elif path == "/api/delete_ad":
+            # حذف إعلان محدد ومسح صوره من الجهاز
+            ad = req_data.get("ad", {})
+            ad_url = ad.get("ad_url") or req_data.get("ad_url")
+            clean_title = ad.get("clean_title") or req_data.get("clean_title")
+            ad_idx = req_data.get("ad_index")
+
+            pending = read_json_file(PENDING_FILE)
+            target = None
+            found_idx = -1
+
+            for i, p in enumerate(pending):
+                if (ad_url and p.get("ad_url") == ad_url) or (clean_title and p.get("clean_title") == clean_title):
+                    target = p
+                    found_idx = i
+                    break
+            if target is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(pending):
+                target = pending[ad_idx]
+                found_idx = ad_idx
+
+            if target:
+                for img_name in target.get("nimages", []):
+                    img_path = os.path.join(IMGS_DIR, img_name)
+                    if os.path.exists(img_path):
+                        try:
+                            os.remove(img_path)
+                        except Exception:
+                            pass
+                pending.pop(found_idx)
+                write_json_file(PENDING_FILE, pending)
+                self.send_json({"success": True, "message": "تم حذف الإعلان ومسح صوره نهائياً بنجاح! 🗑️"})
+            else:
+                self.send_json({"success": False, "message": "لم يتم العثور على الإعلان المستهدف."})
+            return
+
+        elif path == "/api/clear_pending_ads":
+            # تفريغ كافة الإعلانات غير المنشورة ومسح صورها
+            pending = read_json_file(PENDING_FILE)
+            for p in pending:
+                for img_name in p.get("nimages", []):
+                    img_path = os.path.join(IMGS_DIR, img_name)
+                    if os.path.exists(img_path):
+                        try:
+                            os.remove(img_path)
+                        except Exception:
+                            pass
+            write_json_file(PENDING_FILE, [])
+            self.send_json({"success": True, "message": "تم مسح وتفريغ كافة الإعلانات ومسح صورها بنجاح! 🗑️"})
+            return
+
+        elif path == "/api/clear_groups":
+            write_json_file(GROUPS_DATA_FILE, [])
+            self.send_json({"success": True, "message": "تم تفريغ كافة روابط المجموعات بنجاح! 🗑️"})
+            return
+
+        elif path == "/api/load_starter_groups":
+            write_json_file(GROUPS_DATA_FILE, DEFAULT_STARTER_GROUPS)
+            self.send_json({"success": True, "message": f"تم استيراد {len(DEFAULT_STARTER_GROUPS)} روابط مقترحة بنجاح! 📥"})
+            return
+
+        elif path == "/api/clear_published_ads":
+            write_json_file(PUBLISHED_FILE, [])
+            self.send_json({"success": True, "message": "تم تفريغ سجل الإعلانات المنشورة بنجاح! 🗑️"})
+            return
+
+        elif path == "/api/clear_flagged_ads":
+            write_json_file(FLAGGED_FILE, [])
+            self.send_json({"success": True, "message": "تم تفريغ سجل الإعلانات المستبعدة بنجاح! 🗑️"})
+            return
+
+        elif path == "/api/clear_all_images":
+            deleted_count = 0
+            if os.path.exists(IMGS_DIR):
+                for f in os.listdir(IMGS_DIR):
+                    fp = os.path.join(IMGS_DIR, f)
+                    if os.path.isfile(fp) and not f.startswith("."):
+                        try:
+                            os.remove(fp)
+                            deleted_count += 1
+                        except Exception:
+                            pass
+            self.send_json({"success": True, "message": f"تم مسح {deleted_count} صورة من القرص بنجاح! 🗑️"})
+            return
+
+        elif path == "/api/reset_all_data":
+            write_json_file(PENDING_FILE, [])
+            write_json_file(PUBLISHED_FILE, [])
+            write_json_file(FLAGGED_FILE, [])
+            write_json_file(ALL_ADS_FILE, [])
+            if os.path.exists(IMGS_DIR):
+                for f in os.listdir(IMGS_DIR):
+                    fp = os.path.join(IMGS_DIR, f)
+                    if os.path.isfile(fp) and not f.startswith("."):
+                        try:
+                            os.remove(fp)
+                        except Exception:
+                            pass
+            self.send_json({"success": True, "message": "تم تصفير كافة بيانات المنظومة بنجاح (إعادة ضبط المصنع)! 🔄"})
+            return
         elif path == "/api/launch_manager":
             client_host = self.headers.get("Host", "").split(":")[0].strip() or "localhost"
             self.send_json(launch_manager_and_all_servers(client_host))

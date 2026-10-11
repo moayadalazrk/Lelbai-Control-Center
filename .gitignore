@@ -30,3 +30,13 @@ env/
 # Legacy / transfer archive
 تنزيل الاعلانات/
 _local_backup_data/
+
+# Data storage & state files (clean on clone, generated on first run by web_app.py)
+groups_data.json
+pending_review.json
+published_ads.json
+flagged_ads.json
+test_output_ads.json
+ads_syria.json
+gemini_usage.json
+config.json

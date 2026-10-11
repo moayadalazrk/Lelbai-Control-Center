@@ -14,10 +14,58 @@ from io import BytesIO
 from typing import Dict, Any, List, Optional
 from PIL import Image
 
-if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
-
 from config import load_config
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+USAGE_FILE = os.path.join(BASE_DIR, "gemini_usage.json")
+
+def record_gemini_call(model_name: str = "gemini-3.8-flash") -> Dict[str, Any]:
+    """تسجيل طلب ذكاء اصطناعي جديد وحفظ العداد اليومي"""
+    today_str = time.strftime("%Y-%m-%d")
+    data = {"date": today_str, "calls_today": 0, "daily_limit": 1500, "rpm_limit": 15, "model": model_name}
+    if os.path.exists(USAGE_FILE):
+        try:
+            with open(USAGE_FILE, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                if isinstance(saved, dict) and saved.get("date") == today_str:
+                    data = saved
+        except Exception:
+            pass
+    data["calls_today"] = data.get("calls_today", 0) + 1
+    data["model"] = model_name
+    data["last_call_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+    try:
+        with open(USAGE_FILE, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception:
+        pass
+    return data
+
+def get_gemini_usage_info(api_key: str = "", model_name: str = "gemini-3.8-flash") -> Dict[str, Any]:
+    """استرجاع بيانات ورصيد الاستهلاك اليومي المتبقي"""
+    today_str = time.strftime("%Y-%m-%d")
+    data = {"date": today_str, "calls_today": 0, "daily_limit": 1500, "rpm_limit": 15, "model": model_name}
+    if os.path.exists(USAGE_FILE):
+        try:
+            with open(USAGE_FILE, "r", encoding="utf-8") as f:
+                saved = json.load(f)
+                if isinstance(saved, dict) and saved.get("date") == today_str:
+                    data = saved
+        except Exception:
+            pass
+    calls = data.get("calls_today", 0)
+    limit = data.get("daily_limit", 1500)
+    is_conn = bool(api_key.strip())
+    return {
+        "date": today_str,
+        "calls_today": calls,
+        "daily_limit": limit,
+        "remaining_today": max(0, limit - calls),
+        "rpm_limit": 15,
+        "model": model_name,
+        "is_connected": is_conn,
+        "status_label": "متصل وجاهز للعمل 🟢" if is_conn else "غير متصل (المفتاح مفقود) ⚠️"
+    }
 
 SYSTEM_PROMPT = """أنت نظام رقابة وتدقيق آلي صارم ومحدد، بالإضافة لكونك منسق بيانات لمنصة إعلانات مبوبة في سوريا (للبيع - lelbai).
 مهمتك تنحصر فقط في فحص محتوى الإعلان (النصوص والصور المرفقة) للتأكد من خلوه من المحظورات المنصوص عليها أدناه حصراً، وتحديد أرقام الصور المخالفة واستبعادها، واستخراج بيانات الإعلان المهيكلة.
@@ -150,9 +198,17 @@ class GeminiProcessor:
                     summary = f"🛡️ تم فحص الصور بنموذج الرؤية المحلي (YOLO): استبعاد {len(local_rej)} صورة مخالفة، ومطابقة {len(local_appr)} صورة نظيفة"
                     rejection_reason = None
             else:
-                is_safe = True
-                summary = "🛡️ مفحوص بالرؤية الحاسوبية المدمجة (YOLO) | خالي من صور الأشخاص والتعري"
-                rejection_reason = None
+                from image_safety_filter import get_yolo_model
+                yolo_avail = (get_yolo_model() is not None)
+                if yolo_avail:
+                    is_safe = True
+                    summary = "🛡️ مفحوص بالرؤية الحاسوبية المدمجة (YOLO) | خالي من صور الأشخاص والتعري"
+                    rejection_reason = None
+                else:
+                    is_safe = True
+                    flags.append("no_ai_vision_available")
+                    summary = "⚠️ تنبيه: الذكاء الاصطناعي (Gemini) غير متصل ونموذج YOLO غير متوفر محلياً | تم فحص الأبعاد فقط"
+                    rejection_reason = None
 
             return {
                 "is_safe": is_safe,
@@ -229,6 +285,7 @@ class GeminiProcessor:
             response = requests.post(url, json=payload, timeout=25)
             
             if response.status_code == 200:
+                record_gemini_call(self.model)
                 resp_json = response.json()
                 raw_text = resp_json["candidates"][0]["content"]["parts"][0]["text"].strip()
                 result = json.loads(raw_text)
