@@ -168,138 +168,202 @@ def classify_leaf_category(text: str) -> Dict[str, Any]:
 
 def extract_detailed_specifications(text: str, leaf_info: Dict[str, Any]) -> Dict[str, Any]:
     """
-    استخراج أكبر قدر من المواصفات المهيكلة من نص الإعلان (السيارات، العقارات، والسلع الأخرى).
+    استخراج أكبر قدر من المواصفات المهيكلة حسب قسم الإعلان (سيارات، جوالات، عقارات، سلع أخرى).
     """
     specs: Dict[str, Any] = {}
     t = text.lower()
+    cat_id = leaf_info.get("category_id")
+    parent_name = str(leaf_info.get("parent_name") or "")
+    cat_hier = str(leaf_info.get("category_hierarchy") or "")
 
-    # 1. الماركة / الشركة
-    if leaf_info.get("brand"):
-        specs["make"] = leaf_info["brand"]
+    is_car = (parent_name == "السيارات" or "السيارات" in cat_hier or (cat_id and 1143 <= cat_id <= 1832))
+    is_phone = (cat_id == 3139 or parent_name == "الإلكترونيات والشبكات" or "الإلكترونيات" in cat_hier or any(w in t for w in ["جوال", "موبايل", "هاتف", "هونر", "ايفون", "سامسونج", "شاومي", "ريدمي"]))
+    is_real_estate = (parent_name == "العقارات" or "العقارات" in cat_hier or (cat_id and 3131 <= cat_id <= 3135))
 
-    # 2. الموديل / الطراز
-    if leaf_info.get("model"):
-        specs["model"] = leaf_info["model"]
-    else:
-        models_patterns = [
-            r"\b(e350|e300|e250|e240|e220|e200|c300|c250|c200|c180|s500|s350|s320|4matic|توسان|ريو|فورتي|سيراتو|سبورتاج|كامري|كورولا|يارس|سنتافي|أفانتي|إلنترا|أكسنت|صني|ميجان|كليو|لانوس|ماروتي|سويفت|206|307|405|golf)\b",
-            r"(?:طراز|نوع|فئة|سيارة|كيا|هيونداي|تويوتا|نيسان|مرسيدس)\s+([a-zA-Z0-9\u0621-\u064A]{2,15})"
+    # ==================== مواصفات الجوالات والهواتف ====================
+    if is_phone and not is_car:
+        # 1. الماركة
+        phone_brand_pat = r'(?:آيفون|ايفون|iphone|سامسونج|samsung|شاومي|xiaomi|ريدمي|redmi|بوكو|poco|هونر|honor|هواوي|huawei|ريلمي|realme|أوبو|اوبو|oppo|انفينكس|infinix|تكنو|tecno|فيفو|vivo|نوكيا|nokia|ون بلس|oneplus)'
+        bm = re.search(phone_brand_pat, t)
+        if bm:
+            specs["make"] = bm.group(0).capitalize()
+            # 2. الطراز
+            mod_m = re.search(rf'{re.escape(bm.group(0))}\s*([a-zA-Z0-9\s+\-_]+?)(?=\s*(?:نظافة|نضيف|بحالة|رام|ذاكرة|سعة|غيغابايت|gb|كاميرا|بطارية|للبيع|\n|$))', t)
+            if mod_m and len(mod_m.group(1).strip()) > 1:
+                specs["model"] = mod_m.group(1).strip().upper()
+
+        # 3. الرام (RAM)
+        ram_m = re.search(r'(?:رام|ram|الرام)\s*[:\-]?\s*(\d+)', t)
+        if ram_m:
+            specs["ram"] = f"{ram_m.group(1)} GB"
+
+        # 4. سعة التخزين (Storage)
+        storage_m = re.search(r'(?:ذاكرة|ذاكره|storage|rom|سعة)?\s*[:\-]?\s*(32|64|128|256|512|1000|1tb)\s*(?:gb|غيغا|جيجا)?\b', t)
+        if storage_m:
+            specs["storage"] = f"{storage_m.group(1)} GB"
+
+        # 5. سعة البطارية (Battery)
+        bat_m = re.search(r'(?:بطارية|بطاريه|battery)\s*[:\-]?\s*(\d{3,5})\s*(?:مللي|mah|امبير|أمبير)?', t)
+        if bat_m:
+            specs["battery"] = f"{bat_m.group(1)} mAh"
+
+        # 6. الكاميرا (Camera)
+        cam_m = re.search(r'(?:كاميرا|كاميرة|كاميرات|كام)\s*[:\-]?\s*(\d{2,3})\s*(?:mp|ميغا|ميكا|ميغابكسل)?', t)
+        if cam_m:
+            specs["camera"] = f"{cam_m.group(1)} MP"
+
+        # 7. الحالة الفنية
+        if "استعمال بنت" in t or "استخدام بنت" in t:
+            specs["condition"] = "نظيف جداً (استعمال بنت)"
+        elif "وكالة" in t or "بحالة الوكالة" in t:
+            specs["condition"] = "بحالة الوكالة"
+        elif "نضيف" in t or "نظيف" in t:
+            specs["condition"] = "نظيف جداً"
+        elif "جديد بالكرتونة" in t or "جديد بالكرتونه" in t:
+            specs["condition"] = "جديد بالكرتونة"
+
+        # 8. الملحقات
+        accs = []
+        if "كرتونة" in t or "كرتونه" in t: accs.append("كرتونة أساسية")
+        if "شاحن" in t: accs.append("شاحن")
+        if "سماعة" in t or "سماعات" in t: accs.append("سماعات")
+        if "لصاقة" in t or "كفر" in t: accs.append("كفر ولصاقة")
+        if accs:
+            specs["features"] = accs
+
+        return specs
+
+    # ==================== مواصفات السيارات ====================
+    if is_car:
+        # 1. الماركة / الشركة
+        if leaf_info.get("brand"):
+            specs["make"] = leaf_info["brand"]
+
+        # 2. الموديل / الطراز
+        if leaf_info.get("model"):
+            specs["model"] = leaf_info["model"]
+        else:
+            models_patterns = [
+                r"\b(e350|e300|e250|e240|e220|e200|c300|c250|c200|c180|s500|s350|s320|4matic|توسان|ريو|فورتي|سيراتو|سبورتاج|كامري|كورولا|يارس|سنتافي|أفانتي|إلنترا|أكسنت|صني|ميجان|كليو|لانوس|ماروتي|سويفت|206|307|405|golf)\b",
+                r"(?:طراز|نوع|فئة|سيارة|كيا|هيونداي|تويوتا|نيسان|مرسيدس)\s+([a-zA-Z0-9\u0621-\u064A]{2,15})"
+            ]
+            for p in models_patterns:
+                m = re.search(p, t)
+                if m:
+                    cand = m.group(1).strip()
+                    if not (cand.isdigit() and len(cand) == 4):
+                        specs["model"] = cand.upper()
+                        break
+
+        # 3. سنة الصنع / الموديل (1980 - 2026)
+        year_match = re.search(r"\b(19[8-9]\d|20[0-2]\d)\b", t)
+        if year_match:
+            specs["year"] = int(year_match.group(1))
+
+        # 4. ناقل الحركة (الكير)
+        if any(k in t for k in ["أوتوماتيك", "اتوماتيك", "تومتيك", "اوتوماتيك", "اتمتيك", "اوتماتيك"]):
+            specs["transmission"] = "أوتوماتيك"
+        elif any(k in t for k in ["عادي", "مانيوال", "منوال", "غير عادي", "كير عادي"]):
+            specs["transmission"] = "عادي"
+
+        # 5. نوع الوقود
+        if any(k in t for k in ["مازوت", "ديزل"]):
+            specs["fuel_type"] = "مازوت / ديزل"
+        elif any(k in t for k in ["بنزين", "بانزين"]):
+            specs["fuel_type"] = "بنزين"
+        elif any(k in t for k in ["هايبرد", "هجين"]):
+            specs["fuel_type"] = "هايبرد"
+        elif any(k in t for k in ["كهرباء", "كهربائية"]):
+            specs["fuel_type"] = "كهرباء"
+
+        # 6. حالة الهيكل والبخ
+        conditions = []
+        if any(k in t for k in ["خالية برا جوا", "خالية برا وجوا", "خالي برا جوا"]):
+            if "عدا قطعتين" in t or "عدا قطعة" in t or "عدا 2" in t:
+                conditions.append("خالية برا جوا عدا قطعتين")
+            else:
+                conditions.append("خالية برا جوا")
+        elif "خالية العلام" in t or "خالية تماما" in t or "خاليه تماما" in t:
+            conditions.append("خالية العلام تماماً")
+        elif "بخ زنار" in t or "زنار نضافة" in t:
+            conditions.append("بخ زنار نضافة")
+        if "خالية من الداخل" in t or "خالية جوا" in t or "خاليه جوا" in t:
+            if "خالية برا جوا" not in "".join(conditions):
+                conditions.append("خالية من الداخل (جوا)")
+        if "شمعات فخدات شاصي زيرو" in t or "شاصي زيرو" in t or "فخدات كفالة" in t:
+            conditions.append("شمعات وشاصيه زيرو وكالة")
+        if conditions:
+            specs["condition"] = " + ".join(conditions)
+
+        # 7. اللون
+        colors = {
+            "أبيض": ["أبيض", "ابيض", "لؤلؤي"],
+            "أسود": ["أسود", "اسود"],
+            "فضي": ["فضي", "سيلفر"],
+            "رصاصي": ["رصاصي", "فيراني", "رمادي"],
+            "كحلي": ["كحلي", "أزرق", "ازرق"],
+            "خمري": ["خمري", "أحمر", "احمر"],
+            "بيج": ["بيج", "ذهبي"],
+            "بني": ["بني", "عسلي"]
+        }
+        for col_name, col_kws in colors.items():
+            if any(k in t for k in col_kws):
+                specs["color"] = col_name
+                break
+
+        # 8. المسافة المقطوعة / الكيلومتراج
+        arabic_to_western = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
+        t_digits = t.translate(arabic_to_western)
+        km_match = re.search(r"(?:ماشية|ماشي|ممشى|العداد|عداد|قاطع)\s*[:\-]?\s*(\d+)\s*(?:ألف|الف|k)?\s*(?:كم|كيلو|كيلومتر|km)?", t_digits)
+        if km_match:
+            val_str = km_match.group(1)
+            matched_full = km_match.group(0)
+            if any(w in matched_full for w in ["الف", "ألف", "k", "k"]):
+                try:
+                    specs["mileage"] = f"{int(val_str) * 1000:,} كم"
+                except Exception:
+                    specs["mileage"] = f"{val_str} ألف كم"
+            else:
+                specs["mileage"] = f"{val_str} كم"
+        else:
+            km_match2 = re.search(r"(\d{1,3}(?:[.,]\d{3})*|\d+)\s*(?:ألف|الف)?\s*(?:كم|كيلو|km)", t_digits)
+            if km_match2:
+                specs["mileage"] = km_match2.group(0).strip()
+
+        # 9. الميزات الإضافية للسيارات (Features)
+        features = []
+        feature_checks = [
+            ("فتحة سقف", ["فتحة سقف", "فتحه سقف", "بانوراما"]),
+            ("بصمة تشغيل", ["بصمة", "بصمه", "دخول ذكي"]),
+            ("شاشة أندرويد", ["شاشة أندرويد", "شاشة لمس"]),
+            ("كاميرا خلفية", ["كاميرا خلفية", "كاميرا رجوع"]),
+            ("حساسات خلفية/أمامية", ["حساسات", "حساس"]),
+            ("مكيف ديجيتال", ["مكيف", "تبريد", "فريزتين"]),
+            ("فرش جلد أساسي", ["جلد", "فرش جلد"]),
+            ("دوزان جديد", ["دوزان جديد", "دوزان ذهب"]),
+            ("دواليب جديدة", ["دواليب جديدة", "دواليب 80", "دواليب 90", "جنط مغنزيوم"]),
+            ("مرايا كهرباء", ["مرايا كهربا", "بلور كهربا"]),
+            ("كراسي تدفئة وتبريد", ["تسخين كراسي", "تبريد كراسي", "كراسي كهرباء"])
         ]
-        for p in models_patterns:
-            m = re.search(p, t)
-            if m:
-                cand = m.group(1).strip()
-                if not (cand.isdigit() and len(cand) == 4):
-                    specs["model"] = cand.upper()
-                    break
+        for feat_name, feat_kws in feature_checks:
+            if any(k in t for k in feat_kws):
+                features.append(feat_name)
+        if features:
+            specs["features"] = features
 
-    # 3. سنة الصنع / الموديل (1980 - 2026)
-    year_match = re.search(r"\b(19[8-9]\d|20[0-2]\d)\b", t)
-    if year_match:
-        specs["year"] = int(year_match.group(1))
+        return specs
 
-    # 4. ناقل الحركة (الكير)
-    if any(k in t for k in ["أوتوماتيك", "اتوماتيك", "تومتيك", "اوتوماتيك", "اتمتيك", "اوتماتيك"]):
-        specs["transmission"] = "أوتوماتيك"
-    elif any(k in t for k in ["عادي", "مانيوال", "منوال", "غير عادي", "كير عادي"]):
-        specs["transmission"] = "عادي"
-
-    # 5. نوع الوقود
-    if any(k in t for k in ["مازوت", "ديزل"]):
-        specs["fuel_type"] = "مازوت / ديزل"
-    elif any(k in t for k in ["بنزين", "بانزين"]):
-        specs["fuel_type"] = "بنزين"
-    elif any(k in t for k in ["هايبرد", "هجين"]):
-        specs["fuel_type"] = "هايبرد"
-    elif any(k in t for k in ["كهرباء", "كهربائية"]):
-        specs["fuel_type"] = "كهرباء"
-
-    # 6. حالة الهيكل والبخ
-    conditions = []
-    if any(k in t for k in ["خالية برا جوا", "خالية برا وجوا", "خالي برا جوا"]):
-        if "عدا قطعتين" in t or "عدا قطعة" in t or "عدا 2" in t:
-            conditions.append("خالية برا جوا عدا قطعتين")
-        else:
-            conditions.append("خالية برا جوا")
-    elif "خالية العلام" in t or "خالية تماما" in t or "خاليه تماما" in t:
-        conditions.append("خالية العلام تماماً")
-    if "كرتونة" in t or "كرتونه" in t:
-        conditions.append("كرتونة")
-    if "بخ زنار" in t or "زنار نضافة" in t:
-        conditions.append("بخ زنار نضافة")
-    if "خالية من الداخل" in t or "خالية جوا" in t or "خاليه جوا" in t:
-        if "خالية برا جوا" not in "".join(conditions):
-            conditions.append("خالية من الداخل (جوا)")
-    if "شمعات فخدات شاصي زيرو" in t or "شاصي زيرو" in t or "فخدات كفالة" in t:
-        conditions.append("شمعات وشاصيه زيرو وكالة")
-    if conditions:
-        specs["condition"] = " + ".join(conditions)
-
-    # 7. اللون
-    colors = {
-        "أبيض": ["أبيض", "ابيض", "لؤلؤي"],
-        "أسود": ["أسود", "اسود"],
-        "فضي": ["فضي", "سيلفر"],
-        "رصاصي": ["رصاصي", "فيراني", "رمادي"],
-        "كحلي": ["كحلي", "أزرق", "ازرق"],
-        "خمري": ["خمري", "أحمر", "احمر"],
-        "بيج": ["بيج", "ذهبي"],
-        "بني": ["بني", "عسلي"]
-    }
-    for col_name, col_kws in colors.items():
-        if any(k in t for k in col_kws):
-            specs["color"] = col_name
-            break
-
-    # 8. المسافة المقطوعة / الكيلومتراج (مثال: ماشية ٣٣٠ الف، ممشى 120 الف، 85000 كم)
-    arabic_to_western = str.maketrans("٠١٢٣٤٥٦٧٨٩", "0123456789")
-    t_digits = t.translate(arabic_to_western)
-    km_match = re.search(r"(?:ماشية|ماشي|ممشى|العداد|عداد|قاطع)\s*[:\-]?\s*(\d+)\s*(?:ألف|الف|k)?\s*(?:كم|كيلو|كيلومتر|km)?", t_digits)
-    if km_match:
-        val_str = km_match.group(1)
-        matched_full = km_match.group(0)
-        if any(w in matched_full for w in ["الف", "ألف", "k", "k"]):
-            try:
-                specs["mileage"] = f"{int(val_str) * 1000:,} كم"
-            except Exception:
-                specs["mileage"] = f"{val_str} ألف كم"
-        else:
-            specs["mileage"] = f"{val_str} كم"
-    else:
-        km_match2 = re.search(r"(\d{1,3}(?:[.,]\d{3})*|\d+)\s*(?:ألف|الف)?\s*(?:كم|كيلو|km)", t_digits)
-        if km_match2:
-            specs["mileage"] = km_match2.group(0).strip()
-
-    # 9. الميزات الإضافية (Features)
-    features = []
-    feature_checks = [
-        ("فتحة سقف", ["فتحة سقف", "فتحه سقف", "بانوراما"]),
-        ("بصمة تشغيل", ["بصمة", "بصمه", "دخول ذكي"]),
-        ("شاشة أندرويد", ["شاشة", "شاشه", "كاميرا"]),
-        ("حساسات خلفية/أمامية", ["حساسات", "حساس"]),
-        ("مكيف ديجيتال", ["مكيف", "تبريد", "فريزتين"]),
-        ("فرش جلد أساسي", ["جلد", "فرش جلد"]),
-        ("دوزان جديد", ["دوزان جديد", "دوزان ذهب"]),
-        ("دواليب جديدة", ["دواليب جديدة", "دواليب 80", "دواليب 90", "جنط مغنزيوم"]),
-        ("مرايا كهرباء", ["مرايا كهربا", "بلور كهربا"]),
-        ("كراسي تدفئة وتبريد", ["تسخين كراسي", "تبريد كراسي", "كراسي كهرباء"])
-    ]
-    for feat_name, feat_kws in feature_checks:
-        if any(k in t for k in feat_kws):
-            features.append(feat_name)
-    if features:
-        specs["features"] = features
-
-    # 10. مواصفات العقارات (المساحة، الغرف، الطابق)
-    area_match = re.search(r"(\d+)\s*(?:متر|م²|م2|دونم)", t)
-    if area_match:
-        specs["area"] = area_match.group(0).strip()
-    rooms_match = re.search(r"(\d+)\s*(?:غرف|غرفة|وصالون)", t)
-    if rooms_match:
-        specs["rooms"] = rooms_match.group(0).strip()
-    floor_match = re.search(r"(طابق\s+[a-zA-Z\u0621-\u064A]+|أرضي|أول|ثاني|ثالث|رابع)", t)
-    if floor_match:
-        specs["floor"] = floor_match.group(0).strip()
+    # ==================== مواصفات العقارات ====================
+    if is_real_estate:
+        area_match = re.search(r"(\d+)\s*(?:متر|م²|م2|دونم)", t)
+        if area_match:
+            specs["area"] = area_match.group(0).strip()
+        rooms_match = re.search(r"(\d+)\s*(?:غرف|غرفة|وصالون)", t)
+        if rooms_match:
+            specs["rooms"] = rooms_match.group(0).strip()
+        floor_match = re.search(r"(طابق\s+[a-zA-Z\u0621-\u064A]+|أرضي|أول|ثاني|ثالث|رابع)", t)
+        if floor_match:
+            specs["floor"] = floor_match.group(0).strip()
 
     return specs
 
@@ -368,10 +432,14 @@ def generate_ai_review_report(
     specs_list = []
     if specs.get("make"): specs_list.append(f"الشركة: {specs['make']}")
     if specs.get("model"): specs_list.append(f"الطراز: {specs['model']}")
+    if specs.get("ram"): specs_list.append(f"الرام: {specs['ram']}")
+    if specs.get("storage"): specs_list.append(f"الذاكرة: {specs['storage']}")
+    if specs.get("battery"): specs_list.append(f"البطارية: {specs['battery']}")
+    if specs.get("camera"): specs_list.append(f"الكاميرا: {specs['camera']}")
     if specs.get("year"): specs_list.append(f"سنة الصنع: {specs['year']}")
     if specs.get("transmission"): specs_list.append(f"ناقل الحركة: {specs['transmission']}")
     if specs.get("fuel_type"): specs_list.append(f"الوقود: {specs['fuel_type']}")
-    if specs.get("condition"): specs_list.append(f"الهيكل: {specs['condition']}")
+    if specs.get("condition"): specs_list.append(f"الحالة: {specs['condition']}")
     if specs.get("color"): specs_list.append(f"اللون: {specs['color']}")
     if specs.get("mileage"): specs_list.append(f"الكيلومتراج: {specs['mileage']}")
     if specs.get("area"): specs_list.append(f"المساحة: {specs['area']}")

@@ -215,7 +215,10 @@ def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str
     # 2. استخراج أكبر قدر ممكن من المواصفات المهيكلة
     extracted_specs = extract_detailed_specifications(full_text, leaf_info)
     current_specs = ad_copy.get("specifications") or {}
-    ad_copy["specifications"] = {**extracted_specs, **current_specs}
+    if force_recalc or leaf_info.get("parent_name") != "السيارات":
+        ad_copy["specifications"] = extracted_specs
+    else:
+        ad_copy["specifications"] = {**current_specs, **extracted_specs}
 
     # 3. وضع اسم حساب معلن وهمي سوري واقعي
     if not ad_copy.get("publisher_name"):

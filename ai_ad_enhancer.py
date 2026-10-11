@@ -628,23 +628,31 @@ OTHER_CATEGORIES = [
     # 📱 الإلكترونيات والشبكات
     {
         "name": "جوالات وهواتف ذكية", "id": 3139, "parent": "الإلكترونيات والشبكات",
-        "keywords": ["ايفون", "آيفون", "iphone", "سامسونج", "samsung", "شاومي", "xiaomi", "ريدمي", "redmi", "جوال للبيع", "موبايل للبيع", "هاتف ذكي", "انفينكس", "تكنو"]
+        "keywords": [
+            "جوال", "موبايل", "تلفون", "هاتف ذكي", "جوالات", "موبايلات", "هواتف",
+            "هونر", "honor", "هواوي", "huawei", "شاومي", "xiaomi", "ريدمي", "redmi", "بوكو", "poco",
+            "سامسونج", "samsung", "غلاكسي", "جلاكسي", "galaxy",
+            "ايفون", "آيفون", "iphone", "ابل", "apple",
+            "انفينكس", "infinix", "تكنو", "tecno", "ريلمي", "realme", "اوبو", "أوبو", "oppo",
+            "فيفو", "vivo", "ون بلس", "oneplus", "نوكيا", "nokia", "بكسل", "pixel",
+            "رام", "ذاكرة", "غيغابايت", "مللي أمبير", "شاحن اساسي", "كرتونة وشاحن", "استعمال بنت"
+        ]
     },
     {
         "name": "كمبيوتر ولابتوب", "id": 3141, "parent": "الإلكترونيات والشبكات",
-        "keywords": ["لابتوب", "كمبيوتر", "بي سي", "pc", "core i3", "core i5", "core i7", "ماك بوك", "macbook", "كمبيوتر مكتبي"]
+        "keywords": ["لابتوب", "كمبيوتر", "بي سي", "pc", "core i3", "core i5", "core i7", "core i9", "ماك بوك", "macbook", "كمبيوتر مكتبي", "كرت شاشة", "كيسة"]
     },
     {
         "name": "أجهزة لوحية وآيباد", "id": 3140, "parent": "الإلكترونيات والشبكات",
-        "keywords": ["آيباد", "ايباد", "ipad", "تابلت", "تاب سامسونج"]
+        "keywords": ["آيباد", "ايباد", "ipad", "تابلت", "تاب سامسونج", "تاب", "لوحي"]
     },
     {
         "name": "شاشات وتلفزيونات", "id": 3143, "parent": "الإلكترونيات والشبكات",
-        "keywords": ["شاشة تلفزيون", "سمارت tv", "شاشة 55", "شاشة 43", "شاشة 32", "شاشة 65", "تلفزيون سامسونج", "شاشة lg"]
+        "keywords": ["شاشة تلفزيون", "سمارت tv", "شاشة 55", "شاشة 43", "شاشة 32", "شاشة 65", "شاشة 50", "تلفزيون سامسونج", "شاشة lg", "رسيفر"]
     },
     {
         "name": "ساعات ذكية وسماعات وإكسسوارات", "id": 3144, "parent": "الإلكترونيات والشبكات",
-        "keywords": ["ساعة ذكية", "سمارت واتش", "airpods", "ايربودز", "سماعات بلوتوث", "باور بانك", "راوتر", "نانو ستيشن"]
+        "keywords": ["ساعة ذكية", "سمارت واتش", "airpods", "ايربودز", "سماعات بلوتوث", "باور بانك", "راوتر", "نانو ستيشن", "كفر جوال", "لصاقة شاشة", "شاحن سريع"]
     },
 
     # ☀️ الطاقة البديلة والكهرباء
@@ -1283,16 +1291,30 @@ def generate_smart_title(text: str, ad: Dict[str, Any]) -> str:
         if len(title_res) >= 15:
             return title_res[:80].strip()
 
-    # 4. سياق الإلكترونيات
-    phone_m = re.search(r'(آيفون|ايفون|iphone|سامسونج|samsung|شاومي|redmi)\s*([a-zA-Z0-9\s+]+?)(?=\s*(?:نظافة|بحالة|غيغابايت|gb|للبيع|$))', t_clean, re.IGNORECASE)
+    # 4. سياق الجوالات والإلكترونيات
+    phone_brand_pat = r'(?:آيفون|ايفون|iphone|سامسونج|samsung|شاومي|xiaomi|ريدمي|redmi|بوكو|poco|هونر|honor|هواوي|huawei|ريلمي|realme|أوبو|اوبو|oppo|انفينكس|infinix|تكنو|tecno|فيفو|vivo|نوكيا|nokia|ون بلس|oneplus)'
+    phone_m = re.search(rf'({phone_brand_pat})\s*([a-zA-Z0-9\s+\-_]+?)(?=\s*(?:نظافة|نضيف|بحالة|رام|ذاكرة|سعة|غيغابايت|gb|كاميرا|بطارية|للبيع|\n|$))', t_clean, re.IGNORECASE)
     if phone_m:
-        dev_name = f"{phone_m.group(1)} {phone_m.group(2)}".strip()
-        cond_str = "بحالة الوكالة" if "وكالة" in t_clean else "نظيف جداً"
-        title_res = f"{dev_name} {cond_str} {('- ' + city) if city else ''}".strip()
-        return title_res[:80].strip()
+        dev_brand = phone_m.group(1).capitalize()
+        dev_model = phone_m.group(2).strip().upper()
+        dev_name = f"{dev_brand} {dev_model}".strip() if dev_model else dev_brand
+        
+        ram_m = re.search(r'(?:رام|ram)\s*[:\-]?\s*(\d+)', t_clean, re.IGNORECASE)
+        ram_str = f"رام {ram_m.group(1)}" if ram_m else ""
+        
+        storage_m = re.search(r'(?:ذاكرة|ذاكره|storage|rom)?\s*[:\-]?\s*(64|128|256|512|1000|1tb)\s*(?:gb|غيغا|جيجا)?\b', t_clean, re.IGNORECASE)
+        storage_str = f"ذاكرة {storage_m.group(1)}" if storage_m else ""
+        
+        cond_str = "بحالة الوكالة" if ("وكالة" in t_clean) else ("نظيف جداً" if ("نضيف" in t_clean or "نظيف" in t_clean) else "")
+        loc_str = f"- {city}" if city else ""
+        
+        parts = [dev_name, ram_str, storage_str, cond_str, loc_str]
+        title_res = " ".join([p for p in parts if p]).strip()
+        if len(title_res) >= 8:
+            return title_res[:80].strip()
 
     # 5. معالجة ذكية عامة
-    lines = [l.strip() for l in t_clean.split("\n") if len(l.strip()) > 6]
+    lines = [l.strip() for l in t_clean.split("\n") if len(l.strip()) > 4]
     valid_lines = []
     for l in lines:
         if any(j in l for j in ["نقطة", "علق", "السعر", "للتواصل", "رابط", "لايك", "واتساب", "السلام"]):
@@ -1310,7 +1332,7 @@ def generate_smart_title(text: str, ad: Dict[str, Any]) -> str:
             else:
                 base_title = ""
 
-        if base_title and len(base_title) >= 10:
+        if base_title and len(base_title) >= 5:
             if city and city not in base_title:
                 base_title = f"{base_title} - {city}"
             return base_title[:80].strip()
@@ -1354,6 +1376,10 @@ def generate_smart_description(raw_desc: str, ad: Dict[str, Any]) -> str:
     out_sections.append("📋 التفاصيل والمواصفات الفنية:")
     if specs.get("make"): out_sections.append(f"• الماركة: {specs['make']}")
     if specs.get("model"): out_sections.append(f"• الطراز: {specs['model']}")
+    if specs.get("ram"): out_sections.append(f"• الرام: {specs['ram']}")
+    if specs.get("storage"): out_sections.append(f"• سعة التخزين: {specs['storage']}")
+    if specs.get("battery"): out_sections.append(f"• سعة البطارية: {specs['battery']}")
+    if specs.get("camera"): out_sections.append(f"• دقة الكاميرا: {specs['camera']}")
     if specs.get("year"): out_sections.append(f"• سنة الصنع: {specs['year']}")
     if specs.get("transmission"): out_sections.append(f"• ناقل الحركة: {specs['transmission']}")
     if specs.get("fuel_type"): out_sections.append(f"• نوع الوقود: {specs['fuel_type']}")
@@ -1432,23 +1458,40 @@ def enhance_ad_with_super_ai(ad: Dict[str, Any]) -> Dict[str, Any]:
             "is_negotiable": True
         }
 
-    # 2. التصنيف في أصغر فئة
-    cat_info = detect_smart_category(raw_desc)
-    ad_copy["leaf_category_id"] = cat_info["category_id"]
-    ad_copy["leaf_category_name"] = cat_info["category_name"]
-    ad_copy["category_hierarchy"] = cat_info.get("category_hierarchy") or f"{cat_info['parent_name']} > {cat_info['category_name']}"
-    ad_copy["category"] = cat_info["category_name"]
+    # 2. التصنيف في أصغر فئة (الحفاظ على تصنيف الذكاء الاصطناعي السحابي إذا كان معتمداً وليس 3207)
+    existing_cid = ad_copy.get("leaf_category_id") or ad_copy.get("id-categorie")
+    if existing_cid and int(existing_cid) != 3207 and int(existing_cid) in CAT_BY_ID:
+        cid = int(existing_cid)
+        ad_copy["leaf_category_id"] = cid
+        if not ad_copy.get("leaf_category_name"):
+            ad_copy["leaf_category_name"] = get_category_name_by_id(cid)
+        if not ad_copy.get("category_hierarchy"):
+            ad_copy["category_hierarchy"] = build_category_hierarchy(cid)
+        ad_copy["category"] = ad_copy["leaf_category_name"]
+        ad_copy["id-categorie"] = cid
+    else:
+        cat_info = detect_smart_category(raw_desc)
+        ad_copy["leaf_category_id"] = cat_info["category_id"]
+        ad_copy["leaf_category_name"] = cat_info["category_name"]
+        ad_copy["category_hierarchy"] = cat_info.get("category_hierarchy") or f"{cat_info['parent_name']} > {cat_info['category_name']}"
+        ad_copy["category"] = cat_info["category_name"]
+        ad_copy["id-categorie"] = cat_info["category_id"]
 
-    # 3. استخراج مواصفات السيارة إن وجدت
-    car_info = detect_car_info(raw_desc)
-    specs = dict(ad_copy.get("specifications") or {})
-    if car_info.get("brand") and not specs.get("make"):
-        specs["make"] = car_info["brand"]
-    if car_info.get("model") and not specs.get("model"):
-        specs["model"] = car_info["model"]
-    if car_info.get("year") and not specs.get("year"):
-        specs["year"] = car_info["year"]
-    ad_copy["specifications"] = specs
+    # 3. استخراج مواصفات السيارة إن وجدت حصراً إذا كان الإعلان سيارة
+    cat_hier = str(ad_copy.get("category_hierarchy", ""))
+    cat_id = ad_copy.get("leaf_category_id")
+    is_car_ad = ("السيارات" in cat_hier or (cat_id and cat_id in CAT_BY_ID and "السيارات" in build_category_hierarchy(cat_id)))
+    
+    if is_car_ad:
+        car_info = detect_car_info(raw_desc)
+        specs = dict(ad_copy.get("specifications") or {})
+        if car_info.get("brand") and not specs.get("make"):
+            specs["make"] = car_info["brand"]
+        if car_info.get("model") and not specs.get("model"):
+            specs["model"] = car_info["model"]
+        if car_info.get("year") and not specs.get("year"):
+            specs["year"] = car_info["year"]
+        ad_copy["specifications"] = specs
 
     # 4. توليد العنوان الاحترافي
     smart_title = generate_smart_title(raw_desc, ad_copy)
