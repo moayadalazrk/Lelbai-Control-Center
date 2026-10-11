@@ -166,37 +166,6 @@ def classify_leaf_category(text: str) -> Dict[str, Any]:
     from ai_ad_enhancer import detect_smart_category
     return detect_smart_category(text)
 
-    # 8. الأزياء
-    if any(k in t for k in ["ملابس رجالي", "بنطال", "قميص", "جاكيت رجالي"]):
-        return {"category_id": 3166, "category_name": "ملابس رجالية", "parent_name": "الأزياء والعناية الشخصية", "leaf_type": "men_clothes", "brand": None}
-    if any(k in t for k in ["فستان", "عباية", "مانطو", "ملابس نسائي"]):
-        return {"category_id": 3167, "category_name": "ملابس نسائية وفساتين", "parent_name": "الأزياء والعناية الشخصية", "leaf_type": "women_clothes", "brand": None}
-
-    # 9. المواشي والحيوانات
-    if any(k in t for k in ["غنم", "خروف", "ماعز", "نعجة"]):
-        return {"category_id": 3179, "category_name": "غنم وماعز وإبل", "parent_name": "الحيوان ومواشي", "leaf_type": "sheep", "brand": None}
-    if any(k in t for k in ["عجل", "بقرة", "خيل", "حصان"]):
-        return {"category_id": 3180, "category_name": "أبقار وعجول وخيول", "parent_name": "الحيوان ومواشي", "leaf_type": "cattle", "brand": None}
-    if any(k in t for k in ["طيور", "حمام", "دجاج", "فروج"]):
-        return {"category_id": 3181, "category_name": "طيور ودواجن وحمام", "parent_name": "الحيوان ومواشي", "leaf_type": "birds", "brand": None}
-
-    # 10. الوظائف والخدمات
-    if any(k in t for k in ["مطلوب موظف", "مطلوب معلم", "فرصة عمل", "شاغر"]):
-        return {"category_id": 3154, "category_name": "وظائف شاغرة", "parent_name": "الوظائف والأعمال", "leaf_type": "jobs", "brand": None}
-    if any(k in t for k in ["نقل عفش", "ترحيل"]):
-        return {"category_id": 3161, "category_name": "خدمات نقل العفش", "parent_name": "الخدمات", "leaf_type": "moving_services", "brand": None}
-    if any(k in t for k in ["توصيل", "دليفري"]):
-        return {"category_id": 3159, "category_name": "خدمات التوصيل", "parent_name": "الخدمات", "leaf_type": "delivery", "brand": None}
-
-    # الفئة الافتراضية العامة
-    return {
-        "category_id": 3207,
-        "category_name": "أصناف عامة ومتنوعة",
-        "parent_name": "أخرى",
-        "leaf_type": "general",
-        "brand": None
-    }
-
 def extract_detailed_specifications(text: str, leaf_info: Dict[str, Any]) -> Dict[str, Any]:
     """
     استخراج أكبر قدر من المواصفات المهيكلة من نص الإعلان (السيارات، العقارات، والسلع الأخرى).
