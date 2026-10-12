@@ -1,6 +1,6 @@
 {
-  "last_updated_at": "2026-10-09 15:25:00 +0300",
+  "last_updated_at": "2026-10-12 14:45:00 +0300",
   "relative_time": "الآن",
-  "commit_message": "chore: clean ad databases to start fresh with 0 ads on new download/update",
+  "commit_message": "feat(moderation): enforce 100% Gemini AI evaluation and interactive flagged ads dashboard v1.4.1",
   "status": "up_to_date"
 }

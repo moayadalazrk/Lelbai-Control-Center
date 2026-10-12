@@ -358,6 +358,10 @@ class GeminiProcessor:
                     result["approved_image_indices"] = final_appr
                     result["rejected_image_indices"] = final_rej
 
+                    result["ai_evaluated"] = True
+                    result["ai_model"] = current_model
+                    result["ai_timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")
+
                     if len(final_appr) == 0 and len(nimages) > 0:
                         result["is_safe"] = False
                         result["suggested_rejection_reason"] = result.get("suggested_rejection_reason") or "جميع الصور المرفقة مخالفة للضوابط الشرعية أو الرقابية"
@@ -445,6 +449,9 @@ class GeminiProcessor:
         processed_ad["flags"] = flags
         processed_ad["moderation_summary"] = summary
         processed_ad["rejection_reason"] = rejection_reason
+        processed_ad["ai_evaluated"] = bool(ai_res.get("ai_evaluated", False))
+        processed_ad["ai_model"] = ai_res.get("ai_model", self.model)
+        processed_ad["ai_timestamp"] = ai_res.get("ai_timestamp", time.strftime("%Y-%m-%d %H:%M:%S"))
         
         # دمج البيانات المهيكلة وتدقيق السعر بدقة فائقة
         from ai_ad_enhancer import extract_smart_price

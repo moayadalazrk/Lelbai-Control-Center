@@ -267,9 +267,13 @@ def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str
     # 7. الجاهزية للنشر (مكتمل + سليم شرعياً + غير مكرر على الموقع)
     is_ready_to_publish = is_specs_complete and is_safe and not is_duplicate
     
+    is_ai_done = bool(ad_copy.get("ai_evaluated"))
     summary_text = ad_copy.get("moderation_summary")
-    if not summary_text or summary_text == "بانتظار إضافة مفتاح Gemini API للمراجعة الآلية":
-        summary_text = "🤖 مفحوص بالرؤية الذكية السحابية (Gemini Vision API)" if is_safe else "تم رصد ملاحظات تحتاج لمراجعة"
+    if not summary_text:
+        if is_ai_done:
+            summary_text = "🤖 تم الفحص والاعتماد بالرؤية الذكية السحابية (Gemini Vision API)" if is_safe else "🚫 تم رصد مخالفات رقابية عبر الذكاء الاصطناعي"
+        else:
+            summary_text = "⏳ بانتظار استكمال فحص الذكاء الاصطناعي (Gemini)"
 
     # 8. توليد رد وتقرير الذكاء الاصطناعي الشامل
     ai_report = generate_ai_review_report(
@@ -297,11 +301,14 @@ def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str
             "city_name": resolved_city,
             "sub_district_name": ad_copy.get("sub_district_name") or "عام"
         },
+        "is_ai_evaluated": is_ai_done,
+        "ai_model": ad_copy.get("ai_model", "Gemini Vision"),
         "is_sharia_compliant": is_safe,
         "sharia_details": {
             "is_safe": is_safe,
             "flags": flags,
-            "summary": summary_text
+            "summary": summary_text,
+            "ai_evaluated": is_ai_done
         },
         "is_duplicate": is_duplicate,
         "duplicate_reason": dup_reason,
@@ -770,15 +777,33 @@ class ScrapingTaskManager:
                                 "extracted_at": time.strftime("%Y-%m-%d %H:%M:%S")
                             }
 
-                            # فحص وهيكلة الذكاء الاصطناعي بشكل غير حاجب
+                            # فحص وهيكلة الذكاء الاصطناعي بشكل إلزامي لضمان مرور كل إعلان على الذكاء الاصطناعي بنسبة 100%
                             processed_ad = await asyncio.to_thread(self.gemini_processor.process_and_clean_ad, ad_dict, IMGS_DIR)
 
+                            # إعادة محاولة فورية بفاصل زمني لضمان مرور الإعلان على الذكاء الاصطناعي وعدم تخطيه نهائياً
+                            if not processed_ad.get("ai_evaluated"):
+                                await asyncio.sleep(1.5)
+                                processed_ad = await asyncio.to_thread(self.gemini_processor.process_and_clean_ad, ad_dict, IMGS_DIR)
+
+                            if not processed_ad.get("ai_evaluated"):
+                                await asyncio.sleep(2.5)
+                                processed_ad = await asyncio.to_thread(self.gemini_processor.process_and_clean_ad, ad_dict, IMGS_DIR)
+
+                            # منع قاطع: عدم السماح لأي إعلان بالدخول لقائمة المراجعة إذا لم يمر على الذكاء الاصطناعي
+                            if not processed_ad.get("ai_evaluated"):
+                                self.log(f"[⚠️ استبعاد مؤقت]: تعذر تقييم الإعلان عبر الذكاء الاصطناعي (Gemini Vision) - لن يتم إدراجه حفاظاً على دقة المنظومة.")
+                                continue
+
                             if not processed_ad.get("is_safe", True):
-                                self.log(f"[🚫 استبعاد إعلان مخالف]: {processed_ad.get('moderation_summary')}")
+                                rej_msg = processed_ad.get('rejection_reason') or processed_ad.get('moderation_summary') or 'مخالفة للضوابط'
+                                self.log(f"[🚫 استبعاد إعلان مخالف عبر الذكاء الاصطناعي]: {rej_msg}")
                                 with self.lock:
                                     flagged = read_json_file(FLAGGED_FILE)
-                                    flagged.append(processed_ad)
-                                    write_json_file(FLAGGED_FILE, flagged)
+                                    ad_u = processed_ad.get("ad_url")
+                                    ad_t = processed_ad.get("clean_title")
+                                    if not any((ad_u and f.get("ad_url") == ad_u) or (ad_t and f.get("clean_title") == ad_t) for f in flagged):
+                                        flagged.insert(0, processed_ad)
+                                        write_json_file(FLAGGED_FILE, flagged)
                                 continue
 
                             # إثراء الإعلان بالتصنيف في أصغر فئة، المواصفات، حساب وهمي، وفحص التكرار، وتقرير الذكاء الاصطناعي
@@ -1041,6 +1066,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <button class="nav-btn" id="navBtnScraper" onclick="switchTab('tab-scraper', this)">⚡ تشغيل السحب المتوازي</button>
         <button class="nav-btn" id="navBtnReview" onclick="switchTab('tab-review', this)">📦 مراجعة ونشر الإعلانات (<span id="badgePending">0</span>)</button>
         <button class="nav-btn" id="navBtnPublished" onclick="switchTab('tab-published', this)">✅ الإعلانات المنشورة (<span id="badgePublished">0</span>)</button>
+        <button class="nav-btn" id="navBtnFlagged" onclick="switchTab('tab-flagged', this)" style="color:#f87171;">🚫 الإعلانات المحظورة (<span id="badgeFlagged">0</span>)</button>
         <button class="nav-btn" id="navBtnSettings" onclick="switchTab('tab-settings', this)">⚙️ الإعدادات والـ API</button>
       </div>
     </div>
@@ -1081,7 +1107,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
       <div class="stat-icon" style="background:rgba(139,92,246,0.15); color:#a78bfa;">✔️</div>
       <div class="stat-info"><div class="val" id="stPublishedAds" style="color:#a78bfa;">0</div><div class="lbl">إعلانات تم نشرها للموقع</div></div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card" onclick="switchTab('tab-flagged', document.getElementById('navBtnFlagged'))" style="cursor:pointer; border-color:rgba(239,68,68,0.3);" title="انقر لعرض قائمة الإعلانات المحظورة وأسباب الحظر">
       <div class="stat-icon" style="background:rgba(239,68,68,0.15); color:#f87171;">🚫</div>
       <div class="stat-info"><div class="val" id="stFlaggedAds" style="color:#f87171;">0</div><div class="lbl">إعلانات مخالفة تم استبعادها</div></div>
     </div>
@@ -1251,8 +1277,34 @@ HTML_PAGE = r"""<!DOCTYPE html>
     </div>
   </div>
 
-  <!-- تبويب 5: الإعدادات -->
-  <!-- تبويب 5: الإعدادات والتحكم بالبيانات -->
+  <!-- تبويب: قائمة الإعلانات المحظورة والمستبعدة وأسباب الحظر -->
+  <div class="tab-content" id="tab-flagged">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title" style="flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span>🚫 سجل الإعلانات المحظورة والمستبعدة بالذكاء الاصطناعي (<span id="flaggedListCount" style="color:#f87171; font-weight:900;">0</span> إعلان)</span>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-danger btn-sm" onclick="clearFlaggedAds()" style="background:#ef4444;" title="مسح وتفريغ سجل الإعلانات المحظورة بالكامل">🗑️ تفريغ كافة الإعلانات المحظورة</button>
+          <button class="btn btn-outline btn-sm" onclick="loadFlaggedAds()">🔄 تحديث القائمة</button>
+        </div>
+      </div>
+
+      <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:12px; margin-top:12px; color:#fca5a5; font-size:13px; display:flex; align-items:center; gap:10px;">
+        <span style="font-size:24px;">🛡️</span>
+        <div>
+          <b>نظام الرقابة الآلي والشرعي (Gemini Vision Cloud API):</b>
+          يتم استبعاد أي إعلان يحتوي على صور نساء، أسلحة، وثائق شخصية، سلع محظورة، أو حسابات ألعاب. يظهر لك أدناه كل إعلان تم استبعاده مع <b>سبب الحظر الدقيق</b> الصادر من الذكاء الاصطناعي، ويمكنك إلغاء الحظر ونقله للمراجعة إذا كان مستبعداً بالخطأ.
+        </div>
+      </div>
+    </div>
+
+    <div class="ads-grid" id="flaggedCardsGrid">
+      <!-- يتم عرض بطاقات الإعلانات المحظورة عبر JavaScript -->
+    </div>
+  </div>
+
+  <!-- تبويب: الإعدادات والتحكم بالبيانات -->
   <div class="tab-content" id="tab-settings">
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; max-width:1200px; margin:0 auto;">
       
@@ -1507,6 +1559,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
         if (!publishedAdsData || publishedAdsData.length === 0) loadPublishedAds();
         else renderPublishedGrid();
       }
+      if (tabId === 'tab-flagged') {
+        if (!flaggedAdsData || flaggedAdsData.length === 0) loadFlaggedAds();
+        else renderFlaggedGrid();
+      }
     }
 
     async function init() {
@@ -1752,8 +1808,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
         const stPub = document.getElementById('stPublishedAds');
         if (stPub) stPub.innerText = pubCount;
         const pubListCount = document.getElementById('publishedListCount');
-        if (pubListCount) pubListCount.innerText = pubCount;
-        document.getElementById('stFlaggedAds').innerText = data.flagged_count || 0;
+        const fCount = data.flagged_count || 0;
+        const stFlagged = document.getElementById('stFlaggedAds');
+        if (stFlagged) stFlagged.innerText = fCount;
+        const badgeFlagged = document.getElementById('badgeFlagged');
+        if (badgeFlagged) badgeFlagged.innerText = fCount;
 
         const readyCount = adsData.filter(a => a.evaluation && a.evaluation.is_ready_to_publish).length;
         document.getElementById('stReadyAds').innerText = readyCount;
@@ -1821,15 +1880,16 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
           const shFlags = Array.isArray(sh.flags) ? sh.flags : [];
           const summaryStr = sh.summary || ad.moderation_summary || '';
+          const isAiDone = Boolean(ad.ai_evaluated || ev.is_ai_evaluated);
           let shariaStatusHtml = '';
           if (sh.is_safe) {
-            if (summaryStr.includes('Gemini') || summaryStr.includes('Vision') || summaryStr.includes('سحاب')) {
-              shariaStatusHtml = `<span style="color:#34d399;" title="${escapeHtml(summaryStr)}">🟢 مطابق للضوابط (Gemini Vision API)</span>`;
+            if (isAiDone) {
+              shariaStatusHtml = `<span style="color:#34d399; font-weight:800;" title="${escapeHtml(summaryStr)}">🟢 مطابق للضوابط (Gemini Vision API)</span>`;
             } else {
-              shariaStatusHtml = `<span style="color:#38bdf8;" title="${escapeHtml(summaryStr)}">🤖 فحص الرؤية الذكية (Vision API)</span>`;
+              shariaStatusHtml = `<span style="color:#facc15; font-weight:700;" title="الإعلان بانتظار فحص الرؤية الذكية">⏳ بانتظار فحص AI (Gemini)</span>`;
             }
           } else {
-            shariaStatusHtml = `<span style="color:#f87171;" title="${escapeHtml(summaryStr)}">⚠️ ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
+            shariaStatusHtml = `<span style="color:#f87171; font-weight:800;" title="${escapeHtml(summaryStr)}">🚫 ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
           }
 
           const dupStatusHtml = ad.is_duplicate ?
@@ -2383,6 +2443,191 @@ HTML_PAGE = r"""<!DOCTYPE html>
         await loadPublishedAds();
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر!");
+      }
+    }
+
+    let flaggedAdsData = [];
+
+    async function loadFlaggedAds() {
+      try {
+        const grid = document.getElementById('flaggedCardsGrid');
+        if (flaggedAdsData.length === 0 && grid) {
+          grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px; color:#f87171; font-weight:800; font-size:16px;">⏳ جاري تحميل الإعلانات المحظورة وأسباب الحظر...</div>`;
+        }
+        const res = await apiFetch('/api/flagged_ads');
+        const data = await res.json();
+        flaggedAdsData = data.flagged || [];
+        const count = flaggedAdsData.length;
+        
+        const badgeFlagged = document.getElementById('badgeFlagged');
+        if (badgeFlagged) badgeFlagged.innerText = count;
+        const stFlagged = document.getElementById('stFlaggedAds');
+        if (stFlagged) stFlagged.innerText = count;
+        const flaggedListCount = document.getElementById('flaggedListCount');
+        if (flaggedListCount) flaggedListCount.innerText = count;
+
+        renderFlaggedGrid();
+      } catch (e) {
+        console.error("Error loading flagged ads:", e);
+      }
+    }
+
+    function renderFlaggedGrid() {
+      const grid = document.getElementById('flaggedCardsGrid');
+      if (!grid) return;
+      if (!flaggedAdsData || flaggedAdsData.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column:1/-1; text-align:center; padding:70px 20px; background:var(--card-inner); border-radius:14px; border:1px solid var(--border);">
+            <div style="font-size:36px; margin-bottom:12px;">🛡️</div>
+            <div style="font-size:16px; font-weight:800; color:#34d399; margin-bottom:6px;">سجل المحظورات نظيف تماماً!</div>
+            <div style="font-size:13px; color:var(--text-muted);">كافة الإعلانات المسحوبة مطابقة للضوابط الشرعية والقانونية ومجتازة لفحص الرؤية البصرية (Gemini Vision).</div>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = flaggedAdsData.map((ad, idx) => {
+        const title = ad.clean_title || ad.title || (ad.description || '').substring(0, 50) || 'إعلان بدون عنوان';
+        const phone = ad.phone_number || 'لا يوجد هاتف';
+        const desc = ad.clean_description || ad.description || 'لا يوجد تفاصيل';
+        const city = ad.city_name || ad.location_detected || 'سوريا';
+        const date = ad.extracted_at || 'حديثاً';
+        const reason = ad.rejection_reason || ad.moderation_summary || 'مخالفة لضوابط النشر والرقابة الشرعية';
+        const flags = Array.isArray(ad.flags) ? ad.flags : [];
+        const images = Array.isArray(ad.nimages) ? ad.nimages : [];
+        const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
+
+        return `
+          <div class="ad-card" id="flagCard-${idx}" style="border:1px solid rgba(239,68,68,0.45); box-shadow:0 4px 20px rgba(239,68,68,0.12);">
+            <div class="ad-gallery" style="position:relative;">
+              <img src="${firstImg || 'https://placehold.co/600x400/450a0a/fca5a5?text=Blocked+Ad'}" onerror="this.src='https://placehold.co/600x400/450a0a/fca5a5?text=Blocked+Ad'" />
+              <div style="position:absolute; top:8px; right:8px; background:#dc2626; color:#fff; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:800; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+                🚫 إعلان محظور ومستبعد
+              </div>
+            </div>
+
+            <div class="ad-body">
+              <!-- شريط سبب الحظر الصادر من الذكاء الاصطناعي -->
+              <div style="background:#450a0a; border:1px solid #ef4444; border-radius:10px; padding:12px; margin-bottom:10px;">
+                <div style="font-weight:900; font-size:13px; color:#fee2e2; display:flex; align-items:center; gap:6px;">
+                  <span>🚫 سبب الحظر:</span>
+                  <span style="color:#fca5a5;">${escapeHtml(reason)}</span>
+                </div>
+                ${ad.moderation_summary && ad.moderation_summary !== reason ? `
+                  <div style="font-size:11px; color:#fecaca; margin-top:4px; line-height:1.4;">
+                    📝 تقرير الفحص: ${escapeHtml(ad.moderation_summary)}
+                  </div>
+                ` : ''}
+                ${flags.length > 0 ? `
+                  <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:8px;">
+                    ${flags.map(f => `<span style="background:rgba(220,38,38,0.4); border:1px solid #dc2626; color:#fee2e2; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700;">⚠️ ${escapeHtml(f)}</span>`).join('')}
+                  </div>
+                ` : ''}
+              </div>
+
+              <!-- عنوان ومعلومات الإعلان -->
+              <div style="font-weight:800; font-size:14px; color:#f87171; margin-bottom:4px; line-height:1.4;">
+                ${escapeHtml(title)}
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-bottom:6px;">
+                <span>📍 ${escapeHtml(city)}</span>
+                <span>📅 ${escapeHtml(date)}</span>
+              </div>
+              <div class="ad-desc-box" style="border-color:rgba(239,68,68,0.25); max-height:80px;">${escapeHtml(desc)}</div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:700; color:#38bdf8; margin-top:6px;">
+                <span>📞 ${escapeHtml(phone)}</span>
+                <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
+              </div>
+
+              <!-- أزرار الإجراءات -->
+              <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
+                <button class="btn btn-success btn-sm" style="flex:1; min-width:130px;" onclick="unflagSingleAd(${idx})" title="إلغاء الحظر ونقل الإعلان إلى قائمة المراجعة">↩️ إلغاء الحظر للمراجعة</button>
+                <button class="btn btn-outline btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="recheckFlaggedAdWithAi(${idx})" title="إعادة فحص وتدقيق الإعلان مجدداً عبر Gemini Vision API">🤖 إعادة فحص AI</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteFlaggedSingleAd(${idx})" title="حذف نهائي للإعلان ومسح كافة صوره من الجهاز">🗑️ حذف نهائي</button>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function unflagSingleAd(idx) {
+      const ad = flaggedAdsData[idx];
+      if (!ad) return;
+      try {
+        const res = await apiFetch('/api/unflag_ad', {
+          method: 'POST',
+          body: JSON.stringify({ ad_index: idx, ad })
+        });
+        const data = await res.json();
+        alert(data.message || 'تم إلغاء الحظر ونقل الإعلان للمراجعة');
+        await loadFlaggedAds();
+        await loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر: " + e);
+      }
+    }
+
+    async function recheckFlaggedAdWithAi(idx) {
+      const ad = flaggedAdsData[idx];
+      if (!ad) return;
+      try {
+        const res = await apiFetch('/api/reclassify_ad_with_ai', {
+          method: 'POST',
+          body: JSON.stringify({ ad_index: idx, ad, from_flagged: true })
+        });
+        const data = await res.json();
+        if (data.success && data.ad) {
+          if (data.ad.is_safe) {
+            alert("🟢 نجح الفحص: الإعلان سليم ومطابق للضوابط وتم نقله لقائمة المراجعة للنشر!");
+            await loadFlaggedAds();
+            await loadAllAds();
+          } else {
+            alert(`🚫 نتيجة الفحص بالذكاء الاصطناعي: لا يزال محظوراً:\nالسبب: ${data.ad.rejection_reason || data.ad.moderation_summary}`);
+            await loadFlaggedAds();
+          }
+        } else {
+          alert(data.message || 'تعذر إعادة الفحص');
+        }
+      } catch (e) {
+        alert("خطأ أثناء الفحص: " + e);
+      }
+    }
+
+    async function deleteFlaggedSingleAd(idx) {
+      const ad = flaggedAdsData[idx];
+      if (!ad) return;
+      if (!confirm(`هل أنت متأكد من حذف هذا الإعلان المحظور وصوره نهائياً من الجهاز؟`)) return;
+      try {
+        const res = await apiFetch('/api/delete_flagged_ad', {
+          method: 'POST',
+          body: JSON.stringify({ ad_index: idx, ad })
+        });
+        const data = await res.json();
+        alert(data.message || 'تم حذف الإعلان');
+        await loadFlaggedAds();
+        await loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر: " + e);
+      }
+    }
+
+    async function clearFlaggedAds() {
+      if (!flaggedAdsData.length) {
+        alert('سجل المحظورات فارغ بالفعل!');
+        return;
+      }
+      if (!confirm(`هل أنت متأكد من تفريغ كافة الإعلانات المحظورة (${flaggedAdsData.length}) نهائياً؟`)) return;
+      try {
+        const res = await apiFetch('/api/clear_flagged_ads', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'تم تفريغ سجل المحظورات بنجاح');
+        await loadFlaggedAds();
+        await loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر: " + e);
       }
     }
 
@@ -3191,6 +3436,14 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             })
             return
 
+        elif path == "/api/flagged_ads":
+            flagged = read_json_file(FLAGGED_FILE)
+            self.send_json({
+                "flagged": flagged,
+                "count": len(flagged)
+            })
+            return
+
         elif path == "/api/status":
             with task_manager.lock:
                 elapsed = int(time.time() - task_manager.start_time) if task_manager.is_running else 0
@@ -3684,6 +3937,77 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             self.send_json({"success": True, "message": "تم تفريغ سجل الإعلانات المستبعدة بنجاح! 🗑️"})
             return
 
+        elif path == "/api/unflag_ad":
+            ad = req_data.get("ad", {})
+            ad_url = ad.get("ad_url") or req_data.get("ad_url")
+            clean_title = ad.get("clean_title") or req_data.get("clean_title")
+            ad_idx = req_data.get("ad_index")
+
+            flagged = read_json_file(FLAGGED_FILE)
+            target = None
+            found_idx = -1
+            for i, f in enumerate(flagged):
+                if (ad_url and f.get("ad_url") == ad_url) or (clean_title and f.get("clean_title") == clean_title):
+                    target = f
+                    found_idx = i
+                    break
+            if target is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(flagged):
+                target = flagged[ad_idx]
+                found_idx = ad_idx
+            if target is None:
+                target = ad
+
+            if target:
+                if found_idx != -1 and found_idx < len(flagged):
+                    flagged.pop(found_idx)
+                    write_json_file(FLAGGED_FILE, flagged)
+                
+                target["is_safe"] = True
+                target["moderation_status"] = "safe"
+                target["rejection_reason"] = None
+                pending = read_json_file(PENDING_FILE)
+                target_url = target.get("ad_url")
+                target_title = target.get("clean_title")
+                if not any((target_url and p.get("ad_url") == target_url) or (target_title and p.get("clean_title") == target_title) for p in pending):
+                    pending.insert(0, target)
+                    write_json_file(PENDING_FILE, pending)
+                
+                self.send_json({"success": True, "message": "تم إلغاء الحظر ونقل الإعلان إلى قائمة المراجعة بنجاح! 🟢"})
+            else:
+                self.send_json({"success": False, "message": "لم يتم العثور على الإعلان المستهدف."})
+            return
+
+        elif path == "/api/delete_flagged_ad":
+            ad = req_data.get("ad", {})
+            ad_url = ad.get("ad_url") or req_data.get("ad_url")
+            clean_title = ad.get("clean_title") or req_data.get("clean_title")
+            ad_idx = req_data.get("ad_index")
+
+            flagged = read_json_file(FLAGGED_FILE)
+            target = None
+            found_idx = -1
+            for i, f in enumerate(flagged):
+                if (ad_url and f.get("ad_url") == ad_url) or (clean_title and f.get("clean_title") == clean_title):
+                    target = f
+                    found_idx = i
+                    break
+            if target is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(flagged):
+                target = flagged[ad_idx]
+                found_idx = ad_idx
+
+            if target:
+                for img_name in target.get("nimages", []):
+                    img_path = os.path.join(IMGS_DIR, img_name)
+                    if os.path.exists(img_path):
+                        try: os.remove(img_path)
+                        except Exception: pass
+                flagged.pop(found_idx)
+                write_json_file(FLAGGED_FILE, flagged)
+                self.send_json({"success": True, "message": "تم حذف الإعلان المخالف وصوره نهائياً بنجاح! 🗑️"})
+            else:
+                self.send_json({"success": False, "message": "لم يتم العثور على الإعلان المطلوب."})
+            return
+
         elif path == "/api/clear_all_images":
             deleted_count = 0
             if os.path.exists(IMGS_DIR):
@@ -3719,19 +4043,33 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             ad_url = ad.get("ad_url") or req_data.get("ad_url")
             clean_title = ad.get("clean_title") or req_data.get("clean_title")
             ad_idx = req_data.get("ad_index")
+            from_flagged = req_data.get("from_flagged", False)
 
             pending = read_json_file(PENDING_FILE)
+            flagged = read_json_file(FLAGGED_FILE)
             target = None
-            found_idx = -1
+            found_pending_idx = -1
+            found_flagged_idx = -1
 
-            for i, p in enumerate(pending):
-                if (ad_url and p.get("ad_url") == ad_url) or (clean_title and p.get("clean_title") == clean_title):
-                    target = p
-                    found_idx = i
-                    break
-            if target is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(pending):
-                target = pending[ad_idx]
-                found_idx = ad_idx
+            if from_flagged:
+                for i, f in enumerate(flagged):
+                    if (ad_url and f.get("ad_url") == ad_url) or (clean_title and f.get("clean_title") == clean_title):
+                        target = f
+                        found_flagged_idx = i
+                        break
+                if target is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(flagged):
+                    target = flagged[ad_idx]
+                    found_flagged_idx = ad_idx
+            else:
+                for i, p in enumerate(pending):
+                    if (ad_url and p.get("ad_url") == ad_url) or (clean_title and p.get("clean_title") == clean_title):
+                        target = p
+                        found_pending_idx = i
+                        break
+                if target is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(pending):
+                    target = pending[ad_idx]
+                    found_pending_idx = ad_idx
+
             if target is None:
                 target = ad
 
@@ -3741,10 +4079,32 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 
             try:
                 processed = task_manager.gemini_processor.process_and_clean_ad(target, IMGS_DIR)
-                enriched = enrich_ad_status(processed, force_recalc=True)
-                if found_idx != -1 and found_idx < len(pending):
-                    pending[found_idx] = enriched
-                    write_json_file(PENDING_FILE, pending)
+                if from_flagged or found_flagged_idx != -1:
+                    if processed.get("is_safe", True):
+                        if found_flagged_idx != -1 and found_flagged_idx < len(flagged):
+                            flagged.pop(found_flagged_idx)
+                            write_json_file(FLAGGED_FILE, flagged)
+                        enriched = enrich_ad_status(processed, force_recalc=True)
+                        pending.insert(0, enriched)
+                        write_json_file(PENDING_FILE, pending)
+                    else:
+                        enriched = processed
+                        if found_flagged_idx != -1 and found_flagged_idx < len(flagged):
+                            flagged[found_flagged_idx] = enriched
+                            write_json_file(FLAGGED_FILE, flagged)
+                else:
+                    if not processed.get("is_safe", True):
+                        if found_pending_idx != -1 and found_pending_idx < len(pending):
+                            pending.pop(found_pending_idx)
+                            write_json_file(PENDING_FILE, pending)
+                        flagged.insert(0, processed)
+                        write_json_file(FLAGGED_FILE, flagged)
+                        enriched = processed
+                    else:
+                        enriched = enrich_ad_status(processed, force_recalc=True)
+                        if found_pending_idx != -1 and found_pending_idx < len(pending):
+                            pending[found_pending_idx] = enriched
+                            write_json_file(PENDING_FILE, pending)
 
                 all_ads = read_json_file(ALL_ADS_FILE)
                 for j, a in enumerate(all_ads):
@@ -3755,7 +4115,7 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 
                 self.send_json({
                     "success": True,
-                    "message": f"تمت إعادة تصنيف الإعلان بالذكاء الاصطناعي بنجاح: {enriched.get('leaf_category_name')} [ID: {enriched.get('id-categorie')}] 🤖",
+                    "message": f"تم فحص وتصنيف الإعلان بالذكاء الاصطناعي: {enriched.get('leaf_category_name', '')} [ID: {enriched.get('id-categorie', '')}] 🤖",
                     "ad": enriched
                 })
             except Exception as e:

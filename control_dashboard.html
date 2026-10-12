@@ -188,6 +188,7 @@
         <button class="nav-btn" id="navBtnScraper" onclick="switchTab('tab-scraper', this)">⚡ تشغيل السحب المتوازي</button>
         <button class="nav-btn" id="navBtnReview" onclick="switchTab('tab-review', this)">📦 مراجعة ونشر الإعلانات (<span id="badgePending">0</span>)</button>
         <button class="nav-btn" id="navBtnPublished" onclick="switchTab('tab-published', this)">✅ الإعلانات المنشورة (<span id="badgePublished">0</span>)</button>
+        <button class="nav-btn" id="navBtnFlagged" onclick="switchTab('tab-flagged', this)" style="color:#f87171;">🚫 الإعلانات المحظورة (<span id="badgeFlagged">0</span>)</button>
         <button class="nav-btn" id="navBtnSettings" onclick="switchTab('tab-settings', this)">⚙️ الإعدادات والـ API</button>
       </div>
     </div>
@@ -228,7 +229,7 @@
       <div class="stat-icon" style="background:rgba(139,92,246,0.15); color:#a78bfa;">✔️</div>
       <div class="stat-info"><div class="val" id="stPublishedAds" style="color:#a78bfa;">0</div><div class="lbl">إعلانات تم نشرها للموقع</div></div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card" onclick="switchTab('tab-flagged', document.getElementById('navBtnFlagged'))" style="cursor:pointer; border-color:rgba(239,68,68,0.3);" title="انقر لعرض قائمة الإعلانات المحظورة وأسباب الحظر">
       <div class="stat-icon" style="background:rgba(239,68,68,0.15); color:#f87171;">🚫</div>
       <div class="stat-info"><div class="val" id="stFlaggedAds" style="color:#f87171;">0</div><div class="lbl">إعلانات مخالفة تم استبعادها</div></div>
     </div>
@@ -347,6 +348,7 @@
         <button class="btn btn-sm btn-outline" onclick="filterAds('review', this)">⚠️ بحاجة لمراجعة</button>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-outline" style="border-color:#38bdf8; color:#38bdf8; font-weight:800;" onclick="reclassifyAllAdsWithAi()" title="إعادة الفحص والتصنيف الكامل لكافة الإعلانات عبر Gemini AI">🤖 فحص الكل بالذكاء الاصطناعي</button>
         <button class="btn btn-danger" onclick="clearAllPendingAds()" style="background:#ef4444;" title="مسح وتفريغ كافة الإعلانات غير المنشورة وصورها دفعة واحدة">🗑️ تفريغ كافة الإعلانات</button>
         <button class="btn btn-success" onclick="bulkPublishReady()">⚡ نشر كافة الإعلانات الجاهزة لمجلد الاستيراد</button>
         <button class="btn btn-outline" onclick="loadAllAds()">🔄 تحديث</button>
@@ -397,8 +399,34 @@
     </div>
   </div>
 
-  <!-- تبويب 5: الإعدادات -->
-  <!-- تبويب 5: الإعدادات والتحكم بالبيانات -->
+  <!-- تبويب: قائمة الإعلانات المحظورة والمستبعدة وأسباب الحظر -->
+  <div class="tab-content" id="tab-flagged">
+    <div class="card" style="margin-bottom:20px;">
+      <div class="card-title" style="flex-wrap:wrap; gap:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span>🚫 سجل الإعلانات المحظورة والمستبعدة بالذكاء الاصطناعي (<span id="flaggedListCount" style="color:#f87171; font-weight:900;">0</span> إعلان)</span>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+          <button class="btn btn-danger btn-sm" onclick="clearFlaggedAds()" style="background:#ef4444;" title="مسح وتفريغ سجل الإعلانات المحظورة بالكامل">🗑️ تفريغ كافة الإعلانات المحظورة</button>
+          <button class="btn btn-outline btn-sm" onclick="loadFlaggedAds()">🔄 تحديث القائمة</button>
+        </div>
+      </div>
+
+      <div style="background:rgba(239,68,68,0.1); border:1px solid rgba(239,68,68,0.3); border-radius:10px; padding:12px; margin-top:12px; color:#fca5a5; font-size:13px; display:flex; align-items:center; gap:10px;">
+        <span style="font-size:24px;">🛡️</span>
+        <div>
+          <b>نظام الرقابة الآلي والشرعي (Gemini Vision Cloud API):</b>
+          يتم استبعاد أي إعلان يحتوي على صور نساء، أسلحة، وثائق شخصية، سلع محظورة، أو حسابات ألعاب. يظهر لك أدناه كل إعلان تم استبعاده مع <b>سبب الحظر الدقيق</b> الصادر من الذكاء الاصطناعي، ويمكنك إلغاء الحظر ونقله للمراجعة إذا كان مستبعداً بالخطأ.
+        </div>
+      </div>
+    </div>
+
+    <div class="ads-grid" id="flaggedCardsGrid">
+      <!-- يتم عرض بطاقات الإعلانات المحظورة عبر JavaScript -->
+    </div>
+  </div>
+
+  <!-- تبويب: الإعدادات والتحكم بالبيانات -->
   <div class="tab-content" id="tab-settings">
     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; max-width:1200px; margin:0 auto;">
       
@@ -653,6 +681,10 @@
         if (!publishedAdsData || publishedAdsData.length === 0) loadPublishedAds();
         else renderPublishedGrid();
       }
+      if (tabId === 'tab-flagged') {
+        if (!flaggedAdsData || flaggedAdsData.length === 0) loadFlaggedAds();
+        else renderFlaggedGrid();
+      }
     }
 
     async function init() {
@@ -898,8 +930,11 @@
         const stPub = document.getElementById('stPublishedAds');
         if (stPub) stPub.innerText = pubCount;
         const pubListCount = document.getElementById('publishedListCount');
-        if (pubListCount) pubListCount.innerText = pubCount;
-        document.getElementById('stFlaggedAds').innerText = data.flagged_count || 0;
+        const fCount = data.flagged_count || 0;
+        const stFlagged = document.getElementById('stFlaggedAds');
+        if (stFlagged) stFlagged.innerText = fCount;
+        const badgeFlagged = document.getElementById('badgeFlagged');
+        if (badgeFlagged) badgeFlagged.innerText = fCount;
 
         const readyCount = adsData.filter(a => a.evaluation && a.evaluation.is_ready_to_publish).length;
         document.getElementById('stReadyAds').innerText = readyCount;
@@ -967,15 +1002,16 @@
 
           const shFlags = Array.isArray(sh.flags) ? sh.flags : [];
           const summaryStr = sh.summary || ad.moderation_summary || '';
+          const isAiDone = Boolean(ad.ai_evaluated || ev.is_ai_evaluated);
           let shariaStatusHtml = '';
           if (sh.is_safe) {
-            if (summaryStr.includes('Gemini') || summaryStr.includes('Vision') || summaryStr.includes('سحاب')) {
-              shariaStatusHtml = `<span style="color:#34d399;" title="${escapeHtml(summaryStr)}">🟢 مطابق للضوابط (Gemini Vision API)</span>`;
+            if (isAiDone) {
+              shariaStatusHtml = `<span style="color:#34d399; font-weight:800;" title="${escapeHtml(summaryStr)}">🟢 مطابق للضوابط (Gemini Vision API)</span>`;
             } else {
-              shariaStatusHtml = `<span style="color:#38bdf8;" title="${escapeHtml(summaryStr)}">🤖 فحص الرؤية الذكية (Vision API)</span>`;
+              shariaStatusHtml = `<span style="color:#facc15; font-weight:700;" title="الإعلان بانتظار فحص الرؤية الذكية">⏳ بانتظار فحص AI (Gemini)</span>`;
             }
           } else {
-            shariaStatusHtml = `<span style="color:#f87171;" title="${escapeHtml(summaryStr)}">⚠️ ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
+            shariaStatusHtml = `<span style="color:#f87171; font-weight:800;" title="${escapeHtml(summaryStr)}">🚫 ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
           }
 
           const dupStatusHtml = ad.is_duplicate ?
@@ -1080,6 +1116,7 @@
 
                 <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
                   <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1; min-width:140px;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
+                  <button id="aiBtn-${idx}" class="btn btn-outline btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="reclassifySingleAd(${idx})" title="إعادة فحص وتصنيف الإعلان بالذكاء الاصطناعي (Gemini)">🤖 فحص AI</button>
                   <button id="rejBtn-${idx}" class="btn btn-warning btn-sm" onclick="rejectSingleAd(${idx})" title="استبعاد الإعلان ونقله للمخالفات">⚠️ استبعاد</button>
                   <button id="delBtn-${idx}" class="btn btn-danger btn-sm" onclick="deleteSingleAd(${idx})" title="حذف نهائي للإعلان وصوره من الجهاز">🗑️ حذف نهائي</button>
                 </div>
@@ -1262,6 +1299,55 @@
         loadPublishedAds();
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
+      }
+    }
+
+    async function reclassifySingleAd(idx) {
+      const ad = adsData[idx];
+      if (!ad) return;
+      const btn = document.getElementById(`aiBtn-${idx}`);
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ جاري الفحص...'; }
+      try {
+        const res = await apiFetch('/api/reclassify_ad_with_ai', {
+          method: 'POST',
+          body: JSON.stringify({ ad_index: idx, ad: ad })
+        });
+        const data = await res.json();
+        if (data.success && data.ad) {
+          adsData[idx] = data.ad;
+          renderAdsGrid();
+          alert(data.message || 'تمت إعادة الفحص والتصنيف بنجاح! 🤖');
+        } else {
+          alert(data.message || 'تعذر إعادة التصنيف بالذكاء الاصطناعي');
+        }
+      } catch (err) {
+        alert('خطأ أثناء الفحص: ' + err);
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '🤖 فحص AI'; }
+      }
+    }
+
+    async function reclassifyAllAdsWithAi() {
+      if (!adsData.length) {
+        alert('لا توجد إعلانات حالياً في قائمة المراجعة!');
+        return;
+      }
+      if (!confirm(`هل تريد إعادة فحص وتصنيف كافة الإعلانات (${adsData.length}) باستخدام الذكاء الاصطناعي (Gemini Vision API)؟`)) return;
+      const overlay = document.createElement('div');
+      overlay.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:99999; display:flex; justify-content:center; align-items:center; color:#fff; font-size:18px; font-weight:800; flex-direction:column; gap:16px;';
+      overlay.innerHTML = '<div>⏳ جاري فحص وتصنيف الإعلانات بالذكاء الاصطناعي... يرجى الانتظار</div>';
+      document.body.appendChild(overlay);
+      try {
+        const res = await apiFetch('/api/reclassify_all_with_ai', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message);
+        await loadAllAds();
+      } catch (e) {
+        alert('خطأ أثناء الفحص الجماعي: ' + e);
+      } finally {
+        if (document.body.contains(overlay)) {
+          document.body.removeChild(overlay);
+        }
       }
     }
 
@@ -1479,6 +1565,191 @@
         await loadPublishedAds();
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر!");
+      }
+    }
+
+    let flaggedAdsData = [];
+
+    async function loadFlaggedAds() {
+      try {
+        const grid = document.getElementById('flaggedCardsGrid');
+        if (flaggedAdsData.length === 0 && grid) {
+          grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px; color:#f87171; font-weight:800; font-size:16px;">⏳ جاري تحميل الإعلانات المحظورة وأسباب الحظر...</div>`;
+        }
+        const res = await apiFetch('/api/flagged_ads');
+        const data = await res.json();
+        flaggedAdsData = data.flagged || [];
+        const count = flaggedAdsData.length;
+        
+        const badgeFlagged = document.getElementById('badgeFlagged');
+        if (badgeFlagged) badgeFlagged.innerText = count;
+        const stFlagged = document.getElementById('stFlaggedAds');
+        if (stFlagged) stFlagged.innerText = count;
+        const flaggedListCount = document.getElementById('flaggedListCount');
+        if (flaggedListCount) flaggedListCount.innerText = count;
+
+        renderFlaggedGrid();
+      } catch (e) {
+        console.error("Error loading flagged ads:", e);
+      }
+    }
+
+    function renderFlaggedGrid() {
+      const grid = document.getElementById('flaggedCardsGrid');
+      if (!grid) return;
+      if (!flaggedAdsData || flaggedAdsData.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column:1/-1; text-align:center; padding:70px 20px; background:var(--card-inner); border-radius:14px; border:1px solid var(--border);">
+            <div style="font-size:36px; margin-bottom:12px;">🛡️</div>
+            <div style="font-size:16px; font-weight:800; color:#34d399; margin-bottom:6px;">سجل المحظورات نظيف تماماً!</div>
+            <div style="font-size:13px; color:var(--text-muted);">كافة الإعلانات المسحوبة مطابقة للضوابط الشرعية والقانونية ومجتازة لفحص الرؤية البصرية (Gemini Vision).</div>
+          </div>
+        `;
+        return;
+      }
+
+      grid.innerHTML = flaggedAdsData.map((ad, idx) => {
+        const title = ad.clean_title || ad.title || (ad.description || '').substring(0, 50) || 'إعلان بدون عنوان';
+        const phone = ad.phone_number || 'لا يوجد هاتف';
+        const desc = ad.clean_description || ad.description || 'لا يوجد تفاصيل';
+        const city = ad.city_name || ad.location_detected || 'سوريا';
+        const date = ad.extracted_at || 'حديثاً';
+        const reason = ad.rejection_reason || ad.moderation_summary || 'مخالفة لضوابط النشر والرقابة الشرعية';
+        const flags = Array.isArray(ad.flags) ? ad.flags : [];
+        const images = Array.isArray(ad.nimages) ? ad.nimages : [];
+        const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
+
+        return `
+          <div class="ad-card" id="flagCard-${idx}" style="border:1px solid rgba(239,68,68,0.45); box-shadow:0 4px 20px rgba(239,68,68,0.12);">
+            <div class="ad-gallery" style="position:relative;">
+              <img src="${firstImg || 'https://placehold.co/600x400/450a0a/fca5a5?text=Blocked+Ad'}" onerror="this.src='https://placehold.co/600x400/450a0a/fca5a5?text=Blocked+Ad'" />
+              <div style="position:absolute; top:8px; right:8px; background:#dc2626; color:#fff; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:800; box-shadow:0 2px 8px rgba(0,0,0,0.4);">
+                🚫 إعلان محظور ومستبعد
+              </div>
+            </div>
+
+            <div class="ad-body">
+              <!-- شريط سبب الحظر الصادر من الذكاء الاصطناعي -->
+              <div style="background:#450a0a; border:1px solid #ef4444; border-radius:10px; padding:12px; margin-bottom:10px;">
+                <div style="font-weight:900; font-size:13px; color:#fee2e2; display:flex; align-items:center; gap:6px;">
+                  <span>🚫 سبب الحظر:</span>
+                  <span style="color:#fca5a5;">${escapeHtml(reason)}</span>
+                </div>
+                ${ad.moderation_summary && ad.moderation_summary !== reason ? `
+                  <div style="font-size:11px; color:#fecaca; margin-top:4px; line-height:1.4;">
+                    📝 تقرير الفحص: ${escapeHtml(ad.moderation_summary)}
+                  </div>
+                ` : ''}
+                ${flags.length > 0 ? `
+                  <div style="display:flex; gap:4px; flex-wrap:wrap; margin-top:8px;">
+                    ${flags.map(f => `<span style="background:rgba(220,38,38,0.4); border:1px solid #dc2626; color:#fee2e2; padding:2px 8px; border-radius:4px; font-size:10px; font-weight:700;">⚠️ ${escapeHtml(f)}</span>`).join('')}
+                  </div>
+                ` : ''}
+              </div>
+
+              <!-- عنوان ومعلومات الإعلان -->
+              <div style="font-weight:800; font-size:14px; color:#f87171; margin-bottom:4px; line-height:1.4;">
+                ${escapeHtml(title)}
+              </div>
+              <div style="display:flex; justify-content:space-between; font-size:11px; color:var(--text-muted); margin-bottom:6px;">
+                <span>📍 ${escapeHtml(city)}</span>
+                <span>📅 ${escapeHtml(date)}</span>
+              </div>
+              <div class="ad-desc-box" style="border-color:rgba(239,68,68,0.25); max-height:80px;">${escapeHtml(desc)}</div>
+
+              <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:700; color:#38bdf8; margin-top:6px;">
+                <span>📞 ${escapeHtml(phone)}</span>
+                <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
+              </div>
+
+              <!-- أزرار الإجراءات -->
+              <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
+                <button class="btn btn-success btn-sm" style="flex:1; min-width:130px;" onclick="unflagSingleAd(${idx})" title="إلغاء الحظر ونقل الإعلان إلى قائمة المراجعة">↩️ إلغاء الحظر للمراجعة</button>
+                <button class="btn btn-outline btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="recheckFlaggedAdWithAi(${idx})" title="إعادة فحص وتدقيق الإعلان مجدداً عبر Gemini Vision API">🤖 إعادة فحص AI</button>
+                <button class="btn btn-danger btn-sm" onclick="deleteFlaggedSingleAd(${idx})" title="حذف نهائي للإعلان ومسح كافة صوره من الجهاز">🗑️ حذف نهائي</button>
+              </div>
+
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function unflagSingleAd(idx) {
+      const ad = flaggedAdsData[idx];
+      if (!ad) return;
+      try {
+        const res = await apiFetch('/api/unflag_ad', {
+          method: 'POST',
+          body: JSON.stringify({ ad_index: idx, ad })
+        });
+        const data = await res.json();
+        alert(data.message || 'تم إلغاء الحظر ونقل الإعلان للمراجعة');
+        await loadFlaggedAds();
+        await loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر: " + e);
+      }
+    }
+
+    async function recheckFlaggedAdWithAi(idx) {
+      const ad = flaggedAdsData[idx];
+      if (!ad) return;
+      try {
+        const res = await apiFetch('/api/reclassify_ad_with_ai', {
+          method: 'POST',
+          body: JSON.stringify({ ad_index: idx, ad, from_flagged: true })
+        });
+        const data = await res.json();
+        if (data.success && data.ad) {
+          if (data.ad.is_safe) {
+            alert("🟢 نجح الفحص: الإعلان سليم ومطابق للضوابط وتم نقله لقائمة المراجعة للنشر!");
+            await loadFlaggedAds();
+            await loadAllAds();
+          } else {
+            alert(`🚫 نتيجة الفحص بالذكاء الاصطناعي: لا يزال محظوراً:\nالسبب: ${data.ad.rejection_reason || data.ad.moderation_summary}`);
+            await loadFlaggedAds();
+          }
+        } else {
+          alert(data.message || 'تعذر إعادة الفحص');
+        }
+      } catch (e) {
+        alert("خطأ أثناء الفحص: " + e);
+      }
+    }
+
+    async function deleteFlaggedSingleAd(idx) {
+      const ad = flaggedAdsData[idx];
+      if (!ad) return;
+      if (!confirm(`هل أنت متأكد من حذف هذا الإعلان المحظور وصوره نهائياً من الجهاز؟`)) return;
+      try {
+        const res = await apiFetch('/api/delete_flagged_ad', {
+          method: 'POST',
+          body: JSON.stringify({ ad_index: idx, ad })
+        });
+        const data = await res.json();
+        alert(data.message || 'تم حذف الإعلان');
+        await loadFlaggedAds();
+        await loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر: " + e);
+      }
+    }
+
+    async function clearFlaggedAds() {
+      if (!flaggedAdsData.length) {
+        alert('سجل المحظورات فارغ بالفعل!');
+        return;
+      }
+      if (!confirm(`هل أنت متأكد من تفريغ كافة الإعلانات المحظورة (${flaggedAdsData.length}) نهائياً؟`)) return;
+      try {
+        const res = await apiFetch('/api/clear_flagged_ads', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'تم تفريغ سجل المحظورات بنجاح');
+        await loadFlaggedAds();
+        await loadAllAds();
+      } catch (e) {
+        alert("تعذر الاتصال بالسيرفر: " + e);
       }
     }
 
@@ -1924,938 +2195,3 @@
   </script>
 </body>
 </html>
-"""
-
-# ==============================================================================
-# خدمات الربط مع لوحة تحكم المنجر وتحديثات النظام
-# ==============================================================================
-def is_port_listening(port: int, host: str = "127.0.0.1", timeout: float = 0.15) -> bool:
-    """فحص ما إذا كان البورت يعمل ومستمع للاتصالات."""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(timeout)
-            return s.connect_ex((host, port)) == 0
-    except Exception:
-        return False
-
-def ensure_mysql_running() -> bool:
-    """التأكد من تشغيل خادم MySQL (XAMPP) الضروري لعمل لوحة الإدارة وقاعدة البيانات."""
-    if is_port_listening(3306):
-        return True
-
-    # 1. محاولة تشغيل خدمة ويندوز
-    try:
-        subprocess.run(["net", "start", "mysql"], capture_output=True, timeout=5)
-    except Exception:
-        pass
-
-    if is_port_listening(3306):
-        return True
-
-    # 2. تشغيل mysqld.exe مباشرة من مسار XAMPP
-    mysqld_exe = r"C:\xampp\mysql\bin\mysqld.exe"
-    my_ini = r"C:\xampp\mysql\bin\my.ini"
-    if os.path.exists(mysqld_exe):
-        try:
-            subprocess.Popen(
-                [mysqld_exe, f"--defaults-file={my_ini}", "--standalone"],
-                cwd=r"C:\xampp",
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0
-            )
-        except Exception as e:
-            print(f"Error starting mysqld: {e}")
-
-    for _ in range(8):
-        time.sleep(0.4)
-        if is_port_listening(3306):
-            return True
-
-    return is_port_listening(3306)
-
-def get_manager_system_status(client_host: str = "localhost") -> dict:
-    """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة في الوقت الفعلي."""
-    manager_running = is_port_listening(8002)
-    backend_running = is_port_listening(8000)
-    frontend_running = is_port_listening(3000)
-    mysql_running = is_port_listening(3306)
-    desktop_shortcut = os.path.join(os.path.expanduser("~"), "Desktop", "لوحة تحكم المنجر.lnk")
-    
-    is_local = client_host in ["localhost", "127.0.0.1", "::1"]
-    lan_ip = get_lan_ip()
-    display_host = "localhost" if is_local else (client_host if client_host else lan_ip)
-
-    return {
-        "manager_running": manager_running,
-        "backend_running": backend_running,
-        "frontend_running": frontend_running,
-        "mysql_running": mysql_running,
-        "shortcut_exists": os.path.exists(desktop_shortcut),
-        "manager_url": f"http://{display_host}:8002",
-        "lan_url": f"http://{lan_ip}:8002"
-    }
-
-def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
-    """تشغيل كافة سيرفرات المنجر وقاعدة البيانات والتحقق من جاهزيتها قبل فتح لوحة التحكم."""
-    az_base = r"C:\xampp\htdocs\projects\AZ"
-    start_servers_bat = os.path.join(az_base, "start_servers.bat")
-
-    is_local = client_host in ["localhost", "127.0.0.1", "::1"]
-    lan_ip = get_lan_ip()
-    display_host = "localhost" if is_local else (client_host if client_host else lan_ip)
-    manager_url = f"http://{display_host}:8002"
-    lan_url = f"http://{lan_ip}:8002"
-
-    # 1. التأكد أولاً من عمل خادم MySQL
-    ensure_mysql_running()
-
-    # 2. فحص ما إذا كان سيرفر المنجر يعمل مسبقاً
-    if is_port_listening(8002):
-        return {
-            "success": True,
-            "message": "سيرفر الإدارة يعمل بالفعل وهو جاهز للاستخدام! 🚀",
-            "url": manager_url,
-            "lan_url": lan_url,
-            "manager_running": True
-        }
-
-    # 3. إطلاق السيرفرات عبر start_servers.bat أو node start_bot.js مع استماع كامل لكافة الأجهزة (0.0.0.0)
-    start_bot_js = os.path.join(az_base, "start_bot.js")
-    if os.path.exists(start_servers_bat):
-        try:
-            subprocess.Popen(
-                'start "lelbai - Server Control Panel" start_servers.bat',
-                cwd=az_base,
-                shell=True
-            )
-        except Exception as e:
-            print(f"Error launching start_servers.bat: {e}")
-
-    # إذا لم يبدأ السيرفر فوراً خلال ثانية واحدة، يتم إطلاق node start_bot.js كعملية خلفية مباشرة
-    time.sleep(1.0)
-    if not is_port_listening(8002) and os.path.exists(start_bot_js):
-        try:
-            subprocess.Popen(
-                ["node", "start_bot.js"],
-                cwd=az_base,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
-            )
-        except Exception as e:
-            print(f"Error launching node start_bot.js directly: {e}")
-
-    # 4. انتظار نشاط واستجابة البورت 8002 بنشاط لمنع حدوث خطأ ERR_CONNECTION_REFUSED
-    manager_ready = False
-    for _ in range(16):  # انتظار حتى 8 ثوانٍ
-        time.sleep(0.5)
-        if is_port_listening(8002):
-            manager_ready = True
-            break
-
-    if not manager_ready:
-        return {
-            "success": False,
-            "message": "جاري تجهيز سيرفرات الإدارة في الخلفية، يرجى الانتظار بضع ثوانٍ ثم النقر مجدداً.",
-            "url": manager_url,
-            "lan_url": lan_url,
-            "manager_running": False
-        }
-
-    return {
-        "success": True,
-        "message": "تم إطلاق سيرفرات الإدارة بنجاح وهي جاهزة الآن! 🚀",
-        "url": manager_url,
-        "lan_url": lan_url,
-        "manager_running": True
-    }
-
-def get_system_update_info() -> dict:
-    """جلب معلومات آخر تحديث للنظام وتاريخه من Git أو الملف المخزن."""
-    last_update_file = os.path.join(BASE_DIR, "last_update.json")
-    info = {
-        "last_updated_at": "غير محدد",
-        "relative_time": "",
-        "commit_sha": "",
-        "commit_message": "",
-        "status": "up_to_date"
-    }
-    
-    try:
-        git_dir = os.path.join(BASE_DIR, ".git")
-        if os.path.exists(git_dir):
-            out = subprocess.check_output(
-                ["git", "log", "-1", "--format=%ci|%cr|%h|%s"],
-                cwd=BASE_DIR,
-                stderr=subprocess.DEVNULL,
-                universal_newlines=True
-            ).strip()
-            if out and "|" in out:
-                parts = out.split("|", 3)
-                info["last_updated_at"] = parts[0]
-                info["relative_time"] = parts[1]
-                info["commit_sha"] = parts[2]
-                info["commit_message"] = parts[3] if len(parts) > 3 else ""
-                return info
-    except Exception:
-        pass
-
-    if os.path.exists(last_update_file):
-        try:
-            with open(last_update_file, "r", encoding="utf-8") as f:
-                saved = json.load(f)
-                info.update(saved)
-                return info
-        except Exception:
-            pass
-
-    return info
-
-def check_and_apply_updates() -> dict:
-    """التحقق من وجود تحديثات من GitHub وسحبها وتطبيقها تلقائياً مع حماية بيانات المستخدم."""
-    git_dir = os.path.join(BASE_DIR, ".git")
-    if os.path.exists(git_dir):
-        try:
-            lock_file = os.path.join(git_dir, "index.lock")
-            if os.path.exists(lock_file):
-                try:
-                    os.remove(lock_file)
-                except Exception:
-                    pass
-
-            user_files = ["config.json", "groups_data.json"]
-            backup = {}
-            for uf in user_files:
-                uf_path = os.path.join(BASE_DIR, uf)
-                if os.path.exists(uf_path):
-                    try:
-                        with open(uf_path, "rb") as f:
-                            data = f.read()
-                            if len(data.strip()) > 10:
-                                backup[uf] = data
-                    except Exception:
-                        pass
-
-            subprocess.run(["git", "fetch", "origin", "--prune"], cwd=BASE_DIR, capture_output=True, timeout=25)
-            try:
-                branches = subprocess.check_output(["git", "branch", "-r"], cwd=BASE_DIR, universal_newlines=True)
-            except Exception:
-                branches = ""
-            target = "origin/main" if "origin/main" in branches else "origin/master"
-
-            subprocess.run(["git", "checkout", "-f", "-B", "main", target], cwd=BASE_DIR, capture_output=True, timeout=20)
-            subprocess.run(["git", "reset", "--hard", target], cwd=BASE_DIR, capture_output=True, timeout=20)
-            subprocess.run(["git", "clean", "-fd", "-e", "imgs/", "-e", "*.json"], cwd=BASE_DIR, capture_output=True, timeout=15)
-
-            for uf, data in backup.items():
-                if data and len(data.strip()) > 10:
-                    try:
-                        with open(os.path.join(BASE_DIR, uf), "wb") as f:
-                            f.write(data)
-                    except Exception:
-                        pass
-
-            info = get_system_update_info()
-            return {
-                "success": True,
-                "message": "تم تحديث كافة ملفات النظام من GitHub بنجاح 100%! 🚀",
-                "info": info
-            }
-        except Exception as e:
-            return {"success": False, "message": f"خطأ أثناء التحديث: {str(e)}"}
-    else:
-        return {"success": False, "message": "المجلد الحالي لا يحتوي على مستودع Git محلي."}
-
-# ==============================================================================
-# معالج الطلبات لـ API وسيرفر الويب
-# ==============================================================================
-CURRENTLY_PUBLISHING = set()
-PUBLISH_LOCK = threading.Lock()
-
-class ControlCenterHandler(BaseHTTPRequestHandler):
-    def log_message(self, format, *args):
-        pass
-
-    def handle(self):
-        try:
-            super().handle()
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-            pass
-        except Exception:
-            pass
-
-    def handle_one_request(self):
-        try:
-            super().handle_one_request()
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-            self.close_connection = True
-        except Exception:
-            self.close_connection = True
-
-    def send_cors_headers(self):
-        try:
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-            self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
-        except Exception:
-            pass
-
-    def do_OPTIONS(self):
-        try:
-            self.send_response(200)
-            self.send_cors_headers()
-            self.end_headers()
-        except Exception:
-            pass
-
-    def send_json(self, data, status=200):
-        try:
-            payload = json.dumps(data, ensure_ascii=False).encode("utf-8")
-            self.send_response(status)
-            self.send_header("Content-Type", "application/json; charset=utf-8")
-            self.send_cors_headers()
-            self.end_headers()
-            self.wfile.write(payload)
-        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-            pass
-        except Exception:
-            pass
-
-    def do_GET(self):
-        parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
-
-        if path in ["/", "/index.html"]:
-            self.send_response(200)
-            self.send_header("Content-Type", "text/html; charset=utf-8")
-            self.send_cors_headers()
-            self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
-            try:
-                dash_file = os.path.join(BASE_DIR, "control_dashboard.html")
-                with open(dash_file, "w", encoding="utf-8") as f:
-                    f.write(HTML_PAGE)
-            except Exception:
-                pass
-            return
-
-        elif path == "/api/groups":
-            groups = read_json_file(GROUPS_DATA_FILE)
-            enriched = enrich_groups_metadata(groups)
-            self.send_json(enriched)
-            return
-
-        elif path == "/api/ads":
-            raw_pending = read_json_file(PENDING_FILE)
-            published = read_json_file(PUBLISHED_FILE)
-            flagged = read_json_file(FLAGGED_FILE)
-
-            # استبعاد أي إعلان تم نشره أو حذفه مسبقاً من قائمة المراجعة تلقائياً
-            published_ids = {p.get("ad_url", "").strip() for p in published if p.get("ad_url")} | {p.get("clean_title", "").strip() for p in published if p.get("clean_title")}
-            flagged_ids = {f.get("ad_url", "").strip() for f in flagged if f.get("ad_url")} | {f.get("clean_title", "").strip() for f in flagged if f.get("clean_title")}
-
-            clean_pending = []
-            for ad in raw_pending:
-                u = ad.get("ad_url", "").strip()
-                t = ad.get("clean_title", "").strip()
-                if (u and u in published_ids) or (t and t in published_ids):
-                    continue
-                if (u and u in flagged_ids) or (t and t in flagged_ids):
-                    continue
-                clean_pending.append(ad)
-
-            if len(clean_pending) != len(raw_pending):
-                raw_pending = clean_pending
-                write_json_file(PENDING_FILE, raw_pending)
-
-            enriched_pending = [enrich_ad_status(ad) for ad in raw_pending]
-            enriched_published = [enrich_ad_status(ad) for ad in published]
-
-            resp = {
-                "pending": enriched_pending,
-                "pending_count": len(enriched_pending),
-                "published": enriched_published,
-                "published_count": len(enriched_published),
-                "flagged_count": len(flagged)
-            }
-            self.send_json(resp)
-            return
-
-        elif path == "/api/published_ads":
-            published = read_json_file(PUBLISHED_FILE)
-            enriched_published = [enrich_ad_status(ad) for ad in published]
-            self.send_json({
-                "published": enriched_published,
-                "count": len(enriched_published)
-            })
-            return
-
-        elif path == "/api/status":
-            with task_manager.lock:
-                elapsed = int(time.time() - task_manager.start_time) if task_manager.is_running else 0
-                h, m, s = elapsed // 3600, (elapsed % 3600) // 60, elapsed % 60
-                time_str = f"{h:02d}:{m:02d}:{s:02d}"
-
-                raw_pending = read_json_file(PENDING_FILE)
-                published = read_json_file(PUBLISHED_FILE)
-                flagged = read_json_file(FLAGGED_FILE)
-
-                published_ids = {p.get("ad_url", "").strip() for p in published if p.get("ad_url")} | {p.get("clean_title", "").strip() for p in published if p.get("clean_title")}
-                flagged_ids = {f.get("ad_url", "").strip() for f in flagged if f.get("ad_url")} | {f.get("clean_title", "").strip() for f in flagged if f.get("clean_title")}
-
-                raw_pending = [p for p in raw_pending if not ((p.get("ad_url", "").strip() and p.get("ad_url", "").strip() in published_ids) or (p.get("clean_title", "").strip() and p.get("clean_title", "").strip() in published_ids) or (p.get("ad_url", "").strip() and p.get("ad_url", "").strip() in flagged_ids) or (p.get("clean_title", "").strip() and p.get("clean_title", "").strip() in flagged_ids))]
-
-                ready_ads = [p for p in raw_pending if enrich_ad_status(p).get("evaluation", {}).get("is_ready_to_publish")]
-
-                resp = {
-                    "is_running": task_manager.is_running,
-                    "elapsed_time": time_str,
-                    "total_groups": task_manager.total_groups_count,
-                    "completed_groups": task_manager.completed_groups_count,
-                    "total_ads": task_manager.total_ads_collected,
-                    "active_tabs": task_manager.active_tabs,
-                    "logs": task_manager.logs[-25:],
-                    "pending_count": len(raw_pending),
-                    "ready_count": len(ready_ads),
-                    "published_count": len(published),
-                    "flagged_count": len(flagged),
-                    "gemini_usage": get_gemini_usage_info(load_config().get("gemini_api_key", ""))
-                }
-            self.send_json(resp)
-            return
-
-        elif path == "/api/gemini_usage":
-            cfg = load_config()
-            usage = get_gemini_usage_info(cfg.get("gemini_api_key", ""))
-            models_info = [
-                {
-                    "name": "gemini-3.5-flash (النموذج الافتراضي المعتمد)",
-                    "model_id": "gemini-3.5-flash",
-                    "supports_vision": True,
-                    "vision_desc": "فحص الصور والنصوص بالرؤية السحابية الفائقة (Gemini Vision API)",
-                    "daily_limit": 1500,
-                    "rpm_limit": 15,
-                    "is_active": True,
-                    "status_label": "نشط ومعتمد تلقائياً 🟢"
-                },
-                {
-                    "name": "gemini-3.6-flash",
-                    "model_id": "gemini-3.6-flash",
-                    "supports_vision": True,
-                    "vision_desc": "أحدث طراز سحابي فائق السرعة لفحص الصور والنصوص",
-                    "daily_limit": 1500,
-                    "rpm_limit": 15,
-                    "is_active": False,
-                    "status_label": "مدعوم واحتياطي تلقائي ✅"
-                },
-                {
-                    "name": "gemini-flash-lite-latest",
-                    "model_id": "gemini-flash-lite-latest",
-                    "supports_vision": True,
-                    "vision_desc": "فحص بصري سريع وخفيف لاستهلاك الحصص بكفاءة عالية",
-                    "daily_limit": 1500,
-                    "rpm_limit": 15,
-                    "is_active": False,
-                    "status_label": "مدعوم واحتياطي ✅"
-                },
-                {
-                    "name": "gemini-3.8-flash",
-                    "model_id": "gemini-3.8-flash",
-                    "supports_vision": True,
-                    "vision_desc": "طراز متقدم لفحص الصور والنصوص وهيكلة البيانات",
-                    "daily_limit": 1500,
-                    "rpm_limit": 15,
-                    "is_active": False,
-                    "status_label": "مدعوم واحتياطي ✅"
-                }
-            ]
-            self.send_json({
-                "usage": usage,
-                "models": models_info
-            })
-            return
-
-        elif path == "/api/config":
-            cfg = load_config()
-            self.send_json(cfg)
-            return
-
-        elif path.startswith("/imgs/"):
-            img_name = os.path.basename(path)
-            candidate_paths = [
-                os.path.join(IMGS_DIR, img_name),
-                os.path.join(BASE_DIR, "imgs", img_name),
-                os.path.join(BASE_DIR, "assets", "imgs", img_name),
-                os.path.expanduser(os.path.join("~/Desktop/1/imgs", img_name)),
-                os.path.expanduser(os.path.join("~/Desktop/تنزيل الاعلانات/asstes/imgs", img_name))
-            ]
-            img_path = next((p for p in candidate_paths if os.path.exists(p)), None)
-            if img_path:
-                ext = img_name.split(".")[-1].lower()
-                mime = "image/webp" if ext == "webp" else ("image/jpeg" if ext in ["jpg", "jpeg"] else "image/png")
-                self.send_response(200)
-                self.send_header("Content-Type", mime)
-                self.send_cors_headers()
-                self.send_header("Cache-Control", "public, max-age=86400")
-                self.end_headers()
-                with open(img_path, "rb") as f:
-                    self.wfile.write(f.read())
-                return
-            self.send_response(404)
-            self.send_cors_headers()
-            self.end_headers()
-        elif path == "/api/manager_status":
-            client_host = self.headers.get("Host", "").split(":")[0].strip() or "localhost"
-            self.send_json(get_manager_system_status(client_host))
-            return
-
-        elif path == "/api/update_info":
-            self.send_json(get_system_update_info())
-            return
-
-        elif path == "/api/check_update":
-            self.send_json(check_and_apply_updates())
-            return
-
-        self.send_response(404)
-        self.send_cors_headers()
-        self.end_headers()
-
-    def do_POST(self):
-        parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
-        length = int(self.headers.get("Content-Length", 0))
-        body = self.rfile.read(length).decode("utf-8") if length > 0 else "{}"
-        
-        try:
-            req_data = json.loads(body)
-        except Exception:
-            req_data = {}
-
-        if path == "/api/add_group":
-            raw_url = req_data.get("url", "").strip()
-            if not raw_url:
-                self.send_json({"success": False, "message": "يرجى إدخال رابط المجموعة أو الصفحة!"})
-                return
-
-            norm_input = normalize_group_url(raw_url)
-            groups = read_json_file(GROUPS_DATA_FILE)
-
-            # فحص صارم لمنع تكرار إضافة نفس الصفحة أو المجموعة مرتين
-            for g in groups:
-                if normalize_group_url(g.get("url", "")) == norm_input:
-                    existing_name = g.get("name", "المجموعة")
-                    self.send_json({
-                        "success": False,
-                        "message": f"❌ لا يمكن إضافة نفس الصفحة مرتين! هذا الرابط مضاف مسبقاً باسم: ({existing_name})."
-                    })
-                    return
-
-            new_id = (max([g.get("id", 0) for g in groups]) + 1) if groups else 1
-            now_str = time.strftime("%Y-%m-%d %H:%M:%S")
-            new_entry = {
-                "id": new_id,
-                "name": req_data.get("name", f"مجموعة {new_id}").strip(),
-                "url": raw_url,
-                "category": req_data.get("category", "عام"),
-                "created_at": now_str,
-                "last_scraped_at": "لم يُسحب بعد",
-                "last_ads_count": 0,
-                "total_ads_count": 0,
-                "status": "جاهز"
-            }
-            groups.append(new_entry)
-            write_json_file(GROUPS_DATA_FILE, groups)
-            self.send_json({"success": True, "message": "تمت إضافة الرابط بنجاح! ✅", "group": new_entry})
-            return
-
-        elif path == "/api/delete_group":
-            gid = req_data.get("id")
-            groups = read_json_file(GROUPS_DATA_FILE)
-            groups = [g for g in groups if g.get("id") != gid]
-            write_json_file(GROUPS_DATA_FILE, groups)
-            self.send_json({"success": True})
-            return
-
-        elif path == "/api/start":
-            start_mode = req_data.get("start_mode", "smart")
-            start_url = req_data.get("start_url")
-            incoming_groups = req_data.get("groups", [])
-            
-            # ترتيب المجموعات بناءً على نقطة الانطلاق المطلوبة
-            if not incoming_groups or "start_mode" in req_data:
-                ordered_objs = get_ordered_groups(start_mode, None, start_url)
-                if ordered_objs:
-                    req_data["groups"] = [g.get("url") for g in ordered_objs if g.get("url")]
-
-            ok, msg = task_manager.start_scraping_job(req_data)
-            self.send_json({"success": ok, "message": msg})
-            return
-
-        elif path == "/api/stop":
-            ok, msg = task_manager.stop_scraping_job()
-            self.send_json({"success": ok, "message": msg})
-            return
-
-        elif path == "/api/login":
-            if task_manager.is_running:
-                self.send_json({"success": False, "message": "⚠️ يرجى إيقاف عملية السحب أولاً بالضغط على 'إيقاف السحب' قبل فتح نافذة تسجيل الدخول!"})
-                return
-            user_data_dir = os.path.join(BASE_DIR, "browser_session")
-            clean_browser_session_locks(user_data_dir)
-            login_bat = os.path.join(BASE_DIR, "login.bat")
-            login_script = os.path.join(BASE_DIR, "login.py")
-            try:
-                if sys.platform == "win32" and os.path.exists(login_bat):
-                    os.startfile(login_bat)
-                else:
-                    flags = getattr(subprocess, 'CREATE_NEW_CONSOLE', 0)
-                    subprocess.Popen([sys.executable, login_script], cwd=BASE_DIR, creationflags=flags)
-            except Exception:
-                flags = getattr(subprocess, 'CREATE_NEW_CONSOLE', 0)
-                subprocess.Popen([sys.executable, login_script], cwd=BASE_DIR, creationflags=flags)
-            self.send_json({"success": True, "message": "تم إطلاق نافذة المتصفح بنجاح! 🟢"})
-            return
-
-        elif path == "/api/approve":
-            ad = req_data.get("ad", {})
-            ad_url = ad.get("ad_url")
-            ad_title = ad.get("clean_title")
-            ad_identifier = ad_url or ad_title or f"{ad.get('phone_number')}_{ad.get('description', '')[:30]}"
-
-            with PUBLISH_LOCK:
-                if ad_identifier in CURRENTLY_PUBLISHING:
-                    self.send_json({"success": False, "message": "⏳ جاري نشر هذا الإعلان حالياً بالفعل، يرجى الانتظار بضع ثوانٍ!"})
-                    return
-
-                # التحقق الصارم من عدم وجود الإعلان مسبقاً في سجل الإعلانات المنشورة
-                published = read_json_file(PUBLISHED_FILE)
-                if any((p.get("ad_url") and p.get("ad_url") == ad_url) or 
-                       (p.get("clean_title") and p.get("clean_title") == ad_title) for p in published):
-                    # إزالة الإعلان من المسودة لأنه منشور بالفعل
-                    pending = read_json_file(PENDING_FILE)
-                    pending = [p for p in pending if not ((ad_url and p.get("ad_url") == ad_url) or (ad_title and p.get("clean_title") == ad_title))]
-                    write_json_file(PENDING_FILE, pending)
-                    self.send_json({"success": True, "message": "⚠️ هذا الإعلان تم نشره بالفعل مسبقاً! تم نقله لقسم المنشورات."})
-                    return
-
-                CURRENTLY_PUBLISHING.add(ad_identifier)
-
-            try:
-                ok, msg = publish_ad_to_website(ad)
-                if ok:
-                    pending = read_json_file(PENDING_FILE)
-                    pending = [p for p in pending if not ((ad_url and p.get("ad_url") == ad_url) or (not ad_url and p.get("clean_title") == ad_title))]
-                    write_json_file(PENDING_FILE, pending)
-            finally:
-                with PUBLISH_LOCK:
-                    CURRENTLY_PUBLISHING.discard(ad_identifier)
-
-            self.send_json({"success": ok, "message": msg, "api_ok": ok})
-            return
-
-        elif path == "/api/reject":
-            ad = req_data.get("ad", {})
-            ad_url = ad.get("ad_url")
-            ad_title = ad.get("clean_title")
-            pending = read_json_file(PENDING_FILE)
-            pending = [p for p in pending if not ((ad_url and p.get("ad_url") == ad_url) or (not ad_url and p.get("clean_title") == ad_title))]
-            write_json_file(PENDING_FILE, pending)
-
-            flagged = read_json_file(FLAGGED_FILE)
-            flagged.append(ad)
-            write_json_file(FLAGGED_FILE, flagged)
-            self.send_json({"success": True, "message": "تم استبعاد الإعلان بنجاح"})
-            return
-
-        elif path == "/api/delete_ad_image":
-            image_name = req_data.get("image_name", "").strip()
-            ad_url = req_data.get("ad_url", "").strip()
-            ad_title = req_data.get("clean_title", "").strip()
-            ad_idx = req_data.get("ad_index")
-
-            if not image_name:
-                self.send_json({"success": False, "message": "لم يتم تحديد اسم الصورة المراد حذفها!"})
-                return
-
-            pending = read_json_file(PENDING_FILE)
-            target_ad = None
-            found_idx = -1
-
-            # محاولة العثور على الإعلان بالرابط أو العنوان أو اسم الصورة أو الفهرس
-            for i, p in enumerate(pending):
-                if (ad_url and p.get("ad_url") == ad_url) or \
-                   (ad_title and p.get("clean_title") == ad_title) or \
-                   (image_name in p.get("nimages", [])):
-                    target_ad = p
-                    found_idx = i
-                    break
-
-            if target_ad is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(pending):
-                target_ad = pending[ad_idx]
-                found_idx = ad_idx
-
-            if target_ad is None:
-                self.send_json({"success": False, "message": "لم يتم العثور على الإعلان المستهدف في قائمة المراجعة!"})
-                return
-
-            # إزالة الصورة من الإعلان
-            nimages = target_ad.get("nimages", [])
-            download_urls = target_ad.get("images dowlod", [])
-            
-            new_nimages = []
-            new_urls = []
-            for idx_img, fname in enumerate(nimages):
-                if fname != image_name:
-                    new_nimages.append(fname)
-                    if idx_img < len(download_urls):
-                        new_urls.append(download_urls[idx_img])
-
-            target_ad["nimages"] = new_nimages
-            target_ad["images dowlod"] = new_urls
-
-            # حذف الملف فعلياً من القرص لحماية المساحة
-            file_path = os.path.join(IMGS_DIR, image_name)
-            if os.path.exists(file_path):
-                try:
-                    os.remove(file_path)
-                except Exception:
-                    pass
-
-            # إعادة تقييم وإثراء حالة الإعلان
-            enriched = enrich_ad_status(target_ad)
-            pending[found_idx] = enriched
-            write_json_file(PENDING_FILE, pending)
-
-            self.send_json({
-                "success": True,
-                "message": "تم حذف الصورة نهائياً وتحديث الإعلان بنجاح! 🗑️",
-                "remaining_images": new_nimages,
-                "ad": enriched
-            })
-            return
-
-        elif path == "/api/bulk_approve":
-            pending = read_json_file(PENDING_FILE)
-            published_count = 0
-            api_count = 0
-            cfg = load_config()
-            has_api = bool(cfg.get("website_api_url", "").strip())
-            remaining = []
-            
-            for ad in pending:
-                ev = enrich_ad_status(ad).get("evaluation", {})
-                if ev.get("is_ready_to_publish", True):
-                    ok, _ = publish_ad_to_website(ad)
-                    published_count += 1
-                    if ok:
-                        if has_api:
-                            api_count += 1
-                    else:
-                        remaining.append(ad)
-                else:
-                    remaining.append(ad)
-            
-            write_json_file(PENDING_FILE, remaining)
-
-            if has_api:
-                msg = f"تم نشر {api_count} إعلان بنجاح على سيرفر الموقع! 🚀 وتجهيز {published_count} في مجلد الاستيراد."
-            else:
-                msg = f"تم تجهيز وتصدير {published_count} إعلان بنجاح إلى مجلد إعلانات_للاستيراد على سطح المكتب! 📁\n(⚠️ ملاحظة: لم يتم الرفع المباشر عبر الإنترنت لأن رابط الـ API غير محدد في الإعدادات)"
-
-            self.send_json({"success": True, "message": msg})
-            return
-
-        elif path == "/api/config":
-            cfg = load_config()
-            cfg["gemini_api_key"] = req_data.get("gemini_api_key", cfg.get("gemini_api_key"))
-            cfg["website_api_url"] = req_data.get("website_api_url", cfg.get("website_api_url"))
-            cfg["website_api_key"] = req_data.get("website_api_key", cfg.get("website_api_key"))
-            save_config(cfg)
-            task_manager.gemini_processor = GeminiProcessor()
-            self.send_json({"success": True})
-            return
-
-        elif path == "/api/open_folder":
-            import_base = os.path.join(os.path.expanduser("~"), "Desktop", "إعلانات_للاستيراد")
-            if not os.path.exists(import_base):
-                os.makedirs(import_base, exist_ok=True)
-            try:
-                os.startfile(import_base)
-                self.send_json({"success": True, "message": "تم فتح مجلد الاستيراد بنجاح"})
-            except Exception as e:
-                self.send_json({"success": False, "message": str(e)})
-            return
-
-        elif path == "/api/revert_ad":
-            ad = req_data.get("ad", {})
-            ad_url = ad.get("ad_url") or ad.get("clean_title")
-            published = read_json_file(PUBLISHED_FILE)
-            published = [p for p in published if (p.get("ad_url") or p.get("clean_title")) != ad_url]
-            write_json_file(PUBLISHED_FILE, published)
-
-            pending = read_json_file(PENDING_FILE)
-            if not any((p.get("ad_url") or p.get("clean_title")) == ad_url for p in pending):
-                ad_pending = ad.copy()
-                ad_pending.pop("publish_status", None)
-                ad_pending.pop("published_at", None)
-                pending.insert(0, ad_pending)
-                write_json_file(PENDING_FILE, pending)
-            self.send_json({"success": True, "message": "تم إعادة الإعلان إلى قائمة المراجعة"})
-            return
-
-        elif path in ["/api/delete_published", "/api/delete_published_ad"]:
-            ad = req_data.get("ad", {})
-            ad_url = ad.get("ad_url") or req_data.get("ad_url") or ad.get("clean_title") or req_data.get("clean_title")
-            published = read_json_file(PUBLISHED_FILE)
-            published = [p for p in published if (p.get("ad_url") or p.get("clean_title")) != ad_url]
-            write_json_file(PUBLISHED_FILE, published)
-            self.send_json({"success": True, "message": "تم حذف الإعلان من سجل المنشورات بنجاح! 🗑️"})
-            return
-
-        elif path == "/api/delete_ad":
-            # حذف إعلان محدد ومسح صوره من الجهاز
-            ad = req_data.get("ad", {})
-            ad_url = ad.get("ad_url") or req_data.get("ad_url")
-            clean_title = ad.get("clean_title") or req_data.get("clean_title")
-            ad_idx = req_data.get("ad_index")
-
-            pending = read_json_file(PENDING_FILE)
-            target = None
-            found_idx = -1
-
-            for i, p in enumerate(pending):
-                if (ad_url and p.get("ad_url") == ad_url) or (clean_title and p.get("clean_title") == clean_title):
-                    target = p
-                    found_idx = i
-                    break
-            if target is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(pending):
-                target = pending[ad_idx]
-                found_idx = ad_idx
-
-            if target:
-                for img_name in target.get("nimages", []):
-                    img_path = os.path.join(IMGS_DIR, img_name)
-                    if os.path.exists(img_path):
-                        try:
-                            os.remove(img_path)
-                        except Exception:
-                            pass
-                pending.pop(found_idx)
-                write_json_file(PENDING_FILE, pending)
-                self.send_json({"success": True, "message": "تم حذف الإعلان ومسح صوره نهائياً بنجاح! 🗑️"})
-            else:
-                self.send_json({"success": False, "message": "لم يتم العثور على الإعلان المستهدف."})
-            return
-
-        elif path == "/api/clear_pending_ads":
-            # تفريغ كافة الإعلانات غير المنشورة ومسح صورها
-            pending = read_json_file(PENDING_FILE)
-            for p in pending:
-                for img_name in p.get("nimages", []):
-                    img_path = os.path.join(IMGS_DIR, img_name)
-                    if os.path.exists(img_path):
-                        try:
-                            os.remove(img_path)
-                        except Exception:
-                            pass
-            write_json_file(PENDING_FILE, [])
-            self.send_json({"success": True, "message": "تم مسح وتفريغ كافة الإعلانات ومسح صورها بنجاح! 🗑️"})
-            return
-
-        elif path == "/api/clear_groups":
-            write_json_file(GROUPS_DATA_FILE, [])
-            self.send_json({"success": True, "message": "تم تفريغ كافة روابط المجموعات بنجاح! 🗑️"})
-            return
-
-        elif path == "/api/load_starter_groups":
-            write_json_file(GROUPS_DATA_FILE, DEFAULT_STARTER_GROUPS)
-            self.send_json({"success": True, "message": f"تم استيراد {len(DEFAULT_STARTER_GROUPS)} روابط مقترحة بنجاح! 📥"})
-            return
-
-        elif path == "/api/clear_published_ads":
-            write_json_file(PUBLISHED_FILE, [])
-            self.send_json({"success": True, "message": "تم تفريغ سجل الإعلانات المنشورة بنجاح! 🗑️"})
-            return
-
-        elif path == "/api/clear_flagged_ads":
-            write_json_file(FLAGGED_FILE, [])
-            self.send_json({"success": True, "message": "تم تفريغ سجل الإعلانات المستبعدة بنجاح! 🗑️"})
-            return
-
-        elif path == "/api/clear_all_images":
-            deleted_count = 0
-            if os.path.exists(IMGS_DIR):
-                for f in os.listdir(IMGS_DIR):
-                    fp = os.path.join(IMGS_DIR, f)
-                    if os.path.isfile(fp) and not f.startswith("."):
-                        try:
-                            os.remove(fp)
-                            deleted_count += 1
-                        except Exception:
-                            pass
-            self.send_json({"success": True, "message": f"تم مسح {deleted_count} صورة من القرص بنجاح! 🗑️"})
-            return
-
-        elif path == "/api/reset_all_data":
-            write_json_file(PENDING_FILE, [])
-            write_json_file(PUBLISHED_FILE, [])
-            write_json_file(FLAGGED_FILE, [])
-            write_json_file(ALL_ADS_FILE, [])
-            if os.path.exists(IMGS_DIR):
-                for f in os.listdir(IMGS_DIR):
-                    fp = os.path.join(IMGS_DIR, f)
-                    if os.path.isfile(fp) and not f.startswith("."):
-                        try:
-                            os.remove(fp)
-                        except Exception:
-                            pass
-            self.send_json({"success": True, "message": "تم تصفير كافة بيانات المنظومة بنجاح (إعادة ضبط المصنع)! 🔄"})
-            return
-        elif path == "/api/launch_manager":
-            client_host = self.headers.get("Host", "").split(":")[0].strip() or "localhost"
-            self.send_json(launch_manager_and_all_servers(client_host))
-            return
-
-        elif path == "/api/check_update":
-            self.send_json(check_and_apply_updates())
-            return
-
-        self.send_response(404)
-        self.send_cors_headers()
-        self.end_headers()
-
-class ThreadedHTTPServer(ThreadingHTTPServer):
-    allow_reuse_address = True
-    daemon_threads = True
-
-    def handle_error(self, request, client_address):
-        exc_type, _, _ = sys.exc_info()
-        if exc_type in (ConnectionResetError, ConnectionAbortedError, BrokenPipeError):
-            return  # تجاهل هادئ لانقطاع الاتصال من المتصفح دون طباعة أخطاء
-        super().handle_error(request, client_address)
-
-def run_app():
-    try:
-        dash_path = os.path.join(BASE_DIR, "control_dashboard.html")
-        with open(dash_path, "w", encoding="utf-8") as f:
-            f.write(HTML_PAGE)
-    except Exception:
-        pass
-
-    port = 5000
-    server_address = ('', port)
-    httpd = ThreadedHTTPServer(server_address, ControlCenterHandler)
-    
-    url = f"http://localhost:{port}"
-    print(f"\n" + "="*65)
-    print(f"🚀 تم تشغيل سيرفر لوحة التحكم المركزية بنجاح!")
-    print(f"👉 جاري فتح صفحة التحكم في المتصفح: {url}")
-    print(f"="*65 + "\n")
-
-    threading.Timer(1.0, lambda: webbrowser.open(url)).start()
-
-    try:
-        httpd.serve_forever()
-    except KeyboardInterrupt:
-        print("\n[+] تم إيقاف السيرفر.")
-
-if __name__ == "__main__":
-    run_app()
