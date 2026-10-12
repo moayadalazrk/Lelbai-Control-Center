@@ -561,12 +561,22 @@ SYRIAN_AUTO_TERMS = [
 OTHER_CATEGORIES = [
     # 👗 الأزياء والعناية الشخصية
     {
-        "name": "ملابس نسائية وفساتين", "id": 3167, "parent": "الأزياء والعناية الشخصية",
-        "keywords": ["ألبسة نسائية", "البسة نسائية", "ملابس نسائية", "لانجري", "لانجيري", "فساتين", "فستان", "عباية", "عبايات", "مانطو", "مانطويات", "تنورة", "شال", "حجاب", "بيجامة نسائي", "بيجامات نسائية", "موديلات نسائية", "فستان سهرة", "شلاحات", "سوتيان"]
+        "name": "ملابس رجالية", "id": 3166, "parent": "الأزياء والعناية الشخصية",
+        "keywords": [
+            "ملابس رجالية", "البسة رجالية", "ألبسة رجالية", "بدلة رجالية", "جاكيت رجالي", "بنطال رجالي",
+            "بنطلون رجالي", "قميص رجالي", "كنزة رجالي", "كنزات رجالي", "بيجامة رجالي", "ألبسة شبابية",
+            "تيشيرت رجالي", "بلوزة رجالي", "بلوزة رجالي شبابي", "شبابي معكوسه", "ترينغ رجالي", "شورت رجالي", "جينز رجالي"
+        ]
     },
     {
-        "name": "ملابس رجالية", "id": 3166, "parent": "الأزياء والعناية الشخصية",
-        "keywords": ["ملابس رجالية", "البسة رجالية", "ألبسة رجالية", "بدلة رجالية", "جاكيت رجالي", "بنطال رجالي", "بنطلون رجالي", "قميص رجالي", "كنزة رجالي", "بيجامة رجالي", "ألبسة شبابية", "تيشيرت رجالي"]
+        "name": "ملابس نسائية وفساتين", "id": 3167, "parent": "الأزياء والعناية الشخصية",
+        "keywords": [
+            "ألبسة نسائية", "البسة نسائية", "ملابس نسائية", "لانجري", "لانجيري", "فساتين", "فستان",
+            "بلوزة", "بلوزه", "بلوزات", "كنزة نسائي", "كنزه نسائي", "تيشيرت نسائي", "بنطال نسائي", "بنطلون نسائي",
+            "جينز نسائي", "تنورة", "تنوره", "فيونكات ساتان", "ساتان", "فل ليكرا", "ريب قطن", "طقم نسائي",
+            "عباية", "عبايات", "مانطو", "مانطويات", "شال", "حجاب", "بيجامة نسائي", "بيجامات نسائية",
+            "موديلات نسائية", "فستان سهرة", "شلاحات", "سوتيان", "جلابية نسائي", "جلابيات"
+        ]
     },
     {
         "name": "ملابس أطفال ومواليد", "id": 3168, "parent": "الأزياء والعناية الشخصية",
@@ -669,14 +679,53 @@ OTHER_CATEGORIES = [
         "keywords": ["مولدة كهرباء", "مولد ديزل", "مولدة بنزين", "كباس كهرباء", "تابلو كهرباء"]
     },
 
+    # 🛠️ الخدمات
+    {
+        "name": "خدمات نظافة", "id": 3162, "parent": "الخدمات",
+        "keywords": [
+            "تنظيف", "شركة تنظيف", "نظافة شاملة", "تنظيف منازل", "جلي بلاط", "غسيل سجاد",
+            "تعزيل", "تنظيف كنب", "شطف وتعزيل", "quality clean", "خدمات تنظيف"
+        ]
+    },
+    {
+        "name": "خدمات مقاولات", "id": 3158, "parent": "الخدمات",
+        "keywords": [
+            "كهربائي", "أعمال كهرباء", "تمديدات كهرباء", "تمديدات كهربائية", "كهربائي منازل",
+            "سباك", "تمديدات صحية", "أعمال صحية", "دهان", "دهانات", "ديكور", "جبس بورد",
+            "صيانة منازل", "مقاولات وبناء", "تعهدات وبناء", "صب بيتون", "إكساء وتشطيب", "اكساء شقق"
+        ]
+    },
+    {
+        "name": "خدمات نقل العفش", "id": 3161, "parent": "الخدمات",
+        "keywords": ["نقل عفش", "ترحيل عفش", "تكسي نقل", "سيارة نقل أثاث", "شحن بضائع"]
+    },
+    {
+        "name": "خدمات التوصيل", "id": 3159, "parent": "الخدمات",
+        "keywords": ["خدمات توصيل", "دليفري", "توصيل طلبات", "سائق توصيل"]
+    },
+
+    # 🏖️ وجهات سياحية ورحلات
+    {
+        "name": "فنادق ورحلات وبرامج سياحية", "id": 3201, "parent": "وجهات سياحية ورحلات",
+        "keywords": [
+            "رحلة", "رحلات", "رحلتنا", "سياحة", "سياحية", "سياحة وسفر", "سياحية وسفر",
+            "للسياحة والسفر", "للسياحية والسفر", "برنامج سياحي", "عين جوزة", "بلودان",
+            "صلنفة", "مشتى الحلو", "كسب", "حجز فندقي", "باص سياحي"
+        ]
+    },
+
     # 🛋️ المنزل والأثاث
     {
         "name": "أثاث منزلي وغرف", "id": 3148, "parent": "المنزل والأثاث",
-        "keywords": ["غرفة نوم", "طقم كنبايات", "طاولة سفرة", "صالون خشب", "تخت", "خزانة ملابس", "كومودينة"]
+        "keywords": [
+            "غرفة نوم", "عرايسية", "طقم كنب", "طقم كنبايات", "طاولة سفرة", "صالون خشب", "تخت", "تخت منجد",
+            "خزانة ملابس", "كومودينة", "مد عربي", "ديوانية", "طقم جلد", "صندوق مكون", "مفرتين", "ثلاثيه وثنائيه",
+            "بيرو مع كرسي", "طاولة وكراسي", "أثاث منزلي"
+        ]
     },
     {
         "name": "أجهزة كهربائية ومنزلية", "id": 3149, "parent": "المنزل والأثاث",
-        "keywords": ["براد للبيع", "غسالة للبيع", "فرن غاز للبيع", "مكرويف", "مكنسة كهربائية", "مكيف للبيع", "شنتيانة"]
+        "keywords": ["براد للبيع", "غسالة للبيع", "فرن غاز", "فرن للبيع", "طباخ ليزري", "طباخ", "مكرويف", "مكنسة كهربائية", "مكيف للبيع", "مروحة", "شواية كهربائية"]
     },
     {
         "name": "مطابخ وأواني", "id": 3150, "parent": "المنزل والأثاث",
@@ -694,7 +743,7 @@ OTHER_CATEGORIES = [
     },
     {
         "name": "عدد وأدوات مهنية وكهربائية", "id": 3186, "parent": "مواد البناء والمعدات",
-        "keywords": ["صاروخ قص", "درل", "هيلتي", "ماكينة لحام", "كمبريسور", "مخرطة", "عدة تصليح", "عدة ميكانيك"]
+        "keywords": ["رافعي", "رافعة", "طونين", "لحامة", "لحامة أكياس", "ماكينة لحام", "صاروخ قص", "درل", "هيلتي", "كمبريسور", "مخرطة", "عدة تصليح", "عدة ميكانيك"]
     },
     {
         "name": "سيراميك وأدوات صحية وأبواب", "id": 3188, "parent": "مواد البناء والمعدات",
@@ -723,20 +772,6 @@ OTHER_CATEGORIES = [
     {
         "name": "باحثون عن عمل", "id": 3155, "parent": "الوظائف والأعمال",
         "keywords": ["أبحث عن عمل", "ابحث عن عمل", "معلم جاهز للعمل", "سيرة ذاتية", "خبرة في العمل"]
-    },
-
-    # 🛠️ الخدمات
-    {
-        "name": "خدمات مقاولات", "id": 3158, "parent": "الخدمات",
-        "keywords": ["مقاولات وبناء", "تعهدات وبناء", "صب بيتون", "أعمال بناء", "إكساء وتشطيب", "اكساء شقق"]
-    },
-    {
-        "name": "خدمات نقل العفش", "id": 3161, "parent": "الخدمات",
-        "keywords": ["نقل عفش", "ترحيل عفش", "تكسي نقل", "سيارة نقل أثاث", "شحن بضائع"]
-    },
-    {
-        "name": "خدمات التوصيل", "id": 3159, "parent": "الخدمات",
-        "keywords": ["خدمات توصيل", "دليفري", "توصيل طلبات", "سائق توصيل"]
     },
 
     # 🥫 بقالة ومواد غذائية
@@ -975,16 +1010,18 @@ def detect_smart_category(text: str) -> Dict[str, Any]:
             "is_leaf": True
         }
 
-    # 2. سيارات للإيجار (Leaf مباشرة تحت السيارات 1)
-    if any(match_arabic_keyword(k, t_norm) for k in ["للإيجار", "للايجار", "تأجير", "تاجير", "أجار"]) and any(match_arabic_keyword(k, t_norm) for k in ["سيارة", "سياره", "سياحي"]):
-        cid = 1395
-        return {
-            "category_id": cid,
-            "category_name": get_category_name_by_id(cid),
-            "parent_name": "السيارات",
-            "category_hierarchy": build_category_hierarchy(cid),
-            "is_leaf": True
-        }
+    # 2. سيارات للإيجار (Leaf مباشرة تحت السيارات 1) - استبعاد إعلانات العقارات التي تذكر مصف أو كراج سيارة
+    is_real_estate_rental = any(match_arabic_keyword(k, t_norm) for k in ["شقة", "شقه", "منزل", "بيت", "غرف", "صالون", "طابق", "محل", "مستودع", "فيلا", "عقار"]) or any(p in t_clean for p in ["مصف سيارة", "كراج سيارة", "موقف سيارة"])
+    if not is_real_estate_rental:
+        if any(match_arabic_keyword(k, t_norm) for k in ["للإيجار", "للايجار", "تأجير", "تاجير", "أجار"]) and any(match_arabic_keyword(k, t_norm) for k in ["سيارة", "سياره", "سياحي"]):
+            cid = 1395
+            return {
+                "category_id": cid,
+                "category_name": get_category_name_by_id(cid),
+                "parent_name": "السيارات",
+                "category_hierarchy": build_category_hierarchy(cid),
+                "is_leaf": True
+            }
 
     # 2. قطع غيار وإكسسوارات السيارات (Leaf مباشرة تحت السيارات 1)
     if any(match_arabic_keyword(k, t_norm) for k in ["قطع غيار", "محرك للبيع", "دوزان للبيع", "جنط للبيع", "فرام للبيع"]):
@@ -1209,6 +1246,7 @@ def generate_smart_title(text: str, ad: Dict[str, Any]) -> str:
     خالٍ تماماً من عبارات الفيسبوك العشوائية أو تقطيع الجمل.
     """
     t_clean = clean_raw_text(text)
+    t_norm = normalize_arabic(t_clean.lower())
     city = ad.get("city_name") or ad.get("location_detected") or ""
     if "(" in city:
         city = city.split("(")[0].strip()
@@ -1278,11 +1316,19 @@ def generate_smart_title(text: str, ad: Dict[str, Any]) -> str:
         if len(title_res) >= 15:
             return title_res[:80].strip()
 
-    # 3. سياق العقارات
-    if any(k in t_clean for k in ["شقة", "شقه", "بيت", "منزل", "فيلا", "عقار", "مزرعة"]):
+    # 3. سياق العقارات (حصراً للعقارات الفعلية وتجنب الكلمات المشتركة كالتثبيت أو المنازل)
+    is_not_other = not any(w in t_clean for w in [
+        "طاقة شمسية", "الواح", "إنفيرتر", "انفيرتر", "بطارية", "تنظيف", "كهربائي", "تمديدات",
+        "رحلة", "سياحة", "بلوزة", "كنزة", "ألبسة", "ملابس", "فرن", "غسالة", "براد", "رافعي", "طونين"
+    ])
+    if is_not_other and any(match_arabic_keyword(k, t_norm) for k in [
+        "شقة للبيع", "شقة للايجار", "شقه للبيع", "شقه للايجار", "شقة سكنية", "فيلا للبيع",
+        "بيت للبيع", "منزل للبيع", "مزرعة للبيع", "عقار للبيع", "غرف وصالون", "غرفتين وصالون",
+        "طابو أخضر", "طابو اسهم", "فروغ"
+    ]):
         rooms_m = re.search(r'(\d+)\s*(?:غرف|غرفة|وصالون)', t_clean)
         rooms_str = f"{rooms_m.group(0)}" if rooms_m else ""
-        type_str = "فيلا للبيع" if "فيلا" in t_clean else ("مزرعة للبيع" if "مزرع" in t_clean else ("منزل مستقل" if "بيت" in t_clean else "شقة للبيع"))
+        type_str = "فيلا للبيع" if "فيلا" in t_clean else ("مزرعة للبيع" if "مزرع" in t_clean else ("منزل مستقل" if ("بيت للبيع" in t_clean or "منزل للبيع" in t_clean) else "شقة للبيع"))
         spec_str = "إكساء سوبر ديلوكس" if ("ديلوكس" in t_clean or "سوبر" in t_clean) else "بحالة ممتازة"
         loc_str = f"في {city}" if city else ""
         
@@ -1458,24 +1504,27 @@ def enhance_ad_with_super_ai(ad: Dict[str, Any]) -> Dict[str, Any]:
             "is_negotiable": True
         }
 
-    # 2. التصنيف في أصغر فئة (الحفاظ على تصنيف الذكاء الاصطناعي السحابي إذا كان معتمداً وليس 3207)
+    # 2. التصنيف في أصغر فئة (التحقق الذكي وتصحيح أي تصنيف خاطئ موروث)
     existing_cid = ad_copy.get("leaf_category_id") or ad_copy.get("id-categorie")
-    if existing_cid and int(existing_cid) != 3207 and int(existing_cid) in CAT_BY_ID:
-        cid = int(existing_cid)
-        ad_copy["leaf_category_id"] = cid
-        if not ad_copy.get("leaf_category_name"):
-            ad_copy["leaf_category_name"] = get_category_name_by_id(cid)
-        if not ad_copy.get("category_hierarchy"):
-            ad_copy["category_hierarchy"] = build_category_hierarchy(cid)
-        ad_copy["category"] = ad_copy["leaf_category_name"]
-        ad_copy["id-categorie"] = cid
+    cat_info = detect_smart_category(raw_desc)
+    detected_cid = cat_info["category_id"]
+
+    if not existing_cid or int(existing_cid) == 3207 or int(existing_cid) not in CAT_BY_ID:
+        cid = detected_cid
+    elif int(existing_cid) == 1395 and detected_cid != 1395:
+        # تصحيح خطأ تصنيف عقارات الإيجار كسيارات إيجار
+        cid = detected_cid
+    elif int(existing_cid) in (1832, 1811) and detected_cid not in (1832, 1811, 3207):
+        # تصحيح سيارات أخرى إذا كان الإعلان غير متعلق بالسيارات
+        cid = detected_cid
     else:
-        cat_info = detect_smart_category(raw_desc)
-        ad_copy["leaf_category_id"] = cat_info["category_id"]
-        ad_copy["leaf_category_name"] = cat_info["category_name"]
-        ad_copy["category_hierarchy"] = cat_info.get("category_hierarchy") or f"{cat_info['parent_name']} > {cat_info['category_name']}"
-        ad_copy["category"] = cat_info["category_name"]
-        ad_copy["id-categorie"] = cat_info["category_id"]
+        cid = int(existing_cid)
+
+    ad_copy["leaf_category_id"] = cid
+    ad_copy["leaf_category_name"] = get_category_name_by_id(cid)
+    ad_copy["category_hierarchy"] = build_category_hierarchy(cid)
+    ad_copy["category"] = ad_copy["leaf_category_name"]
+    ad_copy["id-categorie"] = cid
 
     # 3. استخراج مواصفات السيارة إن وجدت حصراً إذا كان الإعلان سيارة
     cat_hier = str(ad_copy.get("category_hierarchy", ""))

@@ -192,24 +192,33 @@ def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str
     if not isinstance(ad, dict):
         return {}
         
-    # تسريع الاستجابة إذا كان الإعلان مفحوصاً ومكتمل التقييم مسبقاً
+    # تسريع الاستجابة إذا كان الإعلان مفحوصاً ومكتمل التقييم مسبقاً وغير مصنف تصنيفاً عاماً (3207)
     if not force_recalc and ad.get("evaluation") and ad.get("clean_title") and ad.get("publisher_name"):
         ev = ad.get("evaluation", {})
         if "specs_details" in ev and "sharia_details" in ev:
-            return ad
+            cid = ad.get("leaf_category_id") or ad.get("id-categorie")
+            cname = ad.get("leaf_category_name") or ad.get("category")
+            if cid and int(cid) != 3207 and cname and cname != "أصناف عامة ومتنوعة":
+                from ai_ad_enhancer import CAT_BY_ID, get_category_name_by_id
+                if int(cid) in CAT_BY_ID and cname == get_category_name_by_id(int(cid)):
+                    return ad
 
-    from ai_ad_enhancer import enhance_ad_with_super_ai
+    from ai_ad_enhancer import enhance_ad_with_super_ai, get_category_name_by_id, build_category_hierarchy
     # 1. تعزيز الإعلان بالذكاء الاصطناعي (عنوان نخبوي، وصف مهيكل، وأدق تصنيف أصغر فئة)
     ad_copy = enhance_ad_with_super_ai(ad)
     
     # دمج نص الإعلان الكامل للتحليل الدقيق
     full_text = f"{ad_copy.get('clean_title', '')} {ad_copy.get('clean_description') or ad_copy.get('description', '')}"
 
+    cid = ad_copy.get("leaf_category_id", 3207)
+    hier = ad_copy.get("category_hierarchy") or build_category_hierarchy(cid)
+    p_name = hier.split(">")[-2].strip() if ">" in hier else (hier.split(">")[0].strip() if hier else "عام")
+
     leaf_info = {
-        "category_id": ad_copy.get("leaf_category_id", 1832),
-        "category_name": ad_copy.get("leaf_category_name", "ماركات أخرى"),
-        "parent_name": ad_copy.get("category_hierarchy", "").split(">")[-2].strip() if ">" in ad_copy.get("category_hierarchy", "") else "سيارات للبيع",
-        "category_hierarchy": ad_copy.get("category_hierarchy")
+        "category_id": cid,
+        "category_name": ad_copy.get("leaf_category_name") or get_category_name_by_id(cid),
+        "parent_name": p_name,
+        "category_hierarchy": hier
     }
 
     # 2. استخراج أكبر قدر ممكن من المواصفات المهيكلة
