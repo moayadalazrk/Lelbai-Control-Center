@@ -22,7 +22,15 @@ from http.server import HTTPServer, ThreadingHTTPServer, BaseHTTPRequestHandler
 from typing import Dict, Any, List, Optional
 
 if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+    except Exception:
+        pass
 
 import asyncio
 from playwright.async_api import async_playwright
@@ -410,7 +418,15 @@ class ScrapingTaskManager:
             self.logs.append(log_line)
             if len(self.logs) > 200:
                 self.logs.pop(0)
-            print(log_line)
+            try:
+                print(log_line, flush=True)
+            except Exception:
+                try:
+                    enc = sys.stdout.encoding or 'cp1256'
+                    safe_msg = log_line.encode(enc, errors='replace').decode(enc, errors='replace')
+                    print(safe_msg, flush=True)
+                except Exception:
+                    pass
 
     def start_scraping_job(self, params: Dict[str, Any]):
         if self.is_running:

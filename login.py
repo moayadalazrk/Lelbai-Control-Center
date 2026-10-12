@@ -12,9 +12,11 @@ import subprocess
 import shutil
 
 if hasattr(sys.stdout, 'reconfigure'):
-    sys.stdout.reconfigure(encoding='utf-8')
+    try: sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+    except Exception: pass
 if hasattr(sys.stderr, 'reconfigure'):
-    sys.stderr.reconfigure(encoding='utf-8')
+    try: sys.stderr.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
+    except Exception: pass
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
