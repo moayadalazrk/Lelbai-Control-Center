@@ -290,7 +290,7 @@
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
           <div class="form-group">
             <label>⏱️ مهلة الانتظار قبل التخطي (ثانية):</label>
-            <input type="number" class="form-control" id="inpTimeout" value="60" min="20" max="180">
+            <input type="number" class="form-control" id="inpTimeout" value="60" min="40" max="300">
           </div>
           <div class="form-group">
             <label>📁 مجلد استيراد الموقع:</label>
@@ -1833,15 +1833,33 @@
       const orderedGroups = getOrderedGroupsForScraping(startMode, customUrl);
       const groupsUrls = orderedGroups.map(g => g.url);
 
+      let rawTimeout = parseInt(document.getElementById('inpTimeout').value) || 60;
+      if (rawTimeout < 20) rawTimeout = rawTimeout * 10;
+      const timeoutSec = Math.max(45, rawTimeout);
+
+      let rawMaxAds = parseInt(document.getElementById('inpMaxAds').value) || 100;
+      if (rawMaxAds <= 0) rawMaxAds = 100;
+
+      let rawConcurrent = parseInt(document.getElementById('inpConcurrent').value) || 4;
+      rawConcurrent = Math.max(1, Math.min(5, rawConcurrent));
+
       const params = {
         groups: groupsUrls,
         start_mode: startMode,
         start_url: customUrl || (orderedGroups[0] ? orderedGroups[0].url : null),
-        concurrent_tabs: parseInt(document.getElementById('inpConcurrent').value) || 4,
-        max_ads_per_group: parseInt(document.getElementById('inpMaxAds').value) || 100,
-        timeout_seconds: parseInt(document.getElementById('inpTimeout').value) || 60,
+        concurrent_tabs: rawConcurrent,
+        max_ads_per_group: rawMaxAds,
+        timeout_seconds: timeoutSec,
         import_dir: document.getElementById('inpImportDir').value.trim()
       };
+
+      const btnStart = document.getElementById('btnStartScraping');
+      const btnStop = document.getElementById('btnStopScraping');
+      if (btnStart) btnStart.style.display = 'none';
+      if (btnStop) btnStop.style.display = 'inline-flex';
+      const logBox = document.getElementById('liveLogsContainer');
+      if (logBox) logBox.innerHTML = `[${new Date().toLocaleTimeString()}] 🚀 جاري تشغيل المتصفح وإطلاق السحب المتوازي (${rawConcurrent} تبويبات)...`;
+
       try {
         await apiFetch('/api/start', {
           method: 'POST',
@@ -1860,11 +1878,18 @@
     }
 
     async function scrapeSingleGroup(url) {
+      let rawTimeout = parseInt(document.getElementById('inpTimeout').value) || 60;
+      if (rawTimeout < 20) rawTimeout = rawTimeout * 10;
+      const timeoutSec = Math.max(45, rawTimeout);
+
+      let rawMaxAds = parseInt(document.getElementById('inpMaxAds').value) || 100;
+      if (rawMaxAds <= 0) rawMaxAds = 100;
+
       const params = {
         groups: [url],
         concurrent_tabs: 1,
-        max_ads_per_group: parseInt(document.getElementById('inpMaxAds').value) || 100,
-        timeout_seconds: parseInt(document.getElementById('inpTimeout').value) || 60,
+        max_ads_per_group: rawMaxAds,
+        timeout_seconds: timeoutSec,
         import_dir: document.getElementById('inpImportDir').value.trim()
       };
       try {

@@ -14,7 +14,7 @@ import requests
 from PIL import Image
 from typing import List, Tuple, Optional
 
-DEFAULT_IMGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "asstes", "imgs"))
+DEFAULT_IMGS_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "asstes", "image", "product"))
 
 # كلمات مفتاحية لاستبعاد الفيديوهات ومصغرات الفيديو
 VIDEO_FILTER_KEYWORDS = [

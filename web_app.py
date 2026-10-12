@@ -420,7 +420,7 @@ class ScrapingTaskManager:
         self.stop_requested = False
         self.start_time = time.time()
         self.active_tabs.clear()
-        self.logs.clear()
+        self.logs = [f"[{time.strftime('%H:%M:%S')}] 🚀 تم إطلاق مهمة السحب، جاري تشغيل المتصفح والاتصال بالمجموعات..."]
 
         t = threading.Thread(target=self._run_parallel_scraper, args=(params,), daemon=True)
         t.start()
@@ -481,8 +481,12 @@ class ScrapingTaskManager:
 
         concurrent_tabs = int(params.get("concurrent_tabs", 4))
         concurrent_tabs = max(1, min(concurrent_tabs, 6))
-        max_ads_per_group = int(params.get("max_ads_per_group", 100))
-        timeout_seconds = int(params.get("timeout_seconds", 60))
+        raw_max_ads = int(params.get("max_ads_per_group", 100))
+        max_ads_per_group = max(1, raw_max_ads)
+        raw_timeout = int(params.get("timeout_seconds", 60))
+        if raw_timeout < 20:
+            raw_timeout = raw_timeout * 10
+        timeout_seconds = max(45, raw_timeout)
 
         self.total_groups_count = len(urls)
         self.completed_groups_count = 0
@@ -759,7 +763,7 @@ class ScrapingTaskManager:
                                     continue
 
                             # تنزيل الصور ومعالجتها إلى WebP بشكل غير حاجب للمهام الأخرى
-                            images_download, nimages = await asyncio.to_thread(process_ad_images, raw_images, 5)
+                            images_download, nimages = await asyncio.to_thread(process_ad_images, raw_images, 5, IMGS_DIR)
                             if not nimages or len(nimages) == 0:
                                 continue
 
@@ -867,7 +871,10 @@ class ScrapingTaskManager:
             self.log(f"⚡ جاري إطلاق {actual_tabs} تبويبات متزامنة في المتصفح...")
             await asyncio.gather(*[tab_worker(i) for i in range(actual_tabs)])
 
-            await context.close()
+            try:
+                await context.close()
+            except Exception:
+                pass
 
         self.log(f"🎉 تم الانتهاء من كافة المهام! إجمالي الإعلانات الصالحة: {self.total_ads_collected}")
 
@@ -1168,7 +1175,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
           <div class="form-group">
             <label>⏱️ مهلة الانتظار قبل التخطي (ثانية):</label>
-            <input type="number" class="form-control" id="inpTimeout" value="60" min="20" max="180">
+            <input type="number" class="form-control" id="inpTimeout" value="60" min="40" max="300">
           </div>
           <div class="form-group">
             <label>📁 مجلد استيراد الموقع:</label>
@@ -2711,15 +2718,33 @@ HTML_PAGE = r"""<!DOCTYPE html>
       const orderedGroups = getOrderedGroupsForScraping(startMode, customUrl);
       const groupsUrls = orderedGroups.map(g => g.url);
 
+      let rawTimeout = parseInt(document.getElementById('inpTimeout').value) || 60;
+      if (rawTimeout < 20) rawTimeout = rawTimeout * 10;
+      const timeoutSec = Math.max(45, rawTimeout);
+
+      let rawMaxAds = parseInt(document.getElementById('inpMaxAds').value) || 100;
+      if (rawMaxAds <= 0) rawMaxAds = 100;
+
+      let rawConcurrent = parseInt(document.getElementById('inpConcurrent').value) || 4;
+      rawConcurrent = Math.max(1, Math.min(5, rawConcurrent));
+
       const params = {
         groups: groupsUrls,
         start_mode: startMode,
         start_url: customUrl || (orderedGroups[0] ? orderedGroups[0].url : null),
-        concurrent_tabs: parseInt(document.getElementById('inpConcurrent').value) || 4,
-        max_ads_per_group: parseInt(document.getElementById('inpMaxAds').value) || 100,
-        timeout_seconds: parseInt(document.getElementById('inpTimeout').value) || 60,
+        concurrent_tabs: rawConcurrent,
+        max_ads_per_group: rawMaxAds,
+        timeout_seconds: timeoutSec,
         import_dir: document.getElementById('inpImportDir').value.trim()
       };
+
+      const btnStart = document.getElementById('btnStartScraping');
+      const btnStop = document.getElementById('btnStopScraping');
+      if (btnStart) btnStart.style.display = 'none';
+      if (btnStop) btnStop.style.display = 'inline-flex';
+      const logBox = document.getElementById('liveLogsContainer');
+      if (logBox) logBox.innerHTML = `[${new Date().toLocaleTimeString()}] 🚀 جاري تشغيل المتصفح وإطلاق السحب المتوازي (${rawConcurrent} تبويبات)...`;
+
       try {
         await apiFetch('/api/start', {
           method: 'POST',
@@ -2738,11 +2763,18 @@ HTML_PAGE = r"""<!DOCTYPE html>
     }
 
     async function scrapeSingleGroup(url) {
+      let rawTimeout = parseInt(document.getElementById('inpTimeout').value) || 60;
+      if (rawTimeout < 20) rawTimeout = rawTimeout * 10;
+      const timeoutSec = Math.max(45, rawTimeout);
+
+      let rawMaxAds = parseInt(document.getElementById('inpMaxAds').value) || 100;
+      if (rawMaxAds <= 0) rawMaxAds = 100;
+
       const params = {
         groups: [url],
         concurrent_tabs: 1,
-        max_ads_per_group: parseInt(document.getElementById('inpMaxAds').value) || 100,
-        timeout_seconds: parseInt(document.getElementById('inpTimeout').value) || 60,
+        max_ads_per_group: rawMaxAds,
+        timeout_seconds: timeoutSec,
         import_dir: document.getElementById('inpImportDir').value.trim()
       };
       try {

@@ -1,6 +1,6 @@
 {
-  "last_updated_at": "2026-10-12 14:45:00 +0300",
+  "last_updated_at": "2026-10-12 18:10:00 +0300",
   "relative_time": "الآن",
-  "commit_message": "feat(moderation): enforce 100% Gemini AI evaluation and interactive flagged ads dashboard v1.4.1",
+  "commit_message": "fix(scraper): prevent instant timeout clamp, safeguard context close, and sync image dirs v1.4.2",
   "status": "up_to_date"
 }
