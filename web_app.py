@@ -389,13 +389,63 @@ def clean_browser_session_locks(user_data_dir: str):
     except Exception:
         pass
 
-    for cache_sub in ["GPUPersistentCache", "ShaderCache", "GrShaderCache"]:
+    try:
+        if os.path.exists(user_data_dir):
+            for item in os.listdir(user_data_dir):
+                if "CHROME_DELETE" in item or item == "Snapshots":
+                    del_path = os.path.join(user_data_dir, item)
+                    if os.path.isdir(del_path):
+                        shutil.rmtree(del_path, ignore_errors=True)
+                    elif os.path.isfile(del_path):
+                        os.remove(del_path)
+    except Exception:
+        pass
+
+    for cache_sub in ["GPUPersistentCache", "ShaderCache", "GrShaderCache", "Snapshots"]:
         cp = os.path.join(user_data_dir, cache_sub)
         if os.path.exists(cp):
             try:
                 shutil.rmtree(cp, ignore_errors=True)
             except Exception:
                 pass
+
+    pref_file = os.path.join(user_data_dir, "Default", "Preferences")
+    if os.path.exists(pref_file):
+        try:
+            with open(pref_file, "r", encoding="utf-8") as f:
+                pref_data = json.load(f)
+            if isinstance(pref_data, dict) and "profile" in pref_data and isinstance(pref_data["profile"], dict):
+                pref_data["profile"]["exit_type"] = "Normal"
+                pref_data["profile"]["exited_cleanly"] = True
+            with open(pref_file, "w", encoding="utf-8") as f:
+                json.dump(pref_data, f)
+        except Exception:
+            pass
+
+def get_browser_channel():
+    candidates = [
+        r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+        r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+        os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe")
+    ]
+    for c in candidates:
+        if os.path.exists(c):
+            return "chrome"
+    return None
+
+def parse_int_safe(val: Any, default: int = 0) -> int:
+    if val is None:
+        return default
+    try:
+        s = str(val).strip()
+        arabic_digits = "٠١٢٣٤٥٦٧٨٩"
+        for idx, d in enumerate(arabic_digits):
+            s = s.replace(d, str(idx))
+        s = re.sub(r'[^0-9\-]', '', s)
+        return int(s) if s and s != '-' else default
+    except Exception:
+        return default
 
 class ScrapingTaskManager:
     def __init__(self):
@@ -505,11 +555,11 @@ class ScrapingTaskManager:
                 first_group_name = g.get("name", urls[0])
                 break
 
-        concurrent_tabs = int(params.get("concurrent_tabs", 4))
+        concurrent_tabs = parse_int_safe(params.get("concurrent_tabs"), 4)
         concurrent_tabs = max(1, min(concurrent_tabs, 6))
-        raw_max_ads = int(params.get("max_ads_per_group", 100))
+        raw_max_ads = parse_int_safe(params.get("max_ads_per_group"), 100)
         max_ads_per_group = max(1, raw_max_ads)
-        raw_timeout = int(params.get("timeout_seconds", 60))
+        raw_timeout = parse_int_safe(params.get("timeout_seconds"), 60)
         if raw_timeout < 20:
             raw_timeout = raw_timeout * 10
         timeout_seconds = max(45, raw_timeout)
@@ -537,29 +587,40 @@ class ScrapingTaskManager:
             "--disable-background-timer-throttling",
             "--disable-backgrounding-occluded-windows",
             "--disable-renderer-backgrounding",
-            "--disable-features=CalculateNativeWinOcclusion",
-            "--disable-features=IntensiveWakeUpThrottling"
+            "--disable-features=CalculateNativeWinOcclusion,IntensiveWakeUpThrottling"
         ]
 
-        self.log("🌐 جاري تشغيل متصفح Chromium...")
+        self.log("🌐 جاري تشغيل المتصفح...")
         async with async_playwright() as p:
             context = None
+            browser_channel = get_browser_channel()
+            channel_name = "Google Chrome" if browser_channel else "Chromium"
+            self.log(f"⚡ إطلاق جلسة التصفح عبر [{channel_name}]...")
             for attempt in range(2):
                 try:
-                    context = await p.chromium.launch_persistent_context(
-                        user_data_dir=user_data_dir,
-                        headless=False,
-                        viewport=None,
-                        user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-                        locale="ar-SY",
-                        timezone_id="Asia/Damascus",
-                        args=browser_launch_args
+                    kwargs = {
+                        "user_data_dir": user_data_dir,
+                        "headless": False,
+                        "viewport": None,
+                        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+                        "locale": "ar-SY",
+                        "timezone_id": "Asia/Damascus",
+                        "args": browser_launch_args,
+                        "timeout": 25000
+                    }
+                    if browser_channel:
+                        kwargs["channel"] = browser_channel
+
+                    context = await asyncio.wait_for(
+                        p.chromium.launch_persistent_context(**kwargs),
+                        timeout=30.0
                     )
                     break
                 except Exception as ex:
                     if attempt == 0:
-                        self.log("⚠️ تم رصد حجز سابق لملفات المتصفح، جاري إعادة تحرير الجلسة والبدء...")
+                        self.log(f"⚠️ تنبيه أثناء إطلاق المتصفح ({ex}). جاري تحرير الجلسة وإعادة المحاولة...")
                         clean_browser_session_locks(user_data_dir)
+                        browser_channel = None
                         await asyncio.sleep(1.0)
                     else:
                         raise ex
@@ -900,7 +961,7 @@ class ScrapingTaskManager:
 
             actual_tabs = min(concurrent_tabs, len(urls))
             self.log(f"⚡ جاري إطلاق {actual_tabs} تبويبات متزامنة في المتصفح...")
-            await asyncio.gather(*[tab_worker(i) for i in range(actual_tabs)])
+            await asyncio.gather(*[tab_worker(i) for i in range(actual_tabs)], return_exceptions=True)
 
             try:
                 await context.close()
@@ -2735,6 +2796,14 @@ HTML_PAGE = r"""<!DOCTYPE html>
       sel.innerHTML = groupsData.map(g => `<option value="${g.url}">${g.name} (${g.category || 'عام'})</option>`).join('');
     }
 
+    function parseArabicInt(str, defaultVal = 0) {
+      if (!str) return defaultVal;
+      const arabicDigits = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+      let s = String(str).replace(/[٠-٩]/g, d => arabicDigits.indexOf(d));
+      let val = parseInt(s.replace(/[^0-9-]/g, ''));
+      return isNaN(val) ? defaultVal : val;
+    }
+
     async function startAllScraping() {
       if (!groupsData || groupsData.length === 0) {
         alert("يرجى إضافة روابط مجموعات أولاً!");
@@ -2749,14 +2818,14 @@ HTML_PAGE = r"""<!DOCTYPE html>
       const orderedGroups = getOrderedGroupsForScraping(startMode, customUrl);
       const groupsUrls = orderedGroups.map(g => g.url);
 
-      let rawTimeout = parseInt(document.getElementById('inpTimeout').value) || 60;
+      let rawTimeout = parseArabicInt(document.getElementById('inpTimeout').value, 60);
       if (rawTimeout < 20) rawTimeout = rawTimeout * 10;
       const timeoutSec = Math.max(45, rawTimeout);
 
-      let rawMaxAds = parseInt(document.getElementById('inpMaxAds').value) || 100;
+      let rawMaxAds = parseArabicInt(document.getElementById('inpMaxAds').value, 100);
       if (rawMaxAds <= 0) rawMaxAds = 100;
 
-      let rawConcurrent = parseInt(document.getElementById('inpConcurrent').value) || 4;
+      let rawConcurrent = parseArabicInt(document.getElementById('inpConcurrent').value, 4);
       rawConcurrent = Math.max(1, Math.min(5, rawConcurrent));
 
       const params = {
@@ -2805,11 +2874,11 @@ HTML_PAGE = r"""<!DOCTYPE html>
     }
 
     async function scrapeSingleGroup(url) {
-      let rawTimeout = parseInt(document.getElementById('inpTimeout').value) || 60;
+      let rawTimeout = parseArabicInt(document.getElementById('inpTimeout').value, 60);
       if (rawTimeout < 20) rawTimeout = rawTimeout * 10;
       const timeoutSec = Math.max(45, rawTimeout);
 
-      let rawMaxAds = parseInt(document.getElementById('inpMaxAds').value) || 100;
+      let rawMaxAds = parseArabicInt(document.getElementById('inpMaxAds').value, 100);
       if (rawMaxAds <= 0) rawMaxAds = 100;
 
       const params = {
@@ -3456,6 +3525,12 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path
+
+        if path == "/favicon.ico":
+            self.send_response(204)
+            self.send_cors_headers()
+            self.end_headers()
+            return
 
         if path in ["/", "/index.html"]:
             self.send_response(200)

@@ -1819,6 +1819,14 @@
       sel.innerHTML = groupsData.map(g => `<option value="${g.url}">${g.name} (${g.category || 'عام'})</option>`).join('');
     }
 
+    function parseArabicInt(str, defaultVal = 0) {
+      if (!str) return defaultVal;
+      const arabicDigits = ['٠','١','٢','٣','٤','٥','٦','٧','٨','٩'];
+      let s = String(str).replace(/[٠-٩]/g, d => arabicDigits.indexOf(d));
+      let val = parseInt(s.replace(/[^0-9-]/g, ''));
+      return isNaN(val) ? defaultVal : val;
+    }
+
     async function startAllScraping() {
       if (!groupsData || groupsData.length === 0) {
         alert("يرجى إضافة روابط مجموعات أولاً!");
@@ -1833,14 +1841,14 @@
       const orderedGroups = getOrderedGroupsForScraping(startMode, customUrl);
       const groupsUrls = orderedGroups.map(g => g.url);
 
-      let rawTimeout = parseInt(document.getElementById('inpTimeout').value) || 60;
+      let rawTimeout = parseArabicInt(document.getElementById('inpTimeout').value, 60);
       if (rawTimeout < 20) rawTimeout = rawTimeout * 10;
       const timeoutSec = Math.max(45, rawTimeout);
 
-      let rawMaxAds = parseInt(document.getElementById('inpMaxAds').value) || 100;
+      let rawMaxAds = parseArabicInt(document.getElementById('inpMaxAds').value, 100);
       if (rawMaxAds <= 0) rawMaxAds = 100;
 
-      let rawConcurrent = parseInt(document.getElementById('inpConcurrent').value) || 4;
+      let rawConcurrent = parseArabicInt(document.getElementById('inpConcurrent').value, 4);
       rawConcurrent = Math.max(1, Math.min(5, rawConcurrent));
 
       const params = {
@@ -1889,11 +1897,11 @@
     }
 
     async function scrapeSingleGroup(url) {
-      let rawTimeout = parseInt(document.getElementById('inpTimeout').value) || 60;
+      let rawTimeout = parseArabicInt(document.getElementById('inpTimeout').value, 60);
       if (rawTimeout < 20) rawTimeout = rawTimeout * 10;
       const timeoutSec = Math.max(45, rawTimeout);
 
-      let rawMaxAds = parseInt(document.getElementById('inpMaxAds').value) || 100;
+      let rawMaxAds = parseArabicInt(document.getElementById('inpMaxAds').value, 100);
       if (rawMaxAds <= 0) rawMaxAds = 100;
 
       const params = {
