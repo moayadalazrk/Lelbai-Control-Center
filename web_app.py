@@ -408,7 +408,7 @@ class ScrapingTaskManager:
         self.total_ads_collected = 0
         self.active_tabs: Dict[int, Dict[str, Any]] = {}
         self.logs: List[str] = []
-        self.lock = threading.Lock()
+        self.lock = threading.RLock()
         self.gemini_processor = GeminiProcessor()
 
     def log(self, message: str):
@@ -418,60 +418,70 @@ class ScrapingTaskManager:
             self.logs.append(log_line)
             if len(self.logs) > 200:
                 self.logs.pop(0)
+        try:
+            print(log_line, flush=True)
+        except Exception:
             try:
-                print(log_line, flush=True)
+                enc = sys.stdout.encoding or 'cp1256'
+                safe_msg = log_line.encode(enc, errors='replace').decode(enc, errors='replace')
+                print(safe_msg, flush=True)
             except Exception:
-                try:
-                    enc = sys.stdout.encoding or 'cp1256'
-                    safe_msg = log_line.encode(enc, errors='replace').decode(enc, errors='replace')
-                    print(safe_msg, flush=True)
-                except Exception:
-                    pass
+                pass
 
     def start_scraping_job(self, params: Dict[str, Any]):
-        if self.is_running:
-            return False, "السحب قيد التشغيل بالفعل!"
+        with self.lock:
+            if self.is_running:
+                return False, "السحب قيد التشغيل بالفعل!"
 
-        self.is_running = True
-        self.stop_requested = False
-        self.start_time = time.time()
-        self.active_tabs.clear()
-        self.logs = [f"[{time.strftime('%H:%M:%S')}] 🚀 تم إطلاق مهمة السحب، جاري تشغيل المتصفح والاتصال بالمجموعات..."]
+            self.is_running = True
+            self.stop_requested = False
+            self.start_time = time.time()
+            self.active_tabs.clear()
+            self.logs = [f"[{time.strftime('%H:%M:%S')}] 🚀 تم إطلاق مهمة السحب، جاري تشغيل المتصفح والاتصال بالمجموعات..."]
 
         t = threading.Thread(target=self._run_parallel_scraper, args=(params,), daemon=True)
         t.start()
         return True, "تم بدء السحب بنجاح!"
 
     def stop_scraping_job(self):
-        if not self.is_running:
-            return False, "لا توجد عملية سحب نشطة."
-        self.stop_requested = True
+        with self.lock:
+            if not self.is_running:
+                return False, "لا توجد عملية سحب نشطة."
+            self.stop_requested = True
         self.log("⏹️ تم إرسال طلب إيقاف السحب...")
         return True, "جاري إيقاف السحب..."
 
     def _update_group_scrape_history(self, group_url: str, ads_found_count: int):
         """تحديث تاريخ وعدد الإعلانات المسحوبة للمجموعة في groups_data.json"""
-        with self.lock:
-            groups = read_json_file(GROUPS_DATA_FILE)
-            norm_u = normalize_group_url(group_url)
-            for g in groups:
-                norm_g = normalize_group_url(g.get("url", ""))
-                if norm_g == norm_u or norm_g in norm_u or norm_u in norm_g:
-                    g["last_scraped_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
-                    g["last_ads_count"] = ads_found_count
-                    g["total_ads_count"] = g.get("total_ads_count", 0) + ads_found_count
-                    g["status"] = "مكتمل"
-                    break
-            write_json_file(GROUPS_DATA_FILE, groups)
+        groups = read_json_file(GROUPS_DATA_FILE)
+        norm_u = normalize_group_url(group_url)
+        for g in groups:
+            norm_g = normalize_group_url(g.get("url", ""))
+            if norm_g == norm_u or norm_g in norm_u or norm_u in norm_g:
+                g["last_scraped_at"] = time.strftime("%Y-%m-%d %H:%M:%S")
+                g["last_ads_count"] = ads_found_count
+                g["total_ads_count"] = g.get("total_ads_count", 0) + ads_found_count
+                g["status"] = "مكتمل"
+                break
+        write_json_file(GROUPS_DATA_FILE, groups)
 
     def _run_parallel_scraper(self, params: Dict[str, Any]):
         try:
-            asyncio.run(self._async_parallel_scraper(params))
+            if sys.platform == "win32":
+                loop = asyncio.ProactorEventLoop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self._async_parallel_scraper(params))
+            else:
+                asyncio.run(self._async_parallel_scraper(params))
         except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
             self.log(f"❌ خطأ عام أثناء السحب: {e}")
+            self.log(f"🔍 تفاصيل: {tb.strip()[-300:]}")
         finally:
-            self.is_running = False
-            self.active_tabs.clear()
+            with self.lock:
+                self.is_running = False
+                self.active_tabs.clear()
 
     async def _async_parallel_scraper(self, params: Dict[str, Any]):
         urls = params.get("groups", [])
@@ -516,6 +526,7 @@ class ScrapingTaskManager:
         self.log(f"🚀 بدء محرك السحب المتوازي: {len(urls)} مجموعات | {concurrent_tabs} صفحات متزامنة حقيقية ⚡")
 
         user_data_dir = os.path.join(BASE_DIR, "browser_session")
+        self.log("🔧 فحص وتحرير ملفات جلسة المتصفح...")
         clean_browser_session_locks(user_data_dir)
 
         browser_launch_args = [
@@ -530,6 +541,7 @@ class ScrapingTaskManager:
             "--disable-features=IntensiveWakeUpThrottling"
         ]
 
+        self.log("🌐 جاري تشغيل متصفح Chromium...")
         async with async_playwright() as p:
             context = None
             for attempt in range(2):
@@ -552,6 +564,7 @@ class ScrapingTaskManager:
                     else:
                         raise ex
 
+            self.log("✅ تم تشغيل المتصفح بنجاح! جاري تجهيز التبويبات المتزامنة...")
             await context.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined});")
 
             q = asyncio.Queue()
@@ -559,11 +572,14 @@ class ScrapingTaskManager:
                 q.put_nowait((idx, u))
 
             async def tab_worker(tab_id: int):
-                # إذا كانت الصفحة الأولى مفتوحة نستخدمها، عدا ذلك نفتح تبويب جديد
-                if tab_id == 0 and context.pages:
-                    page = context.pages[0]
-                else:
-                    page = await context.new_page()
+                try:
+                    if tab_id == 0 and context.pages:
+                        page = context.pages[0]
+                    else:
+                        page = await context.new_page()
+                except Exception as pe:
+                    self.log(f"[تبويب {tab_id+1}] ❌ تعذر فتح التبويب: {pe}")
+                    return
 
                 while not q.empty() and not self.stop_requested:
                     try:
@@ -771,12 +787,12 @@ class ScrapingTaskManager:
                                     continue
                                 seen_signatures.add(sig)
 
-                                # التحقق الحاسم من عدم وجود الإعلان مسبقاً على الموقع
-                                published_db = read_json_file(PUBLISHED_FILE)
-                                is_dup, dup_msg = check_if_ad_already_exists({"phone_number": primary_phone, "ad_url": p_data.get("link"), "description": clean_desc}, published_db, [])
-                                if is_dup:
-                                    self.log(f"[🔄 استبعاد إعلان مكرر]: موجود مسبقاً على الموقع ({primary_phone})")
-                                    continue
+                            # التحقق الحاسم من عدم وجود الإعلان مسبقاً على الموقع
+                            published_db = read_json_file(PUBLISHED_FILE)
+                            is_dup, dup_msg = check_if_ad_already_exists({"phone_number": primary_phone, "ad_url": p_data.get("link"), "description": clean_desc}, published_db, [])
+                            if is_dup:
+                                self.log(f"[🔄 استبعاد إعلان مكرر]: موجود مسبقاً على الموقع ({primary_phone})")
+                                continue
 
                             # تنزيل الصور ومعالجتها إلى WebP بشكل غير حاجب للمهام الأخرى
                             images_download, nimages = await asyncio.to_thread(process_ad_images, raw_images, 5, IMGS_DIR)
@@ -817,33 +833,32 @@ class ScrapingTaskManager:
                             if not processed_ad.get("is_safe", True):
                                 rej_msg = processed_ad.get('rejection_reason') or processed_ad.get('moderation_summary') or 'مخالفة للضوابط'
                                 self.log(f"[🚫 استبعاد إعلان مخالف عبر الذكاء الاصطناعي]: {rej_msg}")
-                                with self.lock:
-                                    flagged = read_json_file(FLAGGED_FILE)
-                                    ad_u = processed_ad.get("ad_url")
-                                    ad_t = processed_ad.get("clean_title")
-                                    if not any((ad_u and f.get("ad_url") == ad_u) or (ad_t and f.get("clean_title") == ad_t) for f in flagged):
-                                        flagged.insert(0, processed_ad)
-                                        write_json_file(FLAGGED_FILE, flagged)
+                                flagged = read_json_file(FLAGGED_FILE)
+                                ad_u = processed_ad.get("ad_url")
+                                ad_t = processed_ad.get("clean_title")
+                                if not any((ad_u and f.get("ad_url") == ad_u) or (ad_t and f.get("clean_title") == ad_t) for f in flagged):
+                                    flagged.insert(0, processed_ad)
+                                    write_json_file(FLAGGED_FILE, flagged)
                                 continue
 
                             # إثراء الإعلان بالتصنيف في أصغر فئة، المواصفات، حساب وهمي، وفحص التكرار، وتقرير الذكاء الاصطناعي
                             processed_ad = enrich_ad_status(processed_ad)
 
                             # حفظ الإعلان المعتمد
+                            pending = read_json_file(PENDING_FILE)
+                            pending.append(processed_ad)
+                            write_json_file(PENDING_FILE, pending)
+
+                            all_ads = read_json_file(ALL_ADS_FILE)
+                            all_ads.append(processed_ad)
+                            write_json_file(ALL_ADS_FILE, all_ads)
+
+                            group_ads_count += 1
                             with self.lock:
-                                pending = read_json_file(PENDING_FILE)
-                                pending.append(processed_ad)
-                                write_json_file(PENDING_FILE, pending)
-
-                                all_ads = read_json_file(ALL_ADS_FILE)
-                                all_ads.append(processed_ad)
-                                write_json_file(ALL_ADS_FILE, all_ads)
-
-                                group_ads_count += 1
                                 self.total_ads_collected += 1
-                                last_ad_time = time.time()
                                 self.active_tabs[tab_id]["ads_collected"] = group_ads_count
                                 self.active_tabs[tab_id]["status"] = f"سحب ({group_ads_count}/{max_ads_per_group})"
+                            last_ad_time = time.time()
 
                             cat_label = processed_ad.get('category_hierarchy') or processed_ad.get('category')
                             pub_name = processed_ad.get('publisher_name', 'معلن سوري')
@@ -2762,13 +2777,24 @@ HTML_PAGE = r"""<!DOCTYPE html>
       if (logBox) logBox.innerHTML = `[${new Date().toLocaleTimeString()}] 🚀 جاري تشغيل المتصفح وإطلاق السحب المتوازي (${rawConcurrent} تبويبات)...`;
 
       try {
-        await apiFetch('/api/start', {
+        const res = await apiFetch('/api/start', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(params)
         });
+        const data = await res.json();
+        if (!data.success) {
+          alert(data.message || "تعذر بدء السحب.");
+          if (btnStart) btnStart.style.display = 'inline-flex';
+          if (btnStop) btnStop.style.display = 'none';
+        } else {
+          setTimeout(pollScraperStatus, 600);
+          setTimeout(pollScraperStatus, 1800);
+        }
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
+        if (btnStart) btnStart.style.display = 'inline-flex';
+        if (btnStop) btnStop.style.display = 'none';
       }
     }
 
@@ -2800,6 +2826,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
           body: JSON.stringify(params)
         });
         switchTab('tab-scraper', document.querySelectorAll('.nav-btn')[1]);
+        setTimeout(pollScraperStatus, 600);
+        setTimeout(pollScraperStatus, 1800);
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
       }
@@ -2812,42 +2840,52 @@ HTML_PAGE = r"""<!DOCTYPE html>
         
         const btnStart = document.getElementById('btnStartScraping');
         const btnStop = document.getElementById('btnStopScraping');
-        if (st.is_running) {
-          btnStart.style.display = 'none';
-          btnStop.style.display = 'inline-flex';
-        } else {
-          btnStart.style.display = 'inline-flex';
-          btnStop.style.display = 'none';
+        if (btnStart && btnStop) {
+          if (st.is_running) {
+            btnStart.style.display = 'none';
+            btnStop.style.display = 'inline-flex';
+          } else {
+            btnStart.style.display = 'inline-flex';
+            btnStop.style.display = 'none';
+          }
         }
 
         const tabsBox = document.getElementById('activeTabsLiveList');
-        const keys = Object.keys(st.active_tabs || {});
-        if (keys.length === 0) {
-          tabsBox.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">لا توجد تبويبات نشطة حالياً</div>`;
-        } else {
-          tabsBox.innerHTML = keys.map(k => `
-            <div style="display:flex; justify-content:space-between; background:var(--card-inner); padding:8px 12px; border-radius:8px; font-size:12px; font-weight:700;">
-              <div>⚡ تبويب ${parseInt(k)+1}: <span style="color:#60a5fa;">مجموعة [${st.active_tabs[k].group_idx}]</span></div>
-              <div style="color:#34d399;">${st.active_tabs[k].status}</div>
-            </div>
-          `).join('');
+        if (tabsBox) {
+          const keys = Object.keys(st.active_tabs || {});
+          if (keys.length === 0) {
+            tabsBox.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">لا توجد تبويبات نشطة حالياً</div>`;
+          } else {
+            tabsBox.innerHTML = keys.map(k => `
+              <div style="display:flex; justify-content:space-between; background:var(--card-inner); padding:8px 12px; border-radius:8px; font-size:12px; font-weight:700;">
+                <div>⚡ تبويب ${parseInt(k)+1}: <span style="color:#60a5fa;">مجموعة [${st.active_tabs[k].group_idx}]</span></div>
+                <div style="color:#34d399;">${st.active_tabs[k].status}</div>
+              </div>
+            `).join('');
+          }
         }
 
         if (st.pending_count !== undefined) {
-          document.getElementById('badgePending').innerText = st.pending_count;
-          document.getElementById('stReadyAds').innerText = st.ready_count || 0;
-          document.getElementById('stPublishedAds').innerText = st.published_count || 0;
-          document.getElementById('stFlaggedAds').innerText = st.flagged_count || 0;
+          const bp = document.getElementById('badgePending');
+          if (bp) bp.innerText = st.pending_count;
+          const sra = document.getElementById('stReadyAds');
+          if (sra) sra.innerText = st.ready_count || 0;
+          const spa = document.getElementById('stPublishedAds');
+          if (spa) spa.innerText = st.published_count || 0;
+          const sfa = document.getElementById('stFlaggedAds');
+          if (sfa) sfa.innerText = st.flagged_count || 0;
         }
 
         if (st.gemini_usage) {
-          updateAiQuotaUI(st.gemini_usage);
+          try { updateAiQuotaUI(st.gemini_usage); } catch(err){}
         }
 
         if (st.logs && st.logs.length > 0) {
           const logBox = document.getElementById('liveLogsContainer');
-          logBox.innerHTML = st.logs.join('<br>');
-          logBox.scrollTop = logBox.scrollHeight;
+          if (logBox) {
+            logBox.innerHTML = st.logs.join('<br>');
+            logBox.scrollTop = logBox.scrollHeight;
+          }
         }
       } catch (e) {}
     }
@@ -3494,35 +3532,43 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/status":
             with task_manager.lock:
-                elapsed = int(time.time() - task_manager.start_time) if task_manager.is_running else 0
-                h, m, s = elapsed // 3600, (elapsed % 3600) // 60, elapsed % 60
-                time_str = f"{h:02d}:{m:02d}:{s:02d}"
+                is_running = task_manager.is_running
+                start_time = task_manager.start_time
+                total_groups = task_manager.total_groups_count
+                completed_groups = task_manager.completed_groups_count
+                total_ads = task_manager.total_ads_collected
+                active_tabs = dict(task_manager.active_tabs)
+                logs_snapshot = list(task_manager.logs[-25:])
 
-                raw_pending = read_json_file(PENDING_FILE)
-                published = read_json_file(PUBLISHED_FILE)
-                flagged = read_json_file(FLAGGED_FILE)
+            elapsed = int(time.time() - start_time) if is_running else 0
+            h, m, s = elapsed // 3600, (elapsed % 3600) // 60, elapsed % 60
+            time_str = f"{h:02d}:{m:02d}:{s:02d}"
 
-                published_ids = {p.get("ad_url", "").strip() for p in published if p.get("ad_url")} | {p.get("clean_title", "").strip() for p in published if p.get("clean_title")}
-                flagged_ids = {f.get("ad_url", "").strip() for f in flagged if f.get("ad_url")} | {f.get("clean_title", "").strip() for f in flagged if f.get("clean_title")}
+            raw_pending = read_json_file(PENDING_FILE)
+            published = read_json_file(PUBLISHED_FILE)
+            flagged = read_json_file(FLAGGED_FILE)
 
-                raw_pending = [p for p in raw_pending if not ((p.get("ad_url", "").strip() and p.get("ad_url", "").strip() in published_ids) or (p.get("clean_title", "").strip() and p.get("clean_title", "").strip() in published_ids) or (p.get("ad_url", "").strip() and p.get("ad_url", "").strip() in flagged_ids) or (p.get("clean_title", "").strip() and p.get("clean_title", "").strip() in flagged_ids))]
+            published_ids = {p.get("ad_url", "").strip() for p in published if p.get("ad_url")} | {p.get("clean_title", "").strip() for p in published if p.get("clean_title")}
+            flagged_ids = {f.get("ad_url", "").strip() for f in flagged if f.get("ad_url")} | {f.get("clean_title", "").strip() for f in flagged if f.get("clean_title")}
 
-                ready_ads = [p for p in raw_pending if enrich_ad_status(p).get("evaluation", {}).get("is_ready_to_publish")]
+            clean_pending = [p for p in raw_pending if not ((p.get("ad_url", "").strip() and p.get("ad_url", "").strip() in published_ids) or (p.get("clean_title", "").strip() and p.get("clean_title", "").strip() in published_ids) or (p.get("ad_url", "").strip() and p.get("ad_url", "").strip() in flagged_ids) or (p.get("clean_title", "").strip() and p.get("clean_title", "").strip() in flagged_ids))]
 
-                resp = {
-                    "is_running": task_manager.is_running,
-                    "elapsed_time": time_str,
-                    "total_groups": task_manager.total_groups_count,
-                    "completed_groups": task_manager.completed_groups_count,
-                    "total_ads": task_manager.total_ads_collected,
-                    "active_tabs": task_manager.active_tabs,
-                    "logs": task_manager.logs[-25:],
-                    "pending_count": len(raw_pending),
-                    "ready_count": len(ready_ads),
-                    "published_count": len(published),
-                    "flagged_count": len(flagged),
-                    "gemini_usage": get_gemini_usage_info(load_config().get("gemini_api_key", ""))
-                }
+            ready_count = sum(1 for p in clean_pending if (p.get("ai_evaluated") and p.get("is_safe", True)))
+
+            resp = {
+                "is_running": is_running,
+                "elapsed_time": time_str,
+                "total_groups": total_groups,
+                "completed_groups": completed_groups,
+                "total_ads": total_ads,
+                "active_tabs": active_tabs,
+                "logs": logs_snapshot,
+                "pending_count": len(clean_pending),
+                "ready_count": ready_count,
+                "published_count": len(published),
+                "flagged_count": len(flagged),
+                "gemini_usage": get_gemini_usage_info(load_config().get("gemini_api_key", ""))
+            }
             self.send_json(resp)
             return
 

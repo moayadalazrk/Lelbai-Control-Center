@@ -1861,13 +1861,24 @@
       if (logBox) logBox.innerHTML = `[${new Date().toLocaleTimeString()}] 🚀 جاري تشغيل المتصفح وإطلاق السحب المتوازي (${rawConcurrent} تبويبات)...`;
 
       try {
-        await apiFetch('/api/start', {
+        const res = await apiFetch('/api/start', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify(params)
         });
+        const data = await res.json();
+        if (!data.success) {
+          alert(data.message || "تعذر بدء السحب.");
+          if (btnStart) btnStart.style.display = 'inline-flex';
+          if (btnStop) btnStop.style.display = 'none';
+        } else {
+          setTimeout(pollScraperStatus, 600);
+          setTimeout(pollScraperStatus, 1800);
+        }
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
+        if (btnStart) btnStart.style.display = 'inline-flex';
+        if (btnStop) btnStop.style.display = 'none';
       }
     }
 
@@ -1899,6 +1910,8 @@
           body: JSON.stringify(params)
         });
         switchTab('tab-scraper', document.querySelectorAll('.nav-btn')[1]);
+        setTimeout(pollScraperStatus, 600);
+        setTimeout(pollScraperStatus, 1800);
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
       }
@@ -1911,42 +1924,52 @@
         
         const btnStart = document.getElementById('btnStartScraping');
         const btnStop = document.getElementById('btnStopScraping');
-        if (st.is_running) {
-          btnStart.style.display = 'none';
-          btnStop.style.display = 'inline-flex';
-        } else {
-          btnStart.style.display = 'inline-flex';
-          btnStop.style.display = 'none';
+        if (btnStart && btnStop) {
+          if (st.is_running) {
+            btnStart.style.display = 'none';
+            btnStop.style.display = 'inline-flex';
+          } else {
+            btnStart.style.display = 'inline-flex';
+            btnStop.style.display = 'none';
+          }
         }
 
         const tabsBox = document.getElementById('activeTabsLiveList');
-        const keys = Object.keys(st.active_tabs || {});
-        if (keys.length === 0) {
-          tabsBox.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">لا توجد تبويبات نشطة حالياً</div>`;
-        } else {
-          tabsBox.innerHTML = keys.map(k => `
-            <div style="display:flex; justify-content:space-between; background:var(--card-inner); padding:8px 12px; border-radius:8px; font-size:12px; font-weight:700;">
-              <div>⚡ تبويب ${parseInt(k)+1}: <span style="color:#60a5fa;">مجموعة [${st.active_tabs[k].group_idx}]</span></div>
-              <div style="color:#34d399;">${st.active_tabs[k].status}</div>
-            </div>
-          `).join('');
+        if (tabsBox) {
+          const keys = Object.keys(st.active_tabs || {});
+          if (keys.length === 0) {
+            tabsBox.innerHTML = `<div style="font-size:12px; color:var(--text-muted); text-align:center; padding:10px;">لا توجد تبويبات نشطة حالياً</div>`;
+          } else {
+            tabsBox.innerHTML = keys.map(k => `
+              <div style="display:flex; justify-content:space-between; background:var(--card-inner); padding:8px 12px; border-radius:8px; font-size:12px; font-weight:700;">
+                <div>⚡ تبويب ${parseInt(k)+1}: <span style="color:#60a5fa;">مجموعة [${st.active_tabs[k].group_idx}]</span></div>
+                <div style="color:#34d399;">${st.active_tabs[k].status}</div>
+              </div>
+            `).join('');
+          }
         }
 
         if (st.pending_count !== undefined) {
-          document.getElementById('badgePending').innerText = st.pending_count;
-          document.getElementById('stReadyAds').innerText = st.ready_count || 0;
-          document.getElementById('stPublishedAds').innerText = st.published_count || 0;
-          document.getElementById('stFlaggedAds').innerText = st.flagged_count || 0;
+          const bp = document.getElementById('badgePending');
+          if (bp) bp.innerText = st.pending_count;
+          const sra = document.getElementById('stReadyAds');
+          if (sra) sra.innerText = st.ready_count || 0;
+          const spa = document.getElementById('stPublishedAds');
+          if (spa) spa.innerText = st.published_count || 0;
+          const sfa = document.getElementById('stFlaggedAds');
+          if (sfa) sfa.innerText = st.flagged_count || 0;
         }
 
         if (st.gemini_usage) {
-          updateAiQuotaUI(st.gemini_usage);
+          try { updateAiQuotaUI(st.gemini_usage); } catch(err){}
         }
 
         if (st.logs && st.logs.length > 0) {
           const logBox = document.getElementById('liveLogsContainer');
-          logBox.innerHTML = st.logs.join('<br>');
-          logBox.scrollTop = logBox.scrollHeight;
+          if (logBox) {
+            logBox.innerHTML = st.logs.join('<br>');
+            logBox.scrollTop = logBox.scrollHeight;
+          }
         }
       } catch (e) {}
     }
