@@ -1200,6 +1200,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         <button class="btn btn-sm btn-outline" onclick="filterAds('review', this)">⚠️ بحاجة لمراجعة</button>
       </div>
       <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button class="btn btn-outline" style="border-color:#38bdf8; color:#38bdf8; font-weight:800;" onclick="reclassifyAllAdsWithAi()" title="إعادة الفحص والتصنيف الكامل لكافة الإعلانات عبر Gemini AI">🤖 فحص الكل بالذكاء الاصطناعي</button>
         <button class="btn btn-danger" onclick="clearAllPendingAds()" style="background:#ef4444;" title="مسح وتفريغ كافة الإعلانات غير المنشورة وصورها دفعة واحدة">🗑️ تفريغ كافة الإعلانات</button>
         <button class="btn btn-success" onclick="bulkPublishReady()">⚡ نشر كافة الإعلانات الجاهزة لمجلد الاستيراد</button>
         <button class="btn btn-outline" onclick="loadAllAds()">🔄 تحديث</button>
@@ -1933,6 +1934,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
                 <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
                   <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1; min-width:140px;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
+                  <button id="aiBtn-${idx}" class="btn btn-outline btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="reclassifySingleAd(${idx})" title="إعادة فحص وتصنيف الإعلان بالذكاء الاصطناعي (Gemini)">🤖 فحص AI</button>
                   <button id="rejBtn-${idx}" class="btn btn-warning btn-sm" onclick="rejectSingleAd(${idx})" title="استبعاد الإعلان ونقله للمخالفات">⚠️ استبعاد</button>
                   <button id="delBtn-${idx}" class="btn btn-danger btn-sm" onclick="deleteSingleAd(${idx})" title="حذف نهائي للإعلان وصوره من الجهاز">🗑️ حذف نهائي</button>
                 </div>
@@ -2115,6 +2117,55 @@ HTML_PAGE = r"""<!DOCTYPE html>
         loadPublishedAds();
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! تأكد من تشغيل start_app.bat");
+      }
+    }
+
+    async function reclassifySingleAd(idx) {
+      const ad = adsData[idx];
+      if (!ad) return;
+      const btn = document.getElementById(`aiBtn-${idx}`);
+      if (btn) { btn.disabled = true; btn.innerText = '⏳ جاري الفحص...'; }
+      try {
+        const res = await apiFetch('/api/reclassify_ad_with_ai', {
+          method: 'POST',
+          body: JSON.stringify({ ad_index: idx, ad: ad })
+        });
+        const data = await res.json();
+        if (data.success && data.ad) {
+          adsData[idx] = data.ad;
+          renderAdsGrid();
+          alert(data.message || 'تمت إعادة الفحص والتصنيف بنجاح! 🤖');
+        } else {
+          alert(data.message || 'تعذر إعادة التصنيف بالذكاء الاصطناعي');
+        }
+      } catch (err) {
+        alert('خطأ أثناء الفحص: ' + err);
+      } finally {
+        if (btn) { btn.disabled = false; btn.innerText = '🤖 فحص AI'; }
+      }
+    }
+
+    async function reclassifyAllAdsWithAi() {
+      if (!adsData.length) {
+        alert('لا توجد إعلانات حالياً في قائمة المراجعة!');
+        return;
+      }
+      if (!confirm(`هل تريد إعادة فحص وتصنيف كافة الإعلانات (${adsData.length}) باستخدام الذكاء الاصطناعي (Gemini Vision API)؟`)) return;
+      const overlay = document.createElement('div');
+      overlay.style = 'position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.75); z-index:99999; display:flex; justify-content:center; align-items:center; color:#fff; font-size:18px; font-weight:800; flex-direction:column; gap:16px;';
+      overlay.innerHTML = '<div>⏳ جاري فحص وتصنيف الإعلانات بالذكاء الاصطناعي... يرجى الانتظار</div>';
+      document.body.appendChild(overlay);
+      try {
+        const res = await apiFetch('/api/reclassify_all_with_ai', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message);
+        await loadAllAds();
+      } catch (e) {
+        alert('خطأ أثناء الفحص الجماعي: ' + e);
+      } finally {
+        if (document.body.contains(overlay)) {
+          document.body.removeChild(overlay);
+        }
       }
     }
 
@@ -3662,6 +3713,73 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                             pass
             self.send_json({"success": True, "message": "تم تصفير كافة بيانات المنظومة بنجاح (إعادة ضبط المصنع)! 🔄"})
             return
+
+        elif path == "/api/reclassify_ad_with_ai":
+            ad = req_data.get("ad", {})
+            ad_url = ad.get("ad_url") or req_data.get("ad_url")
+            clean_title = ad.get("clean_title") or req_data.get("clean_title")
+            ad_idx = req_data.get("ad_index")
+
+            pending = read_json_file(PENDING_FILE)
+            target = None
+            found_idx = -1
+
+            for i, p in enumerate(pending):
+                if (ad_url and p.get("ad_url") == ad_url) or (clean_title and p.get("clean_title") == clean_title):
+                    target = p
+                    found_idx = i
+                    break
+            if target is None and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(pending):
+                target = pending[ad_idx]
+                found_idx = ad_idx
+            if target is None:
+                target = ad
+
+            if not target:
+                self.send_json({"success": False, "message": "لم يتم العثور على الإعلان المطلوب"})
+                return
+
+            try:
+                processed = task_manager.gemini_processor.process_and_clean_ad(target, IMGS_DIR)
+                enriched = enrich_ad_status(processed, force_recalc=True)
+                if found_idx != -1 and found_idx < len(pending):
+                    pending[found_idx] = enriched
+                    write_json_file(PENDING_FILE, pending)
+
+                all_ads = read_json_file(ALL_ADS_FILE)
+                for j, a in enumerate(all_ads):
+                    if (ad_url and a.get("ad_url") == ad_url) or (clean_title and a.get("clean_title") == clean_title):
+                        all_ads[j] = enriched
+                        write_json_file(ALL_ADS_FILE, all_ads)
+                        break
+
+                self.send_json({
+                    "success": True,
+                    "message": f"تمت إعادة تصنيف الإعلان بالذكاء الاصطناعي بنجاح: {enriched.get('leaf_category_name')} [ID: {enriched.get('id-categorie')}] 🤖",
+                    "ad": enriched
+                })
+            except Exception as e:
+                self.send_json({"success": False, "message": f"خطأ أثناء التصنيف بالذكاء الاصطناعي: {e}"})
+            return
+
+        elif path == "/api/reclassify_all_with_ai":
+            pending = read_json_file(PENDING_FILE)
+            updated = []
+            for p in pending:
+                try:
+                    proc = task_manager.gemini_processor.process_and_clean_ad(p, IMGS_DIR)
+                    enr = enrich_ad_status(proc, force_recalc=True)
+                    updated.append(enr)
+                except Exception:
+                    updated.append(enrich_ad_status(p, force_recalc=True))
+            write_json_file(PENDING_FILE, updated)
+            self.send_json({
+                "success": True,
+                "message": f"تمت إعادة تصنيف وهيكلة كافة الإعلانات ({len(updated)}) بالذكاء الاصطناعي بنجاح! 🤖",
+                "count": len(updated)
+            })
+            return
+
         elif path == "/api/launch_manager":
             client_host = self.headers.get("Host", "").split(":")[0].strip() or "localhost"
             self.send_json(launch_manager_and_all_servers(client_host))

@@ -25,7 +25,7 @@ MASTER_WEBSITE_API_KEY = "67|5181926855ca52522dec3990517f272b027b745f"
 
 DEFAULT_CONFIG = {
     "gemini_api_key": "",
-    "gemini_model": "gemini-3.8-flash",
+    "gemini_model": "gemini-flash-lite-latest",
     "website_api_url": MASTER_WEBSITE_API_URL,
     "website_api_key": MASTER_WEBSITE_API_KEY,
     "min_images_required": 1,
@@ -84,8 +84,8 @@ def load_config() -> Dict[str, Any]:
     if not config.get("website_api_url", "").strip():
         config["website_api_url"] = MASTER_WEBSITE_API_URL
 
-    if not config.get("gemini_model"):
-        config["gemini_model"] = "gemini-3.8-flash"
+    if not config.get("gemini_model") or config.get("gemini_model") == "gemini-3.8-flash":
+        config["gemini_model"] = "gemini-flash-lite-latest"
 
     return config
 

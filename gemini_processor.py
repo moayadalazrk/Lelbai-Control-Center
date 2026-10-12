@@ -19,7 +19,7 @@ from config import load_config
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USAGE_FILE = os.path.join(BASE_DIR, "gemini_usage.json")
 DEFAULT_MODEL = "gemini-flash-lite-latest"
-MODEL_CANDIDATES = ["gemini-flash-lite-latest", "gemini-flash-latest", "gemini-3.8-flash", "gemini-3.5-flash"]
+MODEL_CANDIDATES = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"]
 
 def record_gemini_call(model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """تسجيل طلب ذكاء اصطناعي جديد وحفظ العداد اليومي"""
@@ -209,10 +209,13 @@ SYSTEM_PROMPT = get_system_prompt()
 class GeminiProcessor:
     def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_MODEL):
         cfg = load_config()
-        if api_key is not None:
+        if api_key is not None and api_key.strip():
             self.api_key = api_key.strip()
         else:
             self.api_key = cfg.get("gemini_api_key", "").strip()
+        if not self.api_key:
+            from config import get_default_gemini_key
+            self.api_key = get_default_gemini_key()
         self.model = model or cfg.get("gemini_model", DEFAULT_MODEL)
         self.last_call_time = 0.0
 
