@@ -1,6 +1,6 @@
 {
-  "last_updated_at": "2026-10-13 17:15:00 +0300",
+  "last_updated_at": "2026-10-13 18:20:00 +0300",
   "relative_time": "الآن",
-  "commit_message": "fix(ai): stabilize Gemini models, thread-safe rate-limiting mutex, and fix car category mappings v1.4.6",
+  "commit_message": "fix(ai): add CP1256 safe_print, auto fallback to local AI engine on quota exhaustion, and 5-min cloud cooldown v1.4.7",
   "status": "up_to_date"
 }
