@@ -72,6 +72,38 @@ def get_gemini_usage_info(api_key: str = "", model_name: str = DEFAULT_MODEL) ->
         "status_label": "متصل وجاهز للعمل 🟢" if is_conn else "غير متصل (المفتاح مفقود) ⚠️"
     }
 
+def safe_parse_json(raw_text: str) -> Optional[Dict[str, Any]]:
+    """استخراج كائن JSON بأمان وتجاوز كتل Markdown أو النصوص الإضافية"""
+    if not raw_text:
+        return None
+    cleaned = raw_text.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.splitlines()
+        if lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].startswith("```"):
+            lines = lines[:-1]
+        cleaned = "\n".join(lines).strip()
+    try:
+        parsed = json.loads(cleaned)
+        if isinstance(parsed, dict):
+            return parsed
+    except Exception:
+        pass
+
+    # محاولة العثور على أول '{' وآخر '}'
+    start = cleaned.find("{")
+    end = cleaned.rfind("}")
+    if start != -1 and end != -1 and end > start:
+        try:
+            parsed = json.loads(cleaned[start:end+1])
+            if isinstance(parsed, dict):
+                return parsed
+        except Exception:
+            pass
+
+    return None
+
 def load_categories_tree_for_prompt() -> str:
     """تحميل شجرة الأصناف الرسمية بالكامل من categories_db.json لضمان تصنيف دقيق في أصغر فئة فرعية طرفية"""
     cat_file = os.path.join(BASE_DIR, "categories_db.json")
@@ -348,7 +380,9 @@ class GeminiProcessor:
                         record_gemini_call(current_model)
                         resp_json = response.json()
                         raw_text = resp_json["candidates"][0]["content"]["parts"][0]["text"].strip()
-                        result = json.loads(raw_text)
+                        result = safe_parse_json(raw_text)
+                        if not result or not isinstance(result, dict):
+                            raise ValueError(f"تعذر استخراج بيانات JSON صالحة من استجابة النموذج: {raw_text[:120]}")
                         
                         # ترجمة فهارس الصور التي وافق عليها Gemini إلى الفهارس الأصلية
                         gemini_appr = result.get("approved_image_indices", [])
