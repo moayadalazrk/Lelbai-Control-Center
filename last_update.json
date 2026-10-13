@@ -1,6 +1,6 @@
 {
-  "last_updated_at": "2026-10-12 19:30:00 +0300",
+  "last_updated_at": "2026-10-13 17:15:00 +0300",
   "relative_time": "الآن",
-  "commit_message": "fix(scraper): eliminate thread deadlock with RLock, ProactorEventLoop and non-blocking status v1.4.4",
+  "commit_message": "fix(ai): stabilize Gemini models, thread-safe rate-limiting mutex, and fix car category mappings v1.4.6",
   "status": "up_to_date"
 }

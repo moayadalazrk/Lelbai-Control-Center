@@ -9,6 +9,7 @@ import sys
 import json
 import time
 import base64
+import threading
 import requests
 from io import BytesIO
 from typing import Dict, Any, List, Optional
@@ -18,8 +19,8 @@ from config import load_config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USAGE_FILE = os.path.join(BASE_DIR, "gemini_usage.json")
-DEFAULT_MODEL = "gemini-flash-lite-latest"
-MODEL_CANDIDATES = ["gemini-flash-lite-latest", "gemini-3.5-flash-lite", "gemini-flash-latest", "gemini-3.8-flash"]
+DEFAULT_MODEL = "gemini-3.5-flash"
+MODEL_CANDIDATES = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3-flash-preview", "gemini-3.8-flash", "gemini-flash-latest"]
 
 def record_gemini_call(model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """تسجيل طلب ذكاء اصطناعي جديد وحفظ العداد اليومي"""
@@ -207,6 +208,8 @@ def get_system_prompt() -> str:
 SYSTEM_PROMPT = get_system_prompt()
 
 class GeminiProcessor:
+    _api_lock = threading.Lock()
+
     def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_MODEL):
         cfg = load_config()
         if api_key is not None and api_key.strip():
@@ -277,10 +280,11 @@ class GeminiProcessor:
                 }
             }
 
-        # التحكم بمعدل الطلبات لتجنب تجاوز حد الـ 15 RPM
-        elapsed_since_last = time.time() - self.last_call_time
-        if elapsed_since_last < 2.0:
-            time.sleep(2.0 - elapsed_since_last)
+        with self._api_lock:
+            # التحكم الدقيق بمعدل الطلبات لتجنب تجاوز حد الـ 15 RPM ومنع تصادم التبويبات المتزامنة
+            elapsed_since_last = time.time() - self.last_call_time
+            if elapsed_since_last < 3.5:
+                time.sleep(3.5 - elapsed_since_last)
 
         # تجهيز محتوى الرسالة - إرسال كافة الصور المرفقة الصالحة إلى Gemini Vision API
         parts: List[Dict[str, Any]] = []
@@ -331,54 +335,66 @@ class GeminiProcessor:
             if m not in models_to_try:
                 models_to_try.append(m)
 
-        for current_model in models_to_try:
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent?key={self.api_key}"
-            try:
-                self.last_call_time = time.time()
-                response = requests.post(url, json=payload, timeout=20)
-                
-                if response.status_code == 200:
-                    self.model = current_model
-                    record_gemini_call(current_model)
-                    resp_json = response.json()
-                    raw_text = resp_json["candidates"][0]["content"]["parts"][0]["text"].strip()
-                    result = json.loads(raw_text)
-                    
-                    # ترجمة فهارس الصور التي وافق عليها Gemini إلى الفهارس الأصلية
-                    gemini_appr = result.get("approved_image_indices", [])
-                    final_appr = []
-                    for i in gemini_appr:
-                        if isinstance(i, int) and 0 <= i < len(active_slots):
-                            orig_i = active_slots[i]
-                            if orig_i not in final_appr:
-                                final_appr.append(orig_i)
-                    
-                    final_rej = sorted([i for i in range(len(nimages)) if i not in final_appr])
-                    
-                    result["approved_image_indices"] = final_appr
-                    result["rejected_image_indices"] = final_rej
+        with self._api_lock:
+            # التحكم الدقيق بمعدل الطلبات لتجنب تجاوز حد الـ 15 RPM وحماية الحصة
+            elapsed_since_last = time.time() - self.last_call_time
+            if elapsed_since_last < 3.5:
+                time.sleep(3.5 - elapsed_since_last)
 
-                    result["ai_evaluated"] = True
-                    result["ai_model"] = current_model
-                    result["ai_timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")
+            for current_model in models_to_try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent?key={self.api_key}"
+                try:
+                    self.last_call_time = time.time()
+                    response = requests.post(url, json=payload, timeout=35)
+                    
+                    if response.status_code == 200:
+                        self.model = current_model
+                        record_gemini_call(current_model)
+                        resp_json = response.json()
+                        raw_text = resp_json["candidates"][0]["content"]["parts"][0]["text"].strip()
+                        result = json.loads(raw_text)
+                        
+                        # ترجمة فهارس الصور التي وافق عليها Gemini إلى الفهارس الأصلية
+                        gemini_appr = result.get("approved_image_indices", [])
+                        final_appr = []
+                        for i in gemini_appr:
+                            if isinstance(i, int) and 0 <= i < len(active_slots):
+                                orig_i = active_slots[i]
+                                if orig_i not in final_appr:
+                                    final_appr.append(orig_i)
+                        
+                        final_rej = sorted([i for i in range(len(nimages)) if i not in final_appr])
+                        
+                        result["approved_image_indices"] = final_appr
+                        result["rejected_image_indices"] = final_rej
 
-                    if len(final_appr) == 0 and len(nimages) > 0:
-                        result["is_safe"] = False
-                        result["suggested_rejection_reason"] = result.get("suggested_rejection_reason") or "جميع الصور المرفقة مخالفة للضوابط الشرعية أو الرقابية"
-                        result["summary"] = f"🚫 تم رفض الإعلان عبر Gemini Vision API: استبعاد كافة الصور ({len(final_rej)} صورة مخالفة)"
-                    elif final_rej:
-                        result["summary"] = f"🤖 تم فحص وتدقيق الصور عبر Gemini Vision API: اعتماد {len(final_appr)} صورة نظيفة، واستبعاد {len(final_rej)} صورة مخالفة"
+                        result["ai_evaluated"] = True
+                        result["ai_model"] = current_model
+                        result["ai_timestamp"] = time.strftime("%Y-%m-%d %H:%M:%S")
+
+                        if len(final_appr) == 0 and len(nimages) > 0:
+                            result["is_safe"] = False
+                            result["suggested_rejection_reason"] = result.get("suggested_rejection_reason") or "جميع الصور المرفقة مخالفة للضوابط الشرعية أو الرقابية"
+                            result["summary"] = f"🚫 تم رفض الإعلان عبر Gemini Vision API: استبعاد كافة الصور ({len(final_rej)} صورة مخالفة)"
+                        elif final_rej:
+                            result["summary"] = f"🤖 تم فحص وتدقيق الصور عبر Gemini Vision API: اعتماد {len(final_appr)} صورة نظيفة، واستبعاد {len(final_rej)} صورة مخالفة"
+                        else:
+                            result["summary"] = f"🤖 تم اعتماد الإعلان والصور بنجاح عبر Gemini Vision API ({len(final_appr)} صورة سليمة)"
+
+                        return result
+                    elif response.status_code in (429, 503):
+                        error_msg = response.text[:200]
+                        print(f"[!] تنبيه من Gemini API للنموذج {current_model} ({response.status_code}): {error_msg}")
+                        time.sleep(2.5)
+                        continue
                     else:
-                        result["summary"] = f"🤖 تم اعتماد الإعلان والصور بنجاح عبر Gemini Vision API ({len(final_appr)} صورة سليمة)"
-
-                    return result
-                else:
-                    error_msg = response.text[:200]
-                    print(f"[!] تنبيه من Gemini API للنموذج {current_model} ({response.status_code}): {error_msg}")
+                        error_msg = response.text[:200]
+                        print(f"[!] تنبيه من Gemini API للنموذج {current_model} ({response.status_code}): {error_msg}")
+                        continue
+                except Exception as e:
+                    print(f"[!] استثناء في معالجة النموذج {current_model}: {e}")
+                    time.sleep(1.5)
                     continue
-            except Exception as e:
-                print(f"[!] استثناء في معالجة النموذج {current_model}: {e}")
-                continue
 
         # كائن افتراضي آمن في حال انقطاع الشبكة
         fallback_safe = (len(valid_indices) > 0 or len(nimages) == 0)
@@ -496,19 +512,29 @@ class GeminiProcessor:
                     category_id = c["id"]
                     break
 
+        from ai_ad_enhancer import detect_smart_category
+        full_text_to_check = f"{structured.get('clean_title', '')} {ad.get('description', '')}"
+        smart_detected = detect_smart_category(full_text_to_check)
+
         if not category_id or int(category_id) not in CAT_BY_ID or int(category_id) == 3207:
-            from ai_ad_enhancer import detect_smart_category
-            detected = detect_smart_category(f"{structured.get('clean_title', '')} {ad.get('description', '')}")
-            if detected["category_id"] != 3207 or not category_id:
-                category_id = detected["category_id"]
-                category_name = detected["category_name"]
-                category_hierarchy = detected["category_hierarchy"]
-            else:
-                category_id = 3207
-                category_name = get_category_name_by_id(3207)
-                category_hierarchy = build_category_hierarchy(3207)
+            category_id = smart_detected["category_id"]
+            category_name = smart_detected["category_name"]
+            category_hierarchy = smart_detected["category_hierarchy"]
         else:
             category_id = ensure_leaf_category_id(int(category_id))
+            gemini_hier = build_category_hierarchy(category_id)
+
+            # تدقيق حاسم لمنع هلوسة الذكاء الاصطناعي:
+            # 1. إذا كان الإعلان سيارة مؤكدة بينما اختار الذكاء الاصطناعي قسماً خارج السيارات (مثل مقاولات أو جوالات)
+            if smart_detected.get("parent_name") in ("سيارات للبيع", "السيارات") or any(k in full_text_to_check for k in ["سيارة", "سياره", "محرك", "دوزان", "جيب"]):
+                if "السيارات" not in gemini_hier:
+                    category_id = smart_detected["category_id"]
+                elif smart_detected.get("parent_name") == "سيارات للبيع" and smart_detected["category_id"] != 1832:
+                    # إذا كان الطراز المكتشف دقيقاً لماركة صريحة (كيا ريو / تويوتا كامري) والذكاء الاصطناعي اختار ماركة مغايرة
+                    cat_brand = smart_detected.get("parent_name", "")
+                    if cat_brand and cat_brand not in gemini_hier:
+                        category_id = smart_detected["category_id"]
+
             category_name = get_category_name_by_id(category_id)
             category_hierarchy = build_category_hierarchy(category_id)
 
