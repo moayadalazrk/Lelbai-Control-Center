@@ -20,7 +20,7 @@ from config import load_config
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USAGE_FILE = os.path.join(BASE_DIR, "gemini_usage.json")
 DEFAULT_MODEL = "gemini-3.5-flash"
-MODEL_CANDIDATES = ["gemini-3.5-flash", "gemini-3.6-flash", "gemini-3-flash-preview", "gemini-3.8-flash", "gemini-flash-latest"]
+MODEL_CANDIDATES = ["gemini-3.5-flash", "gemini-3-flash-preview", "gemini-3.6-flash", "gemini-flash-latest"]
 
 def record_gemini_call(model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """تسجيل طلب ذكاء اصطناعي جديد وحفظ العداد اليومي"""
@@ -209,6 +209,7 @@ SYSTEM_PROMPT = get_system_prompt()
 
 class GeminiProcessor:
     _api_lock = threading.Lock()
+    _last_call_time = 0.0
 
     def __init__(self, api_key: Optional[str] = None, model: str = DEFAULT_MODEL):
         cfg = load_config()
@@ -280,12 +281,6 @@ class GeminiProcessor:
                 }
             }
 
-        with self._api_lock:
-            # التحكم الدقيق بمعدل الطلبات لتجنب تجاوز حد الـ 15 RPM ومنع تصادم التبويبات المتزامنة
-            elapsed_since_last = time.time() - self.last_call_time
-            if elapsed_since_last < 3.5:
-                time.sleep(3.5 - elapsed_since_last)
-
         # تجهيز محتوى الرسالة - إرسال كافة الصور المرفقة الصالحة إلى Gemini Vision API
         parts: List[Dict[str, Any]] = []
 
@@ -335,16 +330,17 @@ class GeminiProcessor:
             if m not in models_to_try:
                 models_to_try.append(m)
 
-        with self._api_lock:
+        with GeminiProcessor._api_lock:
             # التحكم الدقيق بمعدل الطلبات لتجنب تجاوز حد الـ 15 RPM وحماية الحصة
-            elapsed_since_last = time.time() - self.last_call_time
-            if elapsed_since_last < 3.5:
-                time.sleep(3.5 - elapsed_since_last)
+            elapsed_since_last = time.time() - GeminiProcessor._last_call_time
+            if elapsed_since_last < 4.0:
+                time.sleep(4.0 - elapsed_since_last)
 
             for current_model in models_to_try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent?key={self.api_key}"
                 try:
-                    self.last_call_time = time.time()
+                    GeminiProcessor._last_call_time = time.time()
+                    self.last_call_time = GeminiProcessor._last_call_time
                     response = requests.post(url, json=payload, timeout=35)
                     
                     if response.status_code == 200:
@@ -397,21 +393,23 @@ class GeminiProcessor:
                     continue
 
         # كائن افتراضي آمن في حال انقطاع الشبكة
+        from ai_ad_enhancer import enhance_ad_with_super_ai
+        enhanced = enhance_ad_with_super_ai(ad)
         fallback_safe = (len(valid_indices) > 0 or len(nimages) == 0)
         return {
             "is_safe": fallback_safe,
             "status": "safe" if fallback_safe else "flagged",
             "flags": ["network_fallback"],
-            "summary": "⚠️ تعذر اتصال الذكاء الاصطناعي السحابي (Gemini Vision API) مؤقتاً - الإعلان بانتظار المراجعة",
+            "summary": "⚠️ تعذر اتصال الذكاء الاصطناعي السحابي (Gemini Vision API) مؤقتاً - تم استخدام المصنف الذكي المدمج",
             "suggested_rejection_reason": None,
             "approved_image_indices": valid_indices,
             "rejected_image_indices": invalid_indices,
             "structured_ad": {
-                "category": "عام",
-                "clean_title": ad.get("description", "")[:60].replace("\n", " ").strip(),
-                "price": {"amount": None, "currency": "SYP", "is_negotiable": True},
-                "specifications": {},
-                "clean_description": ad.get("description", "")
+                "category": enhanced.get("leaf_category_name", "عام"),
+                "clean_title": enhanced.get("clean_title", ad.get("description", "")[:60]),
+                "price": enhanced.get("price_info", {"amount": None, "currency": "SYP", "is_negotiable": True}),
+                "specifications": enhanced.get("specifications", {}),
+                "clean_description": enhanced.get("clean_description", ad.get("description", ""))
             }
         }
 
@@ -526,14 +524,21 @@ class GeminiProcessor:
 
             # تدقيق حاسم لمنع هلوسة الذكاء الاصطناعي:
             # 1. إذا كان الإعلان سيارة مؤكدة بينما اختار الذكاء الاصطناعي قسماً خارج السيارات (مثل مقاولات أو جوالات)
-            if smart_detected.get("parent_name") in ("سيارات للبيع", "السيارات") or any(k in full_text_to_check for k in ["سيارة", "سياره", "محرك", "دوزان", "جيب"]):
+            smart_cat_hier = smart_detected.get("category_hierarchy", "")
+            is_car_ad = (
+                "السيارات" in smart_cat_hier
+                or any(k in full_text_to_check for k in ["سيارة", "سياره", "محرك", "دوزان", "جيب", "شيروكي", "موديل 20", "موديل 19", "خالي العلام", "خالي الدهان", "فتحة سقف"])
+            )
+            if is_car_ad:
                 if "السيارات" not in gemini_hier:
                     category_id = smart_detected["category_id"]
-                elif smart_detected.get("parent_name") == "سيارات للبيع" and smart_detected["category_id"] != 1832:
-                    # إذا كان الطراز المكتشف دقيقاً لماركة صريحة (كيا ريو / تويوتا كامري) والذكاء الاصطناعي اختار ماركة مغايرة
-                    cat_brand = smart_detected.get("parent_name", "")
-                    if cat_brand and cat_brand not in gemini_hier:
-                        category_id = smart_detected["category_id"]
+                elif "سيارات للبيع" in smart_cat_hier and smart_detected.get("category_id") != 1832:
+                    # استخراج الماركة الصريحة من الهرمية (مثلاً: كيا أو تويوتا أو هيونداي)
+                    hier_parts = [p.strip() for p in smart_cat_hier.split(">")]
+                    if len(hier_parts) >= 3:
+                        detected_brand = hier_parts[2]
+                        if detected_brand and detected_brand not in gemini_hier:
+                            category_id = smart_detected["category_id"]
 
             category_name = get_category_name_by_id(category_id)
             category_hierarchy = build_category_hierarchy(category_id)
