@@ -39,8 +39,8 @@ from config import load_config
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USAGE_FILE = os.path.join(BASE_DIR, "gemini_usage.json")
-DEFAULT_MODEL = "gemini-3.5-flash"
-MODEL_CANDIDATES = ["gemini-3.5-flash", "gemini-3-flash-preview", "gemini-3.6-flash", "gemini-flash-latest"]
+DEFAULT_MODEL = "gemini-3-flash-preview"
+MODEL_CANDIDATES = ["gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-latest"]
 
 def record_gemini_call(model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """تسجيل طلب ذكاء اصطناعي جديد وحفظ العداد اليومي"""
@@ -428,7 +428,7 @@ class GeminiProcessor:
                 try:
                     GeminiProcessor._last_call_time = time.time()
                     self.last_call_time = GeminiProcessor._last_call_time
-                    response = requests.post(url, json=payload, timeout=35)
+                    response = requests.post(url, json=payload, timeout=15)
                     
                     if response.status_code == 200:
                         self.model = current_model

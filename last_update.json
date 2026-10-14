@@ -1,6 +1,6 @@
 {
-  "last_updated_at": "2026-10-13 18:20:00 +0300",
+  "last_updated_at": "2026-10-14 17:50:00 +0300",
   "relative_time": "الآن",
-  "commit_message": "fix(ai): add CP1256 safe_print, auto fallback to local AI engine on quota exhaustion, and 5-min cloud cooldown v1.4.7",
+  "commit_message": "fix(ai): switch default to gemini-3-flash-preview, reduce timeout to 15s, and guarantee continuous classification v1.4.8",
   "status": "up_to_date"
 }

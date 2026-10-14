@@ -3652,8 +3652,8 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             usage = get_gemini_usage_info(cfg.get("gemini_api_key", ""))
             models_info = [
                 {
-                    "name": "gemini-3.5-flash (النموذج الافتراضي المعتمد)",
-                    "model_id": "gemini-3.5-flash",
+                    "name": "gemini-3-flash-preview (النموذج الافتراضي المعتمد)",
+                    "model_id": "gemini-3-flash-preview",
                     "supports_vision": True,
                     "vision_desc": "فحص الصور والنصوص بالرؤية السحابية الفائقة (Gemini Vision API)",
                     "daily_limit": 1500,
@@ -3662,28 +3662,18 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                     "status_label": "نشط ومعتمد تلقائياً 🟢"
                 },
                 {
-                    "name": "gemini-3.6-flash",
-                    "model_id": "gemini-3.6-flash",
+                    "name": "gemini-3.5-flash",
+                    "model_id": "gemini-3.5-flash",
                     "supports_vision": True,
-                    "vision_desc": "أحدث طراز سحابي فائق السرعة لفحص الصور والنصوص",
+                    "vision_desc": "طراز سحابي فائق السرعة لفحص الصور والنصوص",
                     "daily_limit": 1500,
                     "rpm_limit": 15,
                     "is_active": False,
                     "status_label": "مدعوم واحتياطي تلقائي ✅"
                 },
                 {
-                    "name": "gemini-flash-lite-latest",
-                    "model_id": "gemini-flash-lite-latest",
-                    "supports_vision": True,
-                    "vision_desc": "فحص بصري سريع وخفيف لاستهلاك الحصص بكفاءة عالية",
-                    "daily_limit": 1500,
-                    "rpm_limit": 15,
-                    "is_active": False,
-                    "status_label": "مدعوم واحتياطي ✅"
-                },
-                {
-                    "name": "gemini-3.8-flash",
-                    "model_id": "gemini-3.8-flash",
+                    "name": "gemini-3.6-flash",
+                    "model_id": "gemini-3.6-flash",
                     "supports_vision": True,
                     "vision_desc": "طراز متقدم لفحص الصور والنصوص وهيكلة البيانات",
                     "daily_limit": 1500,
