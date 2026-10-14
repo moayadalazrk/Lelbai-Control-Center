@@ -40,7 +40,7 @@ from config import load_config
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USAGE_FILE = os.path.join(BASE_DIR, "gemini_usage.json")
 DEFAULT_MODEL = "gemini-3-flash-preview"
-MODEL_CANDIDATES = ["gemini-3-flash-preview", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-latest"]
+MODEL_CANDIDATES = ["gemini-3-flash-preview", "gemini-3.5-flash"]
 
 def record_gemini_call(model_name: str = DEFAULT_MODEL) -> Dict[str, Any]:
     """تسجيل طلب ذكاء اصطناعي جديد وحفظ العداد اليومي"""
@@ -428,7 +428,7 @@ class GeminiProcessor:
                 try:
                     GeminiProcessor._last_call_time = time.time()
                     self.last_call_time = GeminiProcessor._last_call_time
-                    response = requests.post(url, json=payload, timeout=15)
+                    response = requests.post(url, json=payload, timeout=7)
                     
                     if response.status_code == 200:
                         self.model = current_model
@@ -484,7 +484,7 @@ class GeminiProcessor:
                     continue
 
         # كائن افتراضي آمن في حال انقطاع الشبكة أو استنفاذ حصة السحابة
-        GeminiProcessor._quota_exhausted_until = time.time() + 300  # تبريد السحابة لمدة 5 دقائق لعدم إبطاء السحب
+        GeminiProcessor._quota_exhausted_until = time.time() + 600  # تبريد السحابة لمدة 10 دقائق لعدم إبطاء السحب
         safe_print("[*] جاري استخدام المصنف الذكي المدمج (Local AI Engine) لضمان استمرار السحب والتصنيف بدقة فائقة...")
         from ai_ad_enhancer import enhance_ad_with_super_ai
         enhanced = enhance_ad_with_super_ai(ad)
