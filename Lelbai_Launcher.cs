@@ -150,19 +150,13 @@ namespace LelbaiLauncher
                 }
             }
 
-            string primaryDir = @"C:\Lelbai_Control_Center";
-
-            // إذا تم تشغيل المشغل من مجلد محمل جديد يحتوي على ملفات النظام
-            try
+            // إذا كان المجلد الحالي يحتوي بالفعل على ملفات النظام، نستخدمه مباشرة لسرعة التشغيل
+            if (File.Exists(Path.Combine(currentBase, "web_app.py")))
             {
-                if (File.Exists(Path.Combine(currentBase, "web_app.py")) && 
-                    !string.Equals(Path.GetFullPath(currentBase).TrimEnd('\\'), Path.GetFullPath(primaryDir).TrimEnd('\\'), StringComparison.OrdinalIgnoreCase))
-                {
-                    if (!Directory.Exists(primaryDir)) Directory.CreateDirectory(primaryDir);
-                    CopyDirectory(currentBase, primaryDir);
-                }
+                return currentBase;
             }
-            catch { }
+
+            string primaryDir = @"C:\Lelbai_Control_Center";
 
             try
             {
@@ -872,6 +866,60 @@ namespace LelbaiLauncher
             Thread.Sleep(500);
 
             string pythonExe = FindPythonExecutable();
+            
+            if (string.IsNullOrEmpty(pythonExe))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("\n⚠️ تنبيه: لم يتم العثور على لغة بايثون (Python) على هذا الكمبيوتر!");
+                Console.WriteLine("   جاري محاولة التثبيت الذكي عبر ويندوز...");
+                Console.ResetColor();
+
+                try
+                {
+                    ProcessStartInfo wingetPsi = new ProcessStartInfo("winget", "install Python.Python.3.11 --accept-source-agreements --accept-package-agreements --silent")
+                    {
+                        UseShellExecute = false
+                    };
+                    Process wp = Process.Start(wingetPsi);
+                    wp.WaitForExit(60000);
+                    pythonExe = FindPythonExecutable();
+                }
+                catch { }
+
+                if (string.IsNullOrEmpty(pythonExe))
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\n❌ يلزم توفر Python (3.10 أو أحدث) لتشغيل المنظومة.");
+                    Console.WriteLine("   جاري فتح صفحة التنزيل الرسمية...");
+                    Console.ResetColor();
+                    OpenBrowser("https://www.python.org/downloads/");
+                    Console.WriteLine("\nيرجى تثبيت Python ثم إعادة تشغيل البرنامج.");
+                    SafeWaitForKey();
+                    return;
+                }
+            }
+
+            // فحص وتثبيت المكتبات المطلوبة إن كانت ناقصة
+            try
+            {
+                ProcessStartInfo checkReq = new ProcessStartInfo(pythonExe, "-c \"import playwright, PIL, requests\"")
+                {
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                };
+                Process cr = Process.Start(checkReq);
+                cr.WaitForExit(4000);
+                if (cr.ExitCode != 0)
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("\n📦 جاري تثبيت الحزم والمكتبات المطلوبة تلقائياً لأول مرة...");
+                    Console.ResetColor();
+                    RunCommand(pythonExe, "-m pip install -r requirements.txt", dir, 120000);
+                    RunCommand(pythonExe, "-m playwright install chromium", dir, 120000);
+                }
+            }
+            catch { }
+
             string webAppScript = Path.Combine(dir, "web_app.py");
 
             ProcessStartInfo psi = new ProcessStartInfo
@@ -983,7 +1031,7 @@ namespace LelbaiLauncher
                 catch { }
             }
 
-            return "python";
+            return null;
         }
 
         static void OpenBrowser(string url)

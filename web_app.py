@@ -1780,8 +1780,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
           if (!win) {
             alert(`✅ تم تشغيل سيرفر الإدارة بنجاح!\nيرجى السماح بالنوافذ المنبثقة أو فتح الرابط التالي مباشرة:\n${targetUrl}`);
           }
+        } else if (data.php_missing) {
+          alert(data.message || "⚠️ يلزم توفر بيئة PHP على الجهاز لتشغيل لوحة تحكم المنجر.");
         } else if (data.not_installed) {
-          alert(data.message || "🔒 حفاظاً على أمان وسرية الموقع، لوحة المنجر تعمل محلياً فقط ومحمية بالكامل من الإنترنت.\n\nيلزم تنزيل ونسخ ملفات المنجر إلى مسار C:\\xampp\\htdocs\\projects\\AZ على هذا الجهاز أولاً.");
+          alert(data.message || "🔒 ملفات المنجر غير متوفرة داخل هذا المجلد.");
         } else {
           alert("⚠️ " + (data.message || "فشل تشغيل سيرفرات الإدارة."));
         }
@@ -3385,11 +3387,11 @@ def ensure_mysql_running() -> bool:
 
     return is_port_listening(3306)
 
-def get_manager_system_status(client_host: str = "localhost") -> dict:
-    """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة في الوقت الفعلي."""
-def find_php_executable() -> str:
+def find_php_executable() -> Optional[str]:
     """البحث عن مفسر PHP لتشغيل المنجر"""
     candidates = [
+        os.path.join(BASE_DIR, "php", "php.exe"),
+        os.path.join(BASE_DIR, "manager", "php", "php.exe"),
         "php",
         r"C:\xampp\php\php.exe",
         r"C:\php\php.exe",
@@ -3402,7 +3404,59 @@ def find_php_executable() -> str:
                 return c
         except Exception:
             continue
-    return "php"
+    return None
+
+def ensure_portable_php() -> Optional[str]:
+    """تجهيز وتنزيل نسخة PHP 8.2 محمولة تلقائياً عند عدم توفر PHP على الجهاز"""
+    php_dir = os.path.join(BASE_DIR, "php")
+    php_exe = os.path.join(php_dir, "php.exe")
+    if os.path.exists(php_exe):
+        return php_exe
+
+    try:
+        import zipfile
+        import urllib.request
+        os.makedirs(php_dir, exist_ok=True)
+        zip_path = os.path.join(php_dir, "php_portable.zip")
+        
+        url = "https://windows.php.net/downloads/releases/php-8.2.34-nts-Win32-vs16-x64.zip"
+        print("  ⏳ جاري تنزيل بيئة PHP المحمولة للويندوز...")
+        req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+        with urllib.request.urlopen(req, timeout=90) as resp, open(zip_path, 'wb') as f:
+            shutil.copyfileobj(resp, f)
+
+        print("  📦 جاري فك ضغط بيئة PHP...")
+        with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+            zip_ref.extractall(php_dir)
+        try:
+            os.remove(zip_path)
+        except Exception:
+            pass
+
+        ini_dev = os.path.join(php_dir, "php.ini-development")
+        ini_prod = os.path.join(php_dir, "php.ini")
+        if os.path.exists(ini_dev) and not os.path.exists(ini_prod):
+            with open(ini_dev, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            replacements = [
+                (";extension_dir = \"ext\"", "extension_dir = \"ext\""),
+                (";extension=curl", "extension=curl"),
+                (";extension=fileinfo", "extension=fileinfo"),
+                (";extension=mbstring", "extension=mbstring"),
+                (";extension=openssl", "extension=openssl"),
+                (";extension=pdo_mysql", "extension=pdo_mysql"),
+            ]
+            for old, new in replacements:
+                content = content.replace(old, new)
+            with open(ini_prod, "w", encoding="utf-8") as f:
+                f.write(content)
+
+        if os.path.exists(php_exe):
+            print("  ✅ تم تجهيز بيئة PHP بنجاح!")
+            return php_exe
+    except Exception as e:
+        print(f"❌ خطأ أثناء إعداد PHP المحمول: {e}")
+    return None
 
 def get_manager_directory() -> str:
     """تحديد مسار مجلد المنجر: الأولوية للمجلد المدمج داخل هذا المشروع"""
@@ -3525,9 +3579,34 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
 
     # 4. إطلاق المنجر عبر PHP artisan مباشرة
     php_exe = find_php_executable()
+    if not php_exe:
+        print("[+] PHP غير متوفر محلياً، جاري تنزيل وتجهيز بيئة PHP المحمولة تلقائياً...")
+        php_exe = ensure_portable_php()
+
+    if not php_exe:
+        return {
+            "success": False,
+            "not_installed": False,
+            "php_missing": True,
+            "message": (
+                "⚠️ لم يتم العثور على مفسر PHP على هذا الجهاز.\n\n"
+                "لتشغيل صفحة المنجر محلياً، يلزم وجود بيئة PHP.\n"
+                "يرجى التأكد من توفر اتصال بالإنترنت ليتم تحميل النسخة المحمولة تلقائياً، أو تثبيت برنامج XAMPP."
+            ),
+            "url": manager_url,
+            "lan_url": lan_url,
+            "manager_running": False
+        }
+
+    custom_ini = os.path.join(os.path.dirname(php_exe), "php.ini")
+    cmd = [php_exe]
+    if os.path.exists(custom_ini):
+        cmd.extend(["-c", custom_ini])
+    cmd.extend(["artisan", "serve", "--host=0.0.0.0", "--port=8002", "--no-reload"])
+
     try:
         subprocess.Popen(
-            [php_exe, "artisan", "serve", "--host=0.0.0.0", "--port=8002", "--no-reload"],
+            cmd,
             cwd=manager_dir,
             creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
         )
