@@ -1781,13 +1781,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
             alert(`✅ تم تشغيل سيرفر الإدارة بنجاح!\nيرجى السماح بالنوافذ المنبثقة أو فتح الرابط التالي مباشرة:\n${targetUrl}`);
           }
         } else if (data.not_installed) {
-          const liveUrl = data.real_server_url || "https://lelbai.com/admin";
-          const openLive = confirm(
-            (data.message || "ملفات المنجر المحلي غير موجودة على هذا الجهاز.") + "\n\n🌐 هل تريد فتح لوحة الإدارة على السيرفر الحقيقي أونلاين الآن؟\n(" + liveUrl + ")"
-          );
-          if (openLive) {
-            window.open(liveUrl, '_blank');
-          }
+          alert(data.message || "🔒 حفاظاً على أمان وسرية الموقع، لوحة المنجر تعمل محلياً فقط ومحمية بالكامل من الإنترنت.\n\nيلزم تنزيل ونسخ ملفات المنجر إلى مسار C:\\xampp\\htdocs\\projects\\AZ على هذا الجهاز أولاً.");
         } else {
           alert("⚠️ " + (data.message || "فشل تشغيل سيرفرات الإدارة."));
         }
@@ -3487,17 +3481,16 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
 
     # 3. التحقق من وجود ملفات المنجر محلياً (إذا لم تكن موجودة - مثل الكمبيوتر الثاني)
     if not os.path.exists(az_base) or not (os.path.exists(start_bot_js) or os.path.exists(start_servers_bat)):
-        real_server_admin = "https://lelbai.com/admin"
         return {
             "success": False,
             "not_installed": True,
-            "real_server_url": real_server_admin,
             "message": (
-                "⚠️ لم يتم العثور على سيرفر المنجر المحلي على هذا الجهاز (" + az_base + ").\n\n"
-                "💡 بما أنك تستخدم الكمبيوتر الثاني وتريد فتح لوحة الإدارة على السيرفر الحقيقي مباشرة:\n"
-                f"{real_server_admin}"
+                "🔒 حفاظاً على أمان وسرية المنصة والموقع، لوحة تحكم المنجر تعمل محلياً فقط (Localhost) ومحمية بالكامل من الإنترنت.\n\n"
+                "📁 لتشغيل المنجر على هذا الجهاز، يلزم تنزيل ونسخ ملفات المنجر إلى المسار التالي:\n"
+                f"{az_base}\n\n"
+                "ثم تشغيل برنامج XAMPP والضغط على زر المنجر مجدداً."
             ),
-            "url": real_server_admin,
+            "url": manager_url,
             "lan_url": lan_url,
             "manager_running": False
         }

@@ -778,13 +778,7 @@
             alert(`✅ تم تشغيل سيرفر الإدارة بنجاح!\nيرجى السماح بالنوافذ المنبثقة أو فتح الرابط التالي مباشرة:\n${targetUrl}`);
           }
         } else if (data.not_installed) {
-          const liveUrl = data.real_server_url || "https://lelbai.com/admin";
-          const openLive = confirm(
-            (data.message || "ملفات المنجر المحلي غير موجودة على هذا الجهاز.") + "\n\n🌐 هل تريد فتح لوحة الإدارة على السيرفر الحقيقي أونلاين الآن؟\n(" + liveUrl + ")"
-          );
-          if (openLive) {
-            window.open(liveUrl, '_blank');
-          }
+          alert(data.message || "🔒 حفاظاً على أمان وسرية الموقع، لوحة المنجر تعمل محلياً فقط ومحمية بالكامل من الإنترنت.\n\nيلزم تنزيل ونسخ ملفات المنجر إلى مسار C:\\xampp\\htdocs\\projects\\AZ على هذا الجهاز أولاً.");
         } else {
           alert("⚠️ " + (data.message || "فشل تشغيل سيرفرات الإدارة."));
         }
