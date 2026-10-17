@@ -3387,13 +3387,43 @@ def ensure_mysql_running() -> bool:
 
 def get_manager_system_status(client_host: str = "localhost") -> dict:
     """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة في الوقت الفعلي."""
+def find_php_executable() -> str:
+    """البحث عن مفسر PHP لتشغيل المنجر"""
+    candidates = [
+        "php",
+        r"C:\xampp\php\php.exe",
+        r"C:\php\php.exe",
+        r"C:\Program Files\php\php.exe",
+    ]
+    for c in candidates:
+        try:
+            res = subprocess.run([c, "-v"], capture_output=True, timeout=2)
+            if res.returncode == 0:
+                return c
+        except Exception:
+            continue
+    return "php"
+
+def get_manager_directory() -> str:
+    """تحديد مسار مجلد المنجر: الأولوية للمجلد المدمج داخل هذا المشروع"""
+    integrated_manager = os.path.join(BASE_DIR, "manager")
+    if os.path.exists(os.path.join(integrated_manager, "artisan")):
+        return integrated_manager
+    
+    cfg = load_config()
+    configured_dir = cfg.get("manager_servers_dir", r"C:\xampp\htdocs\projects\AZ")
+    if os.path.exists(os.path.join(configured_dir, "manager", "artisan")):
+        return os.path.join(configured_dir, "manager")
+    if os.path.exists(os.path.join(configured_dir, "artisan")):
+        return configured_dir
+    return None
+
+def get_manager_system_status(client_host: str = "localhost") -> dict:
+    """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة في الوقت الفعلي."""
     cfg = load_config()
     custom_manager_url = cfg.get("manager_url", "").strip()
-    az_base = cfg.get("manager_servers_dir", r"C:\xampp\htdocs\projects\AZ")
-    is_installed = os.path.exists(az_base) and (
-        os.path.exists(os.path.join(az_base, "start_bot.js")) or 
-        os.path.exists(os.path.join(az_base, "start_servers.bat"))
-    )
+    manager_dir = get_manager_directory()
+    is_installed = manager_dir is not None
 
     is_local = client_host in ["localhost", "127.0.0.1", "::1"]
     lan_ip = get_lan_ip()
@@ -3434,9 +3464,9 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
     """تشغيل كافة سيرفرات المنجر وقاعدة البيانات والتحقق من جاهزيتها قبل فتح لوحة التحكم."""
     cfg = load_config()
     custom_manager_url = cfg.get("manager_url", "").strip()
+    manager_dir = get_manager_directory()
     az_base = cfg.get("manager_servers_dir", r"C:\xampp\htdocs\projects\AZ")
     start_servers_bat = os.path.join(az_base, "start_servers.bat")
-    start_bot_js = os.path.join(az_base, "start_bot.js")
 
     is_local = client_host in ["localhost", "127.0.0.1", "::1"]
     lan_ip = get_lan_ip()
@@ -3444,7 +3474,7 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
     manager_url = custom_manager_url or f"http://{display_host}:8002"
     lan_url = f"http://{lan_ip}:8002"
 
-    # 1. إذا كان رابط المنجر مخصصاً لـ IP خارجي (كمبيوتر آخر على الشبكة)
+    # 1. إذا كان رابط المنجر مخصصاً لـ IP خارجي
     if custom_manager_url and not any(h in custom_manager_url for h in ["localhost", "127.0.0.1"]):
         try:
             import urllib.request
@@ -3463,7 +3493,7 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
         return {
             "success": False,
             "not_installed": False,
-            "message": f"تعذر الاتصال بسيرفر المنجر عبر الرابط ({custom_manager_url}). يرجى التأكد من تشغيل المنجر على الجهاز الآخر وأن الجهازين متصلان بنفس شبكة الراوتر / الواي فاي.",
+            "message": f"تعذر الاتصال بسيرفر المنجر عبر الرابط ({custom_manager_url}).",
             "url": custom_manager_url,
             "lan_url": custom_manager_url,
             "manager_running": False
@@ -3479,26 +3509,32 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
             "manager_running": True
         }
 
-    # 3. التحقق من وجود ملفات المنجر محلياً (إذا لم تكن موجودة - مثل الكمبيوتر الثاني)
-    if not os.path.exists(az_base) or not (os.path.exists(start_bot_js) or os.path.exists(start_servers_bat)):
+    # 3. التحقق من وجود مجلد المنجر
+    if not manager_dir:
         return {
             "success": False,
             "not_installed": True,
             "message": (
-                "🔒 حفاظاً على أمان وسرية المنصة والموقع، لوحة تحكم المنجر تعمل محلياً فقط (Localhost) ومحمية بالكامل من الإنترنت.\n\n"
-                "📁 لتشغيل المنجر على هذا الجهاز، يلزم تنزيل ونسخ ملفات المنجر إلى المسار التالي:\n"
-                f"{az_base}\n\n"
-                "ثم تشغيل برنامج XAMPP والضغط على زر المنجر مجدداً."
+                "🔒 لم يتم العثور على مجلد المنجر (manager).\n\n"
+                "يرجى التأكد من تنزيل مجلد manager المدمج داخل مستودع المنظومة."
             ),
             "url": manager_url,
             "lan_url": lan_url,
             "manager_running": False
         }
 
-    # 4. التأكد أولاً من عمل خادم MySQL محلياً
-    ensure_mysql_running()
+    # 4. إطلاق المنجر عبر PHP artisan مباشرة
+    php_exe = find_php_executable()
+    try:
+        subprocess.Popen(
+            [php_exe, "artisan", "serve", "--host=0.0.0.0", "--port=8002", "--no-reload"],
+            cwd=manager_dir,
+            creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
+        )
+    except Exception as e:
+        print(f"Error launching php artisan serve: {e}")
 
-    # 5. إطلاق السيرفرات عبر start_servers.bat أو node start_bot.js
+    # أيضاً تشغيل start_servers.bat إن وجد في مسار XAMPP لتشغيل الخدمات التابعة
     if os.path.exists(start_servers_bat):
         try:
             subprocess.Popen(
@@ -3507,22 +3543,11 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
                 shell=True
             )
         except Exception as e:
-            print(f"Error launching start_servers.bat: {e}")
+            pass
 
-    time.sleep(1.0)
-    if not is_port_listening(8002) and os.path.exists(start_bot_js):
-        try:
-            subprocess.Popen(
-                ["node", "start_bot.js"],
-                cwd=az_base,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if os.name == 'nt' else 0
-            )
-        except Exception as e:
-            print(f"Error launching node start_bot.js directly: {e}")
-
-    # انتظار حتى 8 ثوانٍ
+    # انتظار حتى 6 ثوانٍ لبدء المنفذ 8002
     manager_ready = False
-    for _ in range(16):
+    for _ in range(12):
         time.sleep(0.5)
         if is_port_listening(8002):
             manager_ready = True
