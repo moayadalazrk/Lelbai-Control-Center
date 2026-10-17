@@ -528,6 +528,14 @@
             </div>
           </div>
 
+          <div class="form-group">
+            <label>🖥️ رابط صفحة المنجر (لوحة الإدارة):</label>
+            <input type="text" class="form-control" id="setManagerUrl" placeholder="http://localhost:8002">
+            <div style="font-size:11px; color:#93c5fd; margin-top:4px; line-height:1.4;">
+              💡 <b>إذا كنت على الكمبيوتر الثاني:</b> ضع هنا عنوان IP الكمبيوتر الأول (مثال: <code>http://192.168.1.229:8002</code>) ليفتح المنجر مباشرة عبر الشبكة دون الحاجة لتثبيت أي ملفات على هذا الجهاز.
+            </div>
+          </div>
+
           <button class="btn btn-primary" onclick="saveSettings()">💾 حفظ الإعدادات</button>
         </div>
 
@@ -735,7 +743,7 @@
       const currentHost = (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
         ? window.location.hostname
         : 'localhost';
-      let targetUrl = `http://${currentHost}:8002`;
+      let targetUrl = dot ? (dot.getAttribute('data-url') || `http://${currentHost}:8002`) : `http://${currentHost}:8002`;
 
       // إذا كانت سيرفرات الإدارة تعمل مسبقاً، افتح الصفحة فوراً في تبويب جديد دون أي تأخير
       if (dot && dot.getAttribute('data-online') === 'true') {
@@ -754,7 +762,7 @@
         if (data.success) {
           if (data.url) {
             targetUrl = data.url;
-            if (currentHost !== 'localhost') {
+            if (currentHost !== 'localhost' && !targetUrl.includes('://')) {
               targetUrl = targetUrl.replace('localhost', currentHost).replace('127.0.0.1', currentHost);
             }
           }
@@ -762,11 +770,24 @@
             dot.style.background = '#10b981';
             dot.style.boxShadow = '0 0 8px #10b981';
             dot.setAttribute('data-online', 'true');
+            dot.setAttribute('data-url', targetUrl);
             dot.title = `صفحة الإدارة متصلة وجاهزة (${targetUrl})`;
           }
           const win = window.open(targetUrl, '_blank');
           if (!win) {
             alert(`✅ تم تشغيل سيرفر الإدارة بنجاح!\nيرجى السماح بالنوافذ المنبثقة أو فتح الرابط التالي مباشرة:\n${targetUrl}`);
+          }
+        } else if (data.not_installed) {
+          const goToSettings = confirm(
+            data.message + "\n\n👉 هل ترغب بالانتقال الآن إلى تبويب الإعدادات لإدخال رابط/آي بي الكمبيوتر الأول؟"
+          );
+          if (goToSettings) {
+            switchTab('tab-settings', document.getElementById('navBtnSettings'));
+            const inp = document.getElementById('setManagerUrl');
+            if (inp) {
+              inp.focus();
+              inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
           }
         } else {
           alert("⚠️ " + (data.message || "فشل تشغيل سيرفرات الإدارة."));
@@ -791,26 +812,36 @@
       const currentHost = (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
         ? window.location.hostname
         : 'localhost';
-      const targetUrl = `http://${currentHost}:8002`;
+      let defaultUrl = `http://${currentHost}:8002`;
 
       try {
         const res = await fetch(`${API_BASE}/api/manager_status`);
         const data = await res.json();
+        const activeUrl = data.manager_url || defaultUrl;
+        dot.setAttribute('data-url', activeUrl);
+
         if (data.manager_running) {
           dot.style.background = '#10b981';
           dot.style.boxShadow = '0 0 8px #10b981';
           dot.setAttribute('data-online', 'true');
-          dot.title = `صفحة الإدارة متصلة وجاهزة (${targetUrl}) - انقر للفتح المباشر`;
+          dot.title = `صفحة الإدارة متصلة وجاهزة (${activeUrl}) - انقر للفتح المباشر`;
           if (btn) {
-            btn.title = `صفحة الإدارة تعمل بنشاط. انقر للفتح المباشر في المتصفح (${targetUrl})`;
+            btn.title = `صفحة الإدارة تعمل بنشاط. انقر للفتح المباشر في المتصفح (${activeUrl})`;
           }
         } else {
           dot.style.background = '#ef4444';
           dot.style.boxShadow = '0 0 8px #ef4444';
           dot.setAttribute('data-online', 'false');
-          dot.title = 'سيرفر الإدارة متوقف حالياً. انقر للتشغيل';
-          if (btn) {
-            btn.title = 'تشغيل لوحة تحكم الإدارة (المنجر) والسيرفرات وفتح الصفحة';
+          if (data.is_installed === false) {
+            dot.title = 'ملفات المنجر غير مثبتة على هذا الجهاز. انقر للمساعدة في الربط بالكمبيوتر الأول';
+            if (btn) {
+              btn.title = 'ملفات المنجر غير مثبتة محلياً. انقر للمساعدة في الربط بالكمبيوتر الأول';
+            }
+          } else {
+            dot.title = 'سيرفر الإدارة متوقف حالياً. انقر للتشغيل';
+            if (btn) {
+              btn.title = 'تشغيل لوحة تحكم الإدارة (المنجر) والسيرفرات وفتح الصفحة';
+            }
           }
         }
       } catch (e) {
@@ -864,6 +895,8 @@
         document.getElementById('setGeminiKey').value = cfg.gemini_api_key || '';
         document.getElementById('setWebUrl').value = cfg.website_api_url || '';
         document.getElementById('setWebKey').value = cfg.website_api_key || '';
+        const mInp = document.getElementById('setManagerUrl');
+        if (mInp) mInp.value = cfg.manager_url || '';
       } catch (e) {}
     }
 
@@ -912,37 +945,55 @@
 
     let adsLimit = 60;
 
-    async function loadAllAds() {
+    async function loadAllAds(silent = false) {
+      const grid = document.getElementById('adsCardsGrid');
       try {
-        const grid = document.getElementById('adsCardsGrid');
-        if (adsData.length === 0 && grid) {
+        if (!silent && adsData.length === 0 && grid) {
           grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px; color:#60a5fa; font-weight:800; font-size:16px;">⏳ جاري تجهيز وعرض الإعلانات...</div>`;
         }
         const res = await apiFetch('/api/ads');
+        if (!res.ok) throw new Error("تعذر جلب الإعلانات من السيرفر (" + res.status + ")");
         const data = await res.json();
-        adsData = data.pending || [];
-        publishedAdsData = data.published || [];
+        adsData = Array.isArray(data.pending) ? data.pending : [];
+        if (Array.isArray(data.published)) {
+          publishedAdsData = data.published;
+        }
         
-        document.getElementById('badgePending').innerText = adsData.length;
-        const pubCount = data.published_count !== undefined ? data.published_count : publishedAdsData.length;
+        const badgePending = document.getElementById('badgePending');
+        if (badgePending) badgePending.innerText = adsData.length;
+        
+        const pubCount = data.published_count !== undefined ? data.published_count : (publishedAdsData ? publishedAdsData.length : 0);
         const badgePub = document.getElementById('badgePublished');
         if (badgePub) badgePub.innerText = pubCount;
         const stPub = document.getElementById('stPublishedAds');
         if (stPub) stPub.innerText = pubCount;
-        const pubListCount = document.getElementById('publishedListCount');
+        
         const fCount = data.flagged_count || 0;
         const stFlagged = document.getElementById('stFlaggedAds');
         if (stFlagged) stFlagged.innerText = fCount;
         const badgeFlagged = document.getElementById('badgeFlagged');
         if (badgeFlagged) badgeFlagged.innerText = fCount;
 
-        const readyCount = adsData.filter(a => a.evaluation && a.evaluation.is_ready_to_publish).length;
-        document.getElementById('stReadyAds').innerText = readyCount;
+        const readyCount = adsData.filter(a => a && a.evaluation && a.evaluation.is_ready_to_publish).length;
+        const stReady = document.getElementById('stReadyAds');
+        if (stReady) stReady.innerText = readyCount;
 
         renderAdsGrid();
-        renderPublishedGrid();
+        if (publishedAdsData && publishedAdsData.length > 0) {
+          renderPublishedGrid();
+        }
       } catch (e) {
         console.error("Error loading ads:", e);
+        if (grid && (!silent || adsData.length === 0)) {
+          grid.innerHTML = `
+            <div style="grid-column:1/-1; text-align:center; padding:50px 20px; background:var(--card-bg); border-radius:16px; border:1px solid #ef4444; color:#f87171;">
+              <div style="font-size:32px; margin-bottom:10px;">⚠️</div>
+              <div style="font-weight:800; font-size:16px; margin-bottom:6px;">تعذر تحميل وتجهيز الإعلانات حالياً</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">${escapeHtml(e.message || String(e))}</div>
+              <button class="btn btn-primary" onclick="loadAllAds(false)" style="padding:10px 22px; font-weight:800; font-size:13px;">🔄 إعادة المحاولة الآن</button>
+            </div>
+          `;
+        }
       }
     }
 
@@ -963,167 +1014,186 @@
         if (currentFilter === 'review') filtered = filtered.filter(a => a && (!a.evaluation || !a.evaluation.is_ready_to_publish));
 
         if (filtered.length === 0) {
-          grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; background:var(--card-bg); border-radius:16px; color:var(--text-muted);">🎉 لا توجد إعلانات مطابقة لفلتر العرض!</div>`;
+          grid.innerHTML = `
+            <div style="grid-column:1/-1; text-align:center; padding:60px 20px; background:var(--card-bg); border-radius:16px; color:var(--text-muted); border:1px solid var(--border);">
+              <div style="font-size:36px; margin-bottom:12px;">📦</div>
+              <div style="font-size:16px; font-weight:800; color:#f8fafc; margin-bottom:6px;">لا توجد إعلانات مطابقة لفلتر العرض حالياً</div>
+              <div style="font-size:12px; color:var(--text-muted);">ابدأ السحب المتوازي من تبويب "تشغيل السحب المتوازي" لتظهر الإعلانات هنا فوراً وتلقائياً.</div>
+            </div>
+          `;
           return;
         }
 
         const visibleAds = filtered.slice(0, adsLimit);
         const cardsHtml = visibleAds.map((ad, idx) => {
           if (!ad) return '';
-          const ev = ad.evaluation || {};
-          const sp = ev.specs_details || {};
-          const sh = ev.sharia_details || {};
+          try {
+            const ev = (typeof ad.evaluation === 'object' && ad.evaluation !== null) ? ad.evaluation : {};
+            const sp = (typeof ev.specs_details === 'object' && ev.specs_details !== null) ? ev.specs_details : {};
+            const sh = (typeof ev.sharia_details === 'object' && ev.sharia_details !== null) ? ev.sharia_details : {};
 
-          const rawTitle = ad.clean_title || ad.title || (ad.description || '').substring(0, 60) || 'إعلان بدون عنوان';
-          const title = String(rawTitle);
-          const city = sp.city_name || ad.city_name || ad.location_detected || 'دمشق';
-          const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : (ad.sub_district_name ? ` (${ad.sub_district_name})` : '');
-          const cat = ad.category || 'عام';
-          const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
-          const accountName = ad.publisher_name || 'أبو محمد الشامي';
-          const currSymbol = (ad.price_info && ad.price_info.currency === 'USD') ? '$' : 'ل.س';
-          const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${currSymbol}` : 'السعر: على السوم';
-          
-          const images = Array.isArray(ad.nimages) ? ad.nimages : [];
-          const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
+            const rawTitle = ad.clean_title || ad.title || (ad.description || '').substring(0, 60) || 'إعلان بدون عنوان';
+            const title = String(rawTitle);
+            const city = sp.city_name || ad.city_name || ad.location_detected || 'دمشق';
+            const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : (ad.sub_district_name ? ` (${ad.sub_district_name})` : '');
+            const cat = ad.category || 'عام';
+            const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
+            const accountName = ad.publisher_name || 'أبو محمد الشامي';
+            
+            const priceInfo = (typeof ad.price_info === 'object' && ad.price_info !== null) ? ad.price_info : {};
+            const currSymbol = (priceInfo.currency === 'USD') ? '$' : 'ل.س';
+            const price = (priceInfo.amount !== undefined && priceInfo.amount !== null && !isNaN(Number(priceInfo.amount))) ? `${Number(priceInfo.amount).toLocaleString()} ${currSymbol}` : 'السعر: على السوم';
+            
+            const images = Array.isArray(ad.nimages) ? ad.nimages : [];
+            const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
 
-          const adId = escapeHtml(ad.ad_url || ad.clean_title || (ad.description || '').substring(0, 30));
-          const thumbsHtml = images.map((img, i) => `
-            <div class="ad-thumb-wrapper">
-              <img src="${API_BASE}/imgs/${encodeURIComponent(img)}" class="ad-thumb ${i===0?'active':''}" onclick="const mainImg=document.getElementById('adMainImg-${idx}'); if(mainImg) mainImg.src='${API_BASE}/imgs/${encodeURIComponent(img)}'" onerror="this.style.display='none'" />
-              <button type="button" class="del-thumb-btn" title="حذف هذه الصورة نهائياً" onclick="deleteAdImage('${adId}', '${encodeURIComponent(img)}', ${idx}, event)">✕</button>
-            </div>
-          `).join('');
+            const adId = encodeURIComponent(String(ad.ad_url || ad.clean_title || (ad.description || '').substring(0, 30)));
+            const thumbsHtml = images.map((img, i) => `
+              <div class="ad-thumb-wrapper">
+                <img src="${API_BASE}/imgs/${encodeURIComponent(img)}" class="ad-thumb ${i===0?'active':''}" onclick="const mainImg=document.getElementById('adMainImg-${idx}'); if(mainImg) mainImg.src='${API_BASE}/imgs/${encodeURIComponent(img)}'" onerror="this.style.display='none'" />
+                <button type="button" class="del-thumb-btn" title="حذف هذه الصورة نهائياً" onclick="deleteAdImage('${adId}', '${encodeURIComponent(img)}', ${idx}, event)">✕</button>
+              </div>
+            `).join('');
 
-          // أشرطة الفحص
-          const specsStatusHtml = sp.has_images && sp.has_desc && sp.has_phone ? 
-            `<span style="color:#34d399;">✔️ مكتمل (${sp.images_count || images.length} صور + هاتف + وصف + موقع)</span>` :
-            `<span style="color:#f87171;">⚠️ ناقص بعض الحقول</span>`;
+            // أشرطة الفحص
+            const specsStatusHtml = sp.has_images && sp.has_desc && sp.has_phone ? 
+              `<span style="color:#34d399;">✔️ مكتمل (${sp.images_count || images.length} صور + هاتف + وصف + موقع)</span>` :
+              `<span style="color:#f87171;">⚠️ ناقص بعض الحقول</span>`;
 
-          const shFlags = Array.isArray(sh.flags) ? sh.flags : [];
-          const summaryStr = sh.summary || ad.moderation_summary || '';
-          const isAiDone = Boolean(ad.ai_evaluated || ev.is_ai_evaluated);
-          let shariaStatusHtml = '';
-          if (sh.is_safe) {
-            if (isAiDone) {
-              shariaStatusHtml = `<span style="color:#34d399; font-weight:800;" title="${escapeHtml(summaryStr)}">🟢 مطابق للضوابط (Gemini Vision API)</span>`;
+            const shFlags = Array.isArray(sh.flags) ? sh.flags : [];
+            const summaryStr = sh.summary || ad.moderation_summary || '';
+            const isAiDone = Boolean(ad.ai_evaluated || ev.is_ai_evaluated);
+            let shariaStatusHtml = '';
+            if (sh.is_safe) {
+              if (isAiDone) {
+                shariaStatusHtml = `<span style="color:#34d399; font-weight:800;" title="${escapeHtml(summaryStr)}">🟢 مطابق للضوابط (Gemini Vision API)</span>`;
+              } else {
+                shariaStatusHtml = `<span style="color:#facc15; font-weight:700;" title="الإعلان بانتظار فحص الرؤية الذكية">⏳ بانتظار فحص AI (Gemini)</span>`;
+              }
             } else {
-              shariaStatusHtml = `<span style="color:#facc15; font-weight:700;" title="الإعلان بانتظار فحص الرؤية الذكية">⏳ بانتظار فحص AI (Gemini)</span>`;
+              shariaStatusHtml = `<span style="color:#f87171; font-weight:800;" title="${escapeHtml(summaryStr)}">🚫 ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
             }
-          } else {
-            shariaStatusHtml = `<span style="color:#f87171; font-weight:800;" title="${escapeHtml(summaryStr)}">🚫 ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
+
+            const dupStatusHtml = ad.is_duplicate ?
+              `<span style="color:#ef4444; font-weight:700;">⚠️ مكرر مسبقاً على الموقع</span>` :
+              `<span style="color:#34d399; font-weight:700;">✔️ جديد كلياً (غير مكرر)</span>`;
+
+            const readyBadgeHtml = ev.is_ready_to_publish ?
+              `<span class="badge badge-success" style="font-size:12px;">🚀 جاهز للنشر الفوري</span>` :
+              `<span class="badge badge-warning" style="font-size:12px;">⏳ بحاجة لمراجعة</span>`;
+
+            // استخراج بادجات المواصفات الفنية
+            const specsObj = (typeof ad.specifications === 'object' && ad.specifications !== null) ? ad.specifications : {};
+            const specItems = [];
+            if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
+            if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
+            if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
+            if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
+            if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
+            if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
+            if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
+            if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
+            if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
+            if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
+            if (Array.isArray(specsObj.features) && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
+
+            const specsBadgesHtml = specItems.length > 0 ? `
+              <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
+                ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${escapeHtml(s)}</span>`).join('')}
+              </div>
+            ` : '';
+
+            // رد وتقرير الذكاء الاصطناعي
+            const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
+              ad.ai_review.full_text : 
+              (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية.');
+
+            const descText = ad.clean_description || ad.description || 'لا يوجد وصف متاح';
+
+            return `
+              <div class="ad-card" id="adCard-${idx}">
+                <div class="ad-gallery">
+                  <img id="adMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
+                  <div class="ad-thumbs">${thumbsHtml}</div>
+                </div>
+
+                <div class="ad-body">
+                  
+                  <!-- التصنيف بأصغر ابن واسم الحساب -->
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
+                    <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${escapeHtml(catHierarchy)}</span>
+                    <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${escapeHtml(accountName)}</span>
+                  </div>
+
+                  <!-- صندوق المراحل التفصيلي -->
+                  <div class="verification-box">
+                    <div class="pillar-row">
+                      <span class="pillar-label">1️⃣ المواصفات والبيانات:</span>
+                      ${specsStatusHtml}
+                    </div>
+                    <div class="pillar-row">
+                      <span class="pillar-label">2️⃣ الفحص الشرعي والرقابي:</span>
+                      ${shariaStatusHtml}
+                    </div>
+                    <div class="pillar-row">
+                      <span class="pillar-label">3️⃣ عدم التكرار على الموقع:</span>
+                      ${dupStatusHtml}
+                    </div>
+                    <div class="pillar-row">
+                      <span class="pillar-label">4️⃣ حالة الجاهزية للنشر:</span>
+                      ${readyBadgeHtml}
+                    </div>
+                  </div>
+
+                  <!-- بادجات المواصفات المستخرجة -->
+                  ${specsBadgesHtml}
+
+                  <!-- رد وتقرير الذكاء الاصطناعي الشامل -->
+                  <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:10px; padding:10px; margin:8px 0;">
+                    <div style="font-size:11px; font-weight:800; color:#a5b4fc; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between;">
+                      <span>🤖 رد وتقرير فحص الذكاء الاصطناعي:</span>
+                      <span style="color:#34d399; font-size:10px;">✔️ فحص دقيق</span>
+                    </div>
+                    <div style="font-size:11px; color:#cbd5e1; line-height:1.55; white-space:pre-line; background:rgba(15,23,42,0.65); padding:8px 10px; border-radius:6px; font-family:monospace; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(aiReviewText)}</div>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11px; color:var(--text-muted); font-weight:700;">العنوان المهيكل:</label>
+                    <input type="text" class="ad-title-input" id="titleInp-${idx}" value="${escapeHtml(title)}" />
+                  </div>
+
+                  <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
+                    <span style="color:#60a5fa;">📍 ${escapeHtml(city)}${escapeHtml(subDist)}</span>
+                    <span style="color:#fde047;">💰 ${escapeHtml(price)}</span>
+                  </div>
+
+                  <div class="ad-desc-box">${escapeHtml(descText)}</div>
+
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8;">
+                    <span>📞 ${escapeHtml(ad.phone_number || 'لا يوجد')}</span>
+                    <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
+                  </div>
+
+                  <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
+                    <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1; min-width:140px;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
+                    <button id="aiBtn-${idx}" class="btn btn-outline btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="reclassifySingleAd(${idx})" title="إعادة فحص وتصنيف الإعلان بالذكاء الاصطناعي (Gemini)">🤖 فحص AI</button>
+                    <button id="rejBtn-${idx}" class="btn btn-warning btn-sm" onclick="rejectSingleAd(${idx})" title="استبعاد الإعلان ونقله للمخالفات">⚠️ استبعاد</button>
+                    <button id="delBtn-${idx}" class="btn btn-danger btn-sm" onclick="deleteSingleAd(${idx})" title="حذف نهائي للإعلان وصوره من الجهاز">🗑️ حذف نهائي</button>
+                  </div>
+
+                </div>
+              </div>
+            `;
+          } catch (cardErr) {
+            console.error("Error rendering ad card at index", idx, cardErr);
+            return `
+              <div class="ad-card" id="adCard-${idx}" style="border:1px dashed #f59e0b; padding:20px; text-align:center;">
+                <div style="color:#f59e0b; font-weight:800; margin-bottom:6px;">⚠️ تعذر عرض تفاصيل هذا الإعلان</div>
+                <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(ad.clean_title || ad.title || 'إعلان')}</div>
+                <button class="btn btn-danger btn-sm" style="margin-top:10px;" onclick="deleteSingleAd(${idx})">🗑️ حذف</button>
+              </div>
+            `;
           }
-
-          const dupStatusHtml = ad.is_duplicate ?
-            `<span style="color:#ef4444; font-weight:700;">⚠️ مكرر مسبقاً على الموقع</span>` :
-            `<span style="color:#34d399; font-weight:700;">✔️ جديد كلياً (غير مكرر)</span>`;
-
-          const readyBadgeHtml = ev.is_ready_to_publish ?
-            `<span class="badge badge-success" style="font-size:12px;">🚀 جاهز للنشر الفوري</span>` :
-            `<span class="badge badge-warning" style="font-size:12px;">⏳ بحاجة لمراجعة</span>`;
-
-          // استخراج بادجات المواصفات الفنية
-          const specsObj = (typeof ad.specifications === 'object' && ad.specifications !== null) ? ad.specifications : {};
-          const specItems = [];
-          if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
-          if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
-          if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
-          if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
-          if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
-          if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
-          if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
-          if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
-          if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
-          if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
-          if (Array.isArray(specsObj.features) && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
-
-          const specsBadgesHtml = specItems.length > 0 ? `
-            <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
-              ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${escapeHtml(s)}</span>`).join('')}
-            </div>
-          ` : '';
-
-          // رد وتقرير الذكاء الاصطناعي
-          const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
-            ad.ai_review.full_text : 
-            (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية.');
-
-          const descText = ad.clean_description || ad.description || 'لا يوجد وصف متاح';
-
-          return `
-            <div class="ad-card" id="adCard-${idx}">
-              <div class="ad-gallery">
-                <img id="adMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
-                <div class="ad-thumbs">${thumbsHtml}</div>
-              </div>
-
-              <div class="ad-body">
-                
-                <!-- التصنيف بأصغر ابن واسم الحساب -->
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
-                  <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${escapeHtml(catHierarchy)}</span>
-                  <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${escapeHtml(accountName)}</span>
-                </div>
-
-                <!-- صندوق المراحل التفصيلي -->
-                <div class="verification-box">
-                  <div class="pillar-row">
-                    <span class="pillar-label">1️⃣ المواصفات والبيانات:</span>
-                    ${specsStatusHtml}
-                  </div>
-                  <div class="pillar-row">
-                    <span class="pillar-label">2️⃣ الفحص الشرعي والرقابي:</span>
-                    ${shariaStatusHtml}
-                  </div>
-                  <div class="pillar-row">
-                    <span class="pillar-label">3️⃣ عدم التكرار على الموقع:</span>
-                    ${dupStatusHtml}
-                  </div>
-                  <div class="pillar-row">
-                    <span class="pillar-label">4️⃣ حالة الجاهزية للنشر:</span>
-                    ${readyBadgeHtml}
-                  </div>
-                </div>
-
-                <!-- بادجات المواصفات المستخرجة -->
-                ${specsBadgesHtml}
-
-                <!-- رد وتقرير الذكاء الاصطناعي الشامل -->
-                <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:10px; padding:10px; margin:8px 0;">
-                  <div style="font-size:11px; font-weight:800; color:#a5b4fc; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between;">
-                    <span>🤖 رد وتقرير فحص الذكاء الاصطناعي:</span>
-                    <span style="color:#34d399; font-size:10px;">✔️ فحص دقيق</span>
-                  </div>
-                  <div style="font-size:11px; color:#cbd5e1; line-height:1.55; white-space:pre-line; background:rgba(15,23,42,0.65); padding:8px 10px; border-radius:6px; font-family:monospace; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(aiReviewText)}</div>
-                </div>
-
-                <div>
-                  <label style="font-size:11px; color:var(--text-muted); font-weight:700;">العنوان المهيكل:</label>
-                  <input type="text" class="ad-title-input" id="titleInp-${idx}" value="${escapeHtml(title)}" />
-                </div>
-
-                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
-                  <span style="color:#60a5fa;">📍 ${escapeHtml(city)}${escapeHtml(subDist)}</span>
-                  <span style="color:#fde047;">💰 ${escapeHtml(price)}</span>
-                </div>
-
-                <div class="ad-desc-box">${escapeHtml(descText)}</div>
-
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8;">
-                  <span>📞 ${escapeHtml(ad.phone_number || 'لا يوجد')}</span>
-                  <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
-                </div>
-
-                <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
-                  <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1; min-width:140px;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
-                  <button id="aiBtn-${idx}" class="btn btn-outline btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="reclassifySingleAd(${idx})" title="إعادة فحص وتصنيف الإعلان بالذكاء الاصطناعي (Gemini)">🤖 فحص AI</button>
-                  <button id="rejBtn-${idx}" class="btn btn-warning btn-sm" onclick="rejectSingleAd(${idx})" title="استبعاد الإعلان ونقله للمخالفات">⚠️ استبعاد</button>
-                  <button id="delBtn-${idx}" class="btn btn-danger btn-sm" onclick="deleteSingleAd(${idx})" title="حذف نهائي للإعلان وصوره من الجهاز">🗑️ حذف نهائي</button>
-                </div>
-
-              </div>
-            </div>
-          `;
         }).join('');
 
         let moreHtml = '';
@@ -1143,6 +1213,17 @@
         grid.innerHTML = cardsHtml + moreHtml;
       } catch (err) {
         console.error("renderAdsGrid error:", err);
+        const grid = document.getElementById('adsCardsGrid');
+        if (grid) {
+          grid.innerHTML = `
+            <div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--card-bg); border-radius:16px; border:1px solid #ef4444; color:#f87171;">
+              <div style="font-size:24px; margin-bottom:8px;">⚠️</div>
+              <div style="font-weight:800; font-size:15px;">حدث خطأ أثناء عرض الإعلانات</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">${escapeHtml(err.message || String(err))}</div>
+              <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="renderAdsGrid()">🔄 إعادة المحاولة</button>
+            </div>
+          `;
+        }
       }
     }
 
@@ -1260,14 +1341,15 @@
       if (!confirm("هل أنت متأكد من رغبتك في حذف هذه الصورة من الإعلان نهائياً؟")) return;
 
       const imgName = decodeURIComponent(imgNameEncoded);
+      const cleanAdId = decodeURIComponent(adIdentifier);
       try {
         const res = await apiFetch('/api/delete_ad_image', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
             image_name: imgName,
-            ad_url: adIdentifier,
-            clean_title: adIdentifier,
+            ad_url: cleanAdId,
+            clean_title: cleanAdId,
             ad_index: cardIndex
           })
         });
@@ -1966,6 +2048,14 @@
           if (spa) spa.innerText = st.published_count || 0;
           const sfa = document.getElementById('stFlaggedAds');
           if (sfa) sfa.innerText = st.flagged_count || 0;
+
+          // تحديث حي فوري لشبكة الإعلانات إذا تم سحب إعلانات جديدة أثناء تواجد المستخدم في تبويب المراجعة
+          const reviewTab = document.getElementById('tab-review');
+          if (reviewTab && reviewTab.classList.contains('active')) {
+            if (st.pending_count !== adsData.length) {
+              loadAllAds(true);
+            }
+          }
         }
 
         if (st.gemini_usage) {
@@ -2044,10 +2134,12 @@
     async function saveSettings() {
       const webKeyVal = document.getElementById('setWebKey').value.trim();
       const webUrlVal = document.getElementById('setWebUrl').value.trim();
+      const managerUrlVal = document.getElementById('setManagerUrl') ? document.getElementById('setManagerUrl').value.trim() : '';
       const cfg = {
         gemini_api_key: document.getElementById('setGeminiKey').value.trim(),
         website_api_url: webUrlVal || 'https://api.lelbai.com/public/api/listings',
-        website_api_key: webKeyVal || '67|5181926855ca52522dec3990517f272b027b745f'
+        website_api_key: webKeyVal || '67|5181926855ca52522dec3990517f272b027b745f',
+        manager_url: managerUrlVal
       };
       try {
         await apiFetch('/api/config', {
@@ -2056,6 +2148,7 @@
           body: JSON.stringify(cfg)
         });
         alert("تم حفظ الإعدادات بنجاح! ✅");
+        checkManagerStatus();
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
       }

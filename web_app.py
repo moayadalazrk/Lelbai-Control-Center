@@ -1531,6 +1531,14 @@ HTML_PAGE = r"""<!DOCTYPE html>
             </div>
           </div>
 
+          <div class="form-group">
+            <label>🖥️ رابط صفحة المنجر (لوحة الإدارة):</label>
+            <input type="text" class="form-control" id="setManagerUrl" placeholder="http://localhost:8002">
+            <div style="font-size:11px; color:#93c5fd; margin-top:4px; line-height:1.4;">
+              💡 <b>إذا كنت على الكمبيوتر الثاني:</b> ضع هنا عنوان IP الكمبيوتر الأول (مثال: <code>http://192.168.1.229:8002</code>) ليفتح المنجر مباشرة عبر الشبكة دون الحاجة لتثبيت أي ملفات على هذا الجهاز.
+            </div>
+          </div>
+
           <button class="btn btn-primary" onclick="saveSettings()">💾 حفظ الإعدادات</button>
         </div>
 
@@ -1738,7 +1746,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
       const currentHost = (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
         ? window.location.hostname
         : 'localhost';
-      let targetUrl = `http://${currentHost}:8002`;
+      let targetUrl = dot ? (dot.getAttribute('data-url') || `http://${currentHost}:8002`) : `http://${currentHost}:8002`;
 
       // إذا كانت سيرفرات الإدارة تعمل مسبقاً، افتح الصفحة فوراً في تبويب جديد دون أي تأخير
       if (dot && dot.getAttribute('data-online') === 'true') {
@@ -1757,7 +1765,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         if (data.success) {
           if (data.url) {
             targetUrl = data.url;
-            if (currentHost !== 'localhost') {
+            if (currentHost !== 'localhost' && !targetUrl.includes('://')) {
               targetUrl = targetUrl.replace('localhost', currentHost).replace('127.0.0.1', currentHost);
             }
           }
@@ -1765,11 +1773,24 @@ HTML_PAGE = r"""<!DOCTYPE html>
             dot.style.background = '#10b981';
             dot.style.boxShadow = '0 0 8px #10b981';
             dot.setAttribute('data-online', 'true');
+            dot.setAttribute('data-url', targetUrl);
             dot.title = `صفحة الإدارة متصلة وجاهزة (${targetUrl})`;
           }
           const win = window.open(targetUrl, '_blank');
           if (!win) {
             alert(`✅ تم تشغيل سيرفر الإدارة بنجاح!\nيرجى السماح بالنوافذ المنبثقة أو فتح الرابط التالي مباشرة:\n${targetUrl}`);
+          }
+        } else if (data.not_installed) {
+          const goToSettings = confirm(
+            data.message + "\n\n👉 هل ترغب بالانتقال الآن إلى تبويب الإعدادات لإدخال رابط/آي بي الكمبيوتر الأول؟"
+          );
+          if (goToSettings) {
+            switchTab('tab-settings', document.getElementById('navBtnSettings'));
+            const inp = document.getElementById('setManagerUrl');
+            if (inp) {
+              inp.focus();
+              inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
           }
         } else {
           alert("⚠️ " + (data.message || "فشل تشغيل سيرفرات الإدارة."));
@@ -1794,26 +1815,36 @@ HTML_PAGE = r"""<!DOCTYPE html>
       const currentHost = (window.location.hostname && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
         ? window.location.hostname
         : 'localhost';
-      const targetUrl = `http://${currentHost}:8002`;
+      let defaultUrl = `http://${currentHost}:8002`;
 
       try {
         const res = await fetch(`${API_BASE}/api/manager_status`);
         const data = await res.json();
+        const activeUrl = data.manager_url || defaultUrl;
+        dot.setAttribute('data-url', activeUrl);
+
         if (data.manager_running) {
           dot.style.background = '#10b981';
           dot.style.boxShadow = '0 0 8px #10b981';
           dot.setAttribute('data-online', 'true');
-          dot.title = `صفحة الإدارة متصلة وجاهزة (${targetUrl}) - انقر للفتح المباشر`;
+          dot.title = `صفحة الإدارة متصلة وجاهزة (${activeUrl}) - انقر للفتح المباشر`;
           if (btn) {
-            btn.title = `صفحة الإدارة تعمل بنشاط. انقر للفتح المباشر في المتصفح (${targetUrl})`;
+            btn.title = `صفحة الإدارة تعمل بنشاط. انقر للفتح المباشر في المتصفح (${activeUrl})`;
           }
         } else {
           dot.style.background = '#ef4444';
           dot.style.boxShadow = '0 0 8px #ef4444';
           dot.setAttribute('data-online', 'false');
-          dot.title = 'سيرفر الإدارة متوقف حالياً. انقر للتشغيل';
-          if (btn) {
-            btn.title = 'تشغيل لوحة تحكم الإدارة (المنجر) والسيرفرات وفتح الصفحة';
+          if (data.is_installed === false) {
+            dot.title = 'ملفات المنجر غير مثبتة على هذا الجهاز. انقر للمساعدة في الربط بالكمبيوتر الأول';
+            if (btn) {
+              btn.title = 'ملفات المنجر غير مثبتة محلياً. انقر للمساعدة في الربط بالكمبيوتر الأول';
+            }
+          } else {
+            dot.title = 'سيرفر الإدارة متوقف حالياً. انقر للتشغيل';
+            if (btn) {
+              btn.title = 'تشغيل لوحة تحكم الإدارة (المنجر) والسيرفرات وفتح الصفحة';
+            }
           }
         }
       } catch (e) {
@@ -1867,6 +1898,8 @@ HTML_PAGE = r"""<!DOCTYPE html>
         document.getElementById('setGeminiKey').value = cfg.gemini_api_key || '';
         document.getElementById('setWebUrl').value = cfg.website_api_url || '';
         document.getElementById('setWebKey').value = cfg.website_api_key || '';
+        const mInp = document.getElementById('setManagerUrl');
+        if (mInp) mInp.value = cfg.manager_url || '';
       } catch (e) {}
     }
 
@@ -3104,10 +3137,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
     async function saveSettings() {
       const webKeyVal = document.getElementById('setWebKey').value.trim();
       const webUrlVal = document.getElementById('setWebUrl').value.trim();
+      const managerUrlVal = document.getElementById('setManagerUrl') ? document.getElementById('setManagerUrl').value.trim() : '';
       const cfg = {
         gemini_api_key: document.getElementById('setGeminiKey').value.trim(),
         website_api_url: webUrlVal || 'https://api.lelbai.com/public/api/listings',
-        website_api_key: webKeyVal || '67|5181926855ca52522dec3990517f272b027b745f'
+        website_api_key: webKeyVal || '67|5181926855ca52522dec3990517f272b027b745f',
+        manager_url: managerUrlVal
       };
       try {
         await apiFetch('/api/config', {
@@ -3116,6 +3151,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
           body: JSON.stringify(cfg)
         });
         alert("تم حفظ الإعدادات بنجاح! ✅");
+        checkManagerStatus();
       } catch (e) {
         alert("تعذر الاتصال بالسيرفر! يرجى تشغيل start_app.bat");
       }
@@ -3361,15 +3397,37 @@ def ensure_mysql_running() -> bool:
 
 def get_manager_system_status(client_host: str = "localhost") -> dict:
     """التحقق من حالة سيرفر المنجر وبقية خدمات المنصة في الوقت الفعلي."""
-    manager_running = is_port_listening(8002)
+    cfg = load_config()
+    custom_manager_url = cfg.get("manager_url", "").strip()
+    az_base = cfg.get("manager_servers_dir", r"C:\xampp\htdocs\projects\AZ")
+    is_installed = os.path.exists(az_base) and (
+        os.path.exists(os.path.join(az_base, "start_bot.js")) or 
+        os.path.exists(os.path.join(az_base, "start_servers.bat"))
+    )
+
+    is_local = client_host in ["localhost", "127.0.0.1", "::1"]
+    lan_ip = get_lan_ip()
+    display_host = "localhost" if is_local else (client_host if client_host else lan_ip)
+
+    effective_manager_url = custom_manager_url or f"http://{display_host}:8002"
+
+    manager_running = False
+    if custom_manager_url and not any(h in custom_manager_url for h in ["localhost", "127.0.0.1"]):
+        try:
+            import urllib.request
+            req = urllib.request.Request(custom_manager_url, headers={"User-Agent": "Lelbai/1.0"})
+            with urllib.request.urlopen(req, timeout=1.2) as resp:
+                if resp.status in (200, 301, 302, 401, 403):
+                    manager_running = True
+        except Exception:
+            manager_running = False
+    else:
+        manager_running = is_port_listening(8002)
+
     backend_running = is_port_listening(8000)
     frontend_running = is_port_listening(3000)
     mysql_running = is_port_listening(3306)
     desktop_shortcut = os.path.join(os.path.expanduser("~"), "Desktop", "لوحة تحكم المنجر.lnk")
-    
-    is_local = client_host in ["localhost", "127.0.0.1", "::1"]
-    lan_ip = get_lan_ip()
-    display_host = "localhost" if is_local else (client_host if client_host else lan_ip)
 
     return {
         "manager_running": manager_running,
@@ -3377,25 +3435,51 @@ def get_manager_system_status(client_host: str = "localhost") -> dict:
         "frontend_running": frontend_running,
         "mysql_running": mysql_running,
         "shortcut_exists": os.path.exists(desktop_shortcut),
-        "manager_url": f"http://{display_host}:8002",
+        "is_installed": is_installed,
+        "manager_url": effective_manager_url,
         "lan_url": f"http://{lan_ip}:8002"
     }
 
 def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
     """تشغيل كافة سيرفرات المنجر وقاعدة البيانات والتحقق من جاهزيتها قبل فتح لوحة التحكم."""
-    az_base = r"C:\xampp\htdocs\projects\AZ"
+    cfg = load_config()
+    custom_manager_url = cfg.get("manager_url", "").strip()
+    az_base = cfg.get("manager_servers_dir", r"C:\xampp\htdocs\projects\AZ")
     start_servers_bat = os.path.join(az_base, "start_servers.bat")
+    start_bot_js = os.path.join(az_base, "start_bot.js")
 
     is_local = client_host in ["localhost", "127.0.0.1", "::1"]
     lan_ip = get_lan_ip()
     display_host = "localhost" if is_local else (client_host if client_host else lan_ip)
-    manager_url = f"http://{display_host}:8002"
+    manager_url = custom_manager_url or f"http://{display_host}:8002"
     lan_url = f"http://{lan_ip}:8002"
 
-    # 1. التأكد أولاً من عمل خادم MySQL
-    ensure_mysql_running()
+    # 1. إذا كان رابط المنجر مخصصاً لـ IP خارجي (كمبيوتر آخر على الشبكة)
+    if custom_manager_url and not any(h in custom_manager_url for h in ["localhost", "127.0.0.1"]):
+        try:
+            import urllib.request
+            req = urllib.request.Request(custom_manager_url, headers={"User-Agent": "Lelbai/1.0"})
+            with urllib.request.urlopen(req, timeout=2.5) as resp:
+                if resp.status in (200, 301, 302, 401, 403):
+                    return {
+                        "success": True,
+                        "message": "تم الاتصال بسيرفر المنجر على الشبكة بنجاح! 🚀",
+                        "url": custom_manager_url,
+                        "lan_url": custom_manager_url,
+                        "manager_running": True
+                    }
+        except Exception:
+            pass
+        return {
+            "success": False,
+            "not_installed": False,
+            "message": f"تعذر الاتصال بسيرفر المنجر عبر الرابط ({custom_manager_url}). يرجى التأكد من تشغيل المنجر على الجهاز الآخر وأن الجهازين متصلان بنفس شبكة الراوتر / الواي فاي.",
+            "url": custom_manager_url,
+            "lan_url": custom_manager_url,
+            "manager_running": False
+        }
 
-    # 2. فحص ما إذا كان سيرفر المنجر يعمل مسبقاً
+    # 2. فحص ما إذا كان سيرفر المنجر يعمل مسبقاً محلياً
     if is_port_listening(8002):
         return {
             "success": True,
@@ -3405,19 +3489,37 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
             "manager_running": True
         }
 
-    # 3. إطلاق السيرفرات عبر start_servers.bat أو node start_bot.js مع استماع كامل لكافة الأجهزة (0.0.0.0)
-    start_bot_js = os.path.join(az_base, "start_bot.js")
+    # 3. التحقق من وجود ملفات المنجر محلياً (إذا لم تكن موجودة - مثل الكمبيوتر الثاني)
+    if not os.path.exists(az_base) or not (os.path.exists(start_bot_js) or os.path.exists(start_servers_bat)):
+        return {
+            "success": False,
+            "not_installed": True,
+            "message": (
+                "⚠️ لم يتم العثور على ملفات سيرفر المنجر على هذا الجهاز (" + az_base + ").\n\n"
+                "💡 بما أنك تستخدم الكمبيوتر الثاني وتريد فتح المنجر:\n"
+                "1. تأكد من تشغيل المنجر على الكمبيوتر الأول (الرئيسي).\n"
+                "2. ضع عنوان IP الكمبيوتر الأول في خانة 'رابط صفحة المنجر' في صفحة الإعدادات (مثال: http://192.168.1.229:8002).\n\n"
+                "أو يمكنك نسخ مجلد المنجر وتثبيت XAMPP ليعمل محلياً على هذا الجهاز."
+            ),
+            "url": manager_url,
+            "lan_url": lan_url,
+            "manager_running": False
+        }
+
+    # 4. التأكد أولاً من عمل خادم MySQL محلياً
+    ensure_mysql_running()
+
+    # 5. إطلاق السيرفرات عبر start_servers.bat أو node start_bot.js
     if os.path.exists(start_servers_bat):
         try:
             subprocess.Popen(
-                'start "lelbai - Server Control Panel" start_servers.bat',
+                f'start "" "{start_servers_bat}"',
                 cwd=az_base,
                 shell=True
             )
         except Exception as e:
             print(f"Error launching start_servers.bat: {e}")
 
-    # إذا لم يبدأ السيرفر فوراً خلال ثانية واحدة، يتم إطلاق node start_bot.js كعملية خلفية مباشرة
     time.sleep(1.0)
     if not is_port_listening(8002) and os.path.exists(start_bot_js):
         try:
@@ -3429,9 +3531,9 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
         except Exception as e:
             print(f"Error launching node start_bot.js directly: {e}")
 
-    # 4. انتظار نشاط واستجابة البورت 8002 بنشاط لمنع حدوث خطأ ERR_CONNECTION_REFUSED
+    # انتظار حتى 8 ثوانٍ
     manager_ready = False
-    for _ in range(16):  # انتظار حتى 8 ثوانٍ
+    for _ in range(16):
         time.sleep(0.5)
         if is_port_listening(8002):
             manager_ready = True
@@ -3440,6 +3542,7 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
     if not manager_ready:
         return {
             "success": False,
+            "not_installed": False,
             "message": "جاري تجهيز سيرفرات الإدارة في الخلفية، يرجى الانتظار بضع ثوانٍ ثم النقر مجدداً.",
             "url": manager_url,
             "lan_url": lan_url,
@@ -4076,6 +4179,8 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             cfg["gemini_api_key"] = req_data.get("gemini_api_key", cfg.get("gemini_api_key"))
             cfg["website_api_url"] = req_data.get("website_api_url", cfg.get("website_api_url"))
             cfg["website_api_key"] = req_data.get("website_api_key", cfg.get("website_api_key"))
+            if "manager_url" in req_data:
+                cfg["manager_url"] = str(req_data.get("manager_url", "")).strip()
             save_config(cfg)
             task_manager.gemini_processor = GeminiProcessor()
             self.send_json({"success": True})
