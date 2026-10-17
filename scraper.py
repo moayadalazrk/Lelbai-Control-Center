@@ -638,11 +638,16 @@ class SyrianAdScraper:
             self.extracted_ads = all_ads
             self.seen_signatures.update(seen_keys)
 
-            # 4. حفظ فوري على القرص الصلب مع flush و fsync
-            with open(abs_path, "w", encoding="utf-8") as f:
+            # 4. حفظ فوري ذري على القرص الصلب لعدم تلف الملفات
+            temp_path = f"{abs_path}.tmp"
+            with open(temp_path, "w", encoding="utf-8") as f:
                 json.dump(all_ads, f, ensure_ascii=False, indent=2)
                 f.flush()
                 os.fsync(f.fileno())
+            if os.path.exists(abs_path):
+                os.replace(temp_path, abs_path)
+            else:
+                os.rename(temp_path, abs_path)
 
         except Exception as e:
             print(f"\n[❌ خطأ في حفظ الإعلان بملف JSON]: {e}")

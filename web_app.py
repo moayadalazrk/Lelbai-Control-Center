@@ -58,28 +58,50 @@ IMGS_DIR = os.path.join(BASE_DIR, "asstes", "imgs")
 
 os.makedirs(IMGS_DIR, exist_ok=True)
 
+FILE_IO_LOCK = threading.RLock()
+
 def read_json_file(file_path: str) -> List[Dict[str, Any]]:
     if not os.path.exists(file_path):
         return []
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            content = f.read().strip()
-            if content:
-                data = json.loads(content)
-                if isinstance(data, list):
-                    return data
-    except Exception:
-        pass
+    with FILE_IO_LOCK:
+        for attempt in range(4):
+            try:
+                with open(file_path, "r", encoding="utf-8") as f:
+                    content = f.read().strip()
+                    if content:
+                        data = json.loads(content)
+                        if isinstance(data, list):
+                            return data
+                return []
+            except (json.JSONDecodeError, PermissionError):
+                if attempt < 3:
+                    time.sleep(0.08)
+                    continue
+            except Exception:
+                break
     return []
 
 def write_json_file(file_path: str, data: List[Dict[str, Any]]):
-    try:
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-            f.flush()
-            os.fsync(f.fileno())
-    except Exception as e:
-        print(f"[!] خطأ أثناء كتابة {file_path}: {e}")
+    with FILE_IO_LOCK:
+        for attempt in range(4):
+            try:
+                temp_path = f"{file_path}.tmp_{os.getpid()}_{threading.get_ident()}"
+                with open(temp_path, "w", encoding="utf-8") as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                    f.flush()
+                    os.fsync(f.fileno())
+                if os.path.exists(file_path):
+                    os.replace(temp_path, file_path)
+                else:
+                    os.rename(temp_path, file_path)
+                return
+            except (PermissionError, OSError):
+                if attempt < 3:
+                    time.sleep(0.1)
+                    continue
+            except Exception as e:
+                print(f"[!] خطأ أثناء كتابة {file_path}: {e}")
+                break
 
 def ensure_storage_files():
     """توليد ملفات البيانات النظيفة تلقائياً إذا لم تكن موجودة عند تشغيل التطبيق"""
@@ -199,131 +221,133 @@ def get_ordered_groups(start_mode: str = "smart", groups: List[Dict[str, Any]] =
 def enrich_ad_status(ad: Dict[str, Any], force_recalc: bool = False) -> Dict[str, Any]:
     if not isinstance(ad, dict):
         return {}
+    try:
+        # تسريع الاستجابة إذا كان الإعلان مفحوصاً ومكتمل التقييم مسبقاً
+        if not force_recalc and ad.get("evaluation") and ad.get("clean_title") and ad.get("publisher_name"):
+            ev = ad.get("evaluation", {})
+            if isinstance(ev, dict) and "specs_details" in ev and "sharia_details" in ev:
+                return ad
+
+        from ai_ad_enhancer import enhance_ad_with_super_ai, get_category_name_by_id, build_category_hierarchy
+        # 1. تعزيز الإعلان بالذكاء الاصطناعي (عنوان نخبوي، وصف مهيكل، وأدق تصنيف أصغر فئة)
+        ad_copy = enhance_ad_with_super_ai(ad)
         
-    # تسريع الاستجابة إذا كان الإعلان مفحوصاً ومكتمل التقييم مسبقاً وغير مصنف تصنيفاً عاماً (3207)
-    if not force_recalc and ad.get("evaluation") and ad.get("clean_title") and ad.get("publisher_name"):
-        ev = ad.get("evaluation", {})
-        if "specs_details" in ev and "sharia_details" in ev:
-            cid = ad.get("leaf_category_id") or ad.get("id-categorie")
-            cname = ad.get("leaf_category_name") or ad.get("category")
-            if cid and int(cid) != 3207 and cname and cname != "أصناف عامة ومتنوعة":
-                from ai_ad_enhancer import CAT_BY_ID, get_category_name_by_id
-                if int(cid) in CAT_BY_ID and cname == get_category_name_by_id(int(cid)):
-                    return ad
+        # دمج نص الإعلان الكامل للتحليل الدقيق
+        full_text = f"{ad_copy.get('clean_title', '')} {ad_copy.get('clean_description') or ad_copy.get('description', '')}"
 
-    from ai_ad_enhancer import enhance_ad_with_super_ai, get_category_name_by_id, build_category_hierarchy
-    # 1. تعزيز الإعلان بالذكاء الاصطناعي (عنوان نخبوي، وصف مهيكل، وأدق تصنيف أصغر فئة)
-    ad_copy = enhance_ad_with_super_ai(ad)
-    
-    # دمج نص الإعلان الكامل للتحليل الدقيق
-    full_text = f"{ad_copy.get('clean_title', '')} {ad_copy.get('clean_description') or ad_copy.get('description', '')}"
+        cid = ad_copy.get("leaf_category_id", 3207)
+        if not cid or not str(cid).isdigit():
+            cid = 3207
+        cid = int(cid)
 
-    cid = ad_copy.get("leaf_category_id", 3207)
-    hier = ad_copy.get("category_hierarchy") or build_category_hierarchy(cid)
-    p_name = hier.split(">")[-2].strip() if ">" in hier else (hier.split(">")[0].strip() if hier else "عام")
+        hier = ad_copy.get("category_hierarchy") or build_category_hierarchy(cid)
+        p_name = hier.split(">")[-2].strip() if ">" in hier else (hier.split(">")[0].strip() if hier else "عام")
 
-    leaf_info = {
-        "category_id": cid,
-        "category_name": ad_copy.get("leaf_category_name") or get_category_name_by_id(cid),
-        "parent_name": p_name,
-        "category_hierarchy": hier
-    }
+        leaf_info = {
+            "category_id": cid,
+            "category_name": ad_copy.get("leaf_category_name") or get_category_name_by_id(cid),
+            "parent_name": p_name,
+            "category_hierarchy": hier
+        }
 
-    # 2. استخراج أكبر قدر ممكن من المواصفات المهيكلة
-    extracted_specs = extract_detailed_specifications(full_text, leaf_info)
-    current_specs = ad_copy.get("specifications") or {}
-    if force_recalc or leaf_info.get("parent_name") != "السيارات":
-        ad_copy["specifications"] = extracted_specs
-    else:
-        ad_copy["specifications"] = {**current_specs, **extracted_specs}
-
-    # 3. وضع اسم حساب معلن وهمي سوري واقعي
-    if not ad_copy.get("publisher_name"):
-        ad_copy["publisher_name"] = extract_or_generate_account_name(full_text)
-
-    # 4. التحقق الصارم من عدم وجود الإعلان على الموقع من قبل
-    published_db = read_json_file(PUBLISHED_FILE)
-    is_duplicate, dup_reason = check_if_ad_already_exists(ad_copy, published_db, [])
-    ad_copy["is_duplicate"] = is_duplicate
-    ad_copy["duplicate_reason"] = dup_reason
-
-    # 5. اكتمال المواصفات وتدقيق المدينة والسعر
-    if not ad_copy.get("id-citie") or not ad_copy.get("city_name"):
-        from syria_filter import classify_location
-        loc_res = classify_location(full_text)
-        if loc_res.get("id-citie"):
-            ad_copy["id-citie"] = loc_res.get("id-citie")
-            ad_copy["id-sub_districts"] = loc_res.get("id-sub_districts")
-            ad_copy["city_name"] = loc_res.get("city_name")
-            ad_copy["sub_district_name"] = loc_res.get("sub_district_name")
-            ad_copy["location_detected"] = loc_res.get("location_detected")
-
-    has_images = len(ad_copy.get("nimages", [])) > 0
-    has_desc = bool(ad_copy.get("clean_description") or ad_copy.get("description"))
-    has_title = bool(ad_copy.get("clean_title") or ad_copy.get("title"))
-    has_phone = bool(ad_copy.get("phone_number"))
-    has_city = bool(ad_copy.get("id-citie") or ad_copy.get("city_name") or ad_copy.get("location_detected"))
-    has_price = ad_copy.get("price_info", {}).get("amount") is not None
-    
-    is_specs_complete = has_images and has_desc and has_title and has_phone and has_city
-    
-    # 6. الفحص الشرعي والرقابي
-    raw_flags = ad_copy.get("flags", [])
-    flags = [f for f in raw_flags if f not in ("no_api_key_provided", "offline_vision_filter", "local_filtered_images", "network_fallback")]
-    is_safe = ad_copy.get("is_safe", True) and not any(f in raw_flags for f in ("prohibited_images_detected", "no_valid_images_left"))
-    
-    # 7. الجاهزية للنشر (مكتمل + سليم شرعياً + غير مكرر على الموقع)
-    is_ready_to_publish = is_specs_complete and is_safe and not is_duplicate
-    
-    is_ai_done = bool(ad_copy.get("ai_evaluated"))
-    summary_text = ad_copy.get("moderation_summary")
-    if not summary_text:
-        if is_ai_done:
-            summary_text = "🤖 تم الفحص والاعتماد بالرؤية الذكية السحابية (Gemini Vision API)" if is_safe else "🚫 تم رصد مخالفات رقابية عبر الذكاء الاصطناعي"
+        # 2. استخراج أكبر قدر ممكن من المواصفات المهيكلة
+        extracted_specs = extract_detailed_specifications(full_text, leaf_info)
+        current_specs = ad_copy.get("specifications") or {}
+        if force_recalc or leaf_info.get("parent_name") != "السيارات":
+            ad_copy["specifications"] = extracted_specs
         else:
-            summary_text = "⏳ بانتظار استكمال فحص الذكاء الاصطناعي (Gemini)"
+            ad_copy["specifications"] = {**current_specs, **extracted_specs}
 
-    # 8. توليد رد وتقرير الذكاء الاصطناعي الشامل
-    ai_report = generate_ai_review_report(
-        ad_copy,
-        leaf_info,
-        ad_copy["specifications"],
-        ad_copy["publisher_name"],
-        is_duplicate,
-        dup_reason,
-        summary_text
-    )
-    ad_copy["ai_review"] = ai_report
+        # 3. وضع اسم حساب معلن وهمي سوري واقعي
+        if not ad_copy.get("publisher_name"):
+            ad_copy["publisher_name"] = extract_or_generate_account_name(full_text)
 
-    resolved_city = ad_copy.get("city_name") or (ad_copy.get("location_detected", "").split("(")[0].strip() if ad_copy.get("location_detected") else "دمشق")
-    ad_copy["evaluation"] = {
-        "is_specs_complete": is_specs_complete,
-        "specs_details": {
-            "has_images": has_images,
-            "images_count": len(ad_copy.get("nimages", [])),
-            "has_desc": has_desc,
-            "has_title": has_title,
-            "has_phone": has_phone,
-            "has_city": has_city,
-            "has_price": has_price,
-            "city_name": resolved_city,
-            "sub_district_name": ad_copy.get("sub_district_name") or "عام"
-        },
-        "is_ai_evaluated": is_ai_done,
-        "ai_model": ad_copy.get("ai_model", "Gemini Vision"),
-        "is_sharia_compliant": is_safe,
-        "sharia_details": {
-            "is_safe": is_safe,
-            "flags": flags,
-            "summary": summary_text,
-            "ai_evaluated": is_ai_done
-        },
-        "is_duplicate": is_duplicate,
-        "duplicate_reason": dup_reason,
-        "is_ready_to_publish": is_ready_to_publish,
-        "ready_status_label": "جاهز للنشر الفوري 🚀" if is_ready_to_publish else ("مكرر على الموقع ⚠️" if is_duplicate else ("بحاجة لمراجعة أو تنقية" if is_specs_complete else "بيانات غير مكتملة"))
-    }
-    return ad_copy
+        # 4. التحقق الصارم من عدم وجود الإعلان على الموقع من قبل
+        published_db = read_json_file(PUBLISHED_FILE)
+        is_duplicate, dup_reason = check_if_ad_already_exists(ad_copy, published_db, [])
+        ad_copy["is_duplicate"] = is_duplicate
+        ad_copy["duplicate_reason"] = dup_reason
+
+        # 5. اكتمال المواصفات وتدقيق المدينة والسعر
+        if not ad_copy.get("id-citie") or not ad_copy.get("city_name"):
+            from syria_filter import classify_location
+            loc_res = classify_location(full_text)
+            if loc_res.get("id-citie"):
+                ad_copy["id-citie"] = loc_res.get("id-citie")
+                ad_copy["id-sub_districts"] = loc_res.get("id-sub_districts")
+                ad_copy["city_name"] = loc_res.get("city_name")
+                ad_copy["sub_district_name"] = loc_res.get("sub_district_name")
+                ad_copy["location_detected"] = loc_res.get("location_detected")
+
+        has_images = len(ad_copy.get("nimages", [])) > 0
+        has_desc = bool(ad_copy.get("clean_description") or ad_copy.get("description"))
+        has_title = bool(ad_copy.get("clean_title") or ad_copy.get("title"))
+        has_phone = bool(ad_copy.get("phone_number"))
+        has_city = bool(ad_copy.get("id-citie") or ad_copy.get("city_name") or ad_copy.get("location_detected"))
+        has_price = ad_copy.get("price_info", {}).get("amount") is not None
+        
+        is_specs_complete = has_images and has_desc and has_title and has_phone and has_city
+        
+        # 6. الفحص الشرعي والرقابي
+        raw_flags = ad_copy.get("flags", [])
+        flags = [f for f in raw_flags if f not in ("no_api_key_provided", "offline_vision_filter", "local_filtered_images", "network_fallback")]
+        is_safe = ad_copy.get("is_safe", True) and not any(f in raw_flags for f in ("prohibited_images_detected", "no_valid_images_left"))
+        
+        # 7. الجاهزية للنشر (مكتمل + سليم شرعياً + غير مكرر على الموقع)
+        is_ready_to_publish = is_specs_complete and is_safe and not is_duplicate
+        
+        is_ai_done = bool(ad_copy.get("ai_evaluated"))
+        summary_text = ad_copy.get("moderation_summary")
+        if not summary_text:
+            if is_ai_done:
+                summary_text = "🤖 تم الفحص والاعتماد بالرؤية الذكية السحابية (Gemini Vision API)" if is_safe else "🚫 تم رصد مخالفات رقابية عبر الذكاء الاصطناعي"
+            else:
+                summary_text = "⏳ بانتظار استكمال فحص الذكاء الاصطناعي (Gemini)"
+
+        # 8. توليد رد وتقرير الذكاء الاصطناعي الشامل
+        ai_report = generate_ai_review_report(
+            ad_copy,
+            leaf_info,
+            ad_copy["specifications"],
+            ad_copy["publisher_name"],
+            is_duplicate,
+            dup_reason,
+            summary_text
+        )
+        ad_copy["ai_review"] = ai_report
+
+        resolved_city = ad_copy.get("city_name") or (ad_copy.get("location_detected", "").split("(")[0].strip() if ad_copy.get("location_detected") else "دمشق")
+        ad_copy["evaluation"] = {
+            "is_specs_complete": is_specs_complete,
+            "specs_details": {
+                "has_images": has_images,
+                "images_count": len(ad_copy.get("nimages", [])),
+                "has_desc": has_desc,
+                "has_title": has_title,
+                "has_phone": has_phone,
+                "has_city": has_city,
+                "has_price": has_price,
+                "city_name": resolved_city,
+                "sub_district_name": ad_copy.get("sub_district_name") or "عام"
+            },
+            "is_ai_evaluated": is_ai_done,
+            "ai_model": ad_copy.get("ai_model", "Gemini Vision"),
+            "is_sharia_compliant": is_safe,
+            "sharia_details": {
+                "is_safe": is_safe,
+                "flags": flags,
+                "summary": summary_text,
+                "ai_evaluated": is_ai_done
+            },
+            "is_duplicate": is_duplicate,
+            "duplicate_reason": dup_reason,
+            "is_ready_to_publish": is_ready_to_publish,
+            "ready_status_label": "جاهز للنشر الفوري 🚀" if is_ready_to_publish else ("مكرر على الموقع ⚠️" if is_duplicate else ("بحاجة لمراجعة أو تنقية" if is_specs_complete else "بيانات غير مكتملة"))
+        }
+        return ad_copy
+    except Exception as e:
+        print(f"[!] تحذير أثناء إثراء الإعلان: {e}")
+        return ad
 
 # ==============================================================================
 # محرك إدارة السحب المتوازي وتحديث تواريخ الروابط
@@ -894,25 +918,27 @@ class ScrapingTaskManager:
                             if not processed_ad.get("is_safe", True):
                                 rej_msg = processed_ad.get('rejection_reason') or processed_ad.get('moderation_summary') or 'مخالفة للضوابط'
                                 self.log(f"[🚫 استبعاد إعلان مخالف عبر الذكاء الاصطناعي]: {rej_msg}")
-                                flagged = read_json_file(FLAGGED_FILE)
-                                ad_u = processed_ad.get("ad_url")
-                                ad_t = processed_ad.get("clean_title")
-                                if not any((ad_u and f.get("ad_url") == ad_u) or (ad_t and f.get("clean_title") == ad_t) for f in flagged):
-                                    flagged.insert(0, processed_ad)
-                                    write_json_file(FLAGGED_FILE, flagged)
+                                with FILE_IO_LOCK:
+                                    flagged = read_json_file(FLAGGED_FILE)
+                                    ad_u = processed_ad.get("ad_url")
+                                    ad_t = processed_ad.get("clean_title")
+                                    if not any((ad_u and f.get("ad_url") == ad_u) or (ad_t and f.get("clean_title") == ad_t) for f in flagged):
+                                        flagged.insert(0, processed_ad)
+                                        write_json_file(FLAGGED_FILE, flagged)
                                 continue
 
                             # إثراء الإعلان بالتصنيف في أصغر فئة، المواصفات، حساب وهمي، وفحص التكرار، وتقرير الذكاء الاصطناعي
                             processed_ad = enrich_ad_status(processed_ad)
 
                             # حفظ الإعلان المعتمد
-                            pending = read_json_file(PENDING_FILE)
-                            pending.append(processed_ad)
-                            write_json_file(PENDING_FILE, pending)
+                            with FILE_IO_LOCK:
+                                pending = read_json_file(PENDING_FILE)
+                                pending.append(processed_ad)
+                                write_json_file(PENDING_FILE, pending)
 
-                            all_ads = read_json_file(ALL_ADS_FILE)
-                            all_ads.append(processed_ad)
-                            write_json_file(ALL_ADS_FILE, all_ads)
+                                all_ads = read_json_file(ALL_ADS_FILE)
+                                all_ads.append(processed_ad)
+                                write_json_file(ALL_ADS_FILE, all_ads)
 
                             group_ads_count += 1
                             with self.lock:
@@ -1889,37 +1915,55 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
     let adsLimit = 60;
 
-    async function loadAllAds() {
+    async function loadAllAds(silent = false) {
+      const grid = document.getElementById('adsCardsGrid');
       try {
-        const grid = document.getElementById('adsCardsGrid');
-        if (adsData.length === 0 && grid) {
+        if (!silent && adsData.length === 0 && grid) {
           grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px; color:#60a5fa; font-weight:800; font-size:16px;">⏳ جاري تجهيز وعرض الإعلانات...</div>`;
         }
         const res = await apiFetch('/api/ads');
+        if (!res.ok) throw new Error("تعذر جلب الإعلانات من السيرفر (" + res.status + ")");
         const data = await res.json();
-        adsData = data.pending || [];
-        publishedAdsData = data.published || [];
+        adsData = Array.isArray(data.pending) ? data.pending : [];
+        if (Array.isArray(data.published)) {
+          publishedAdsData = data.published;
+        }
         
-        document.getElementById('badgePending').innerText = adsData.length;
-        const pubCount = data.published_count !== undefined ? data.published_count : publishedAdsData.length;
+        const badgePending = document.getElementById('badgePending');
+        if (badgePending) badgePending.innerText = adsData.length;
+        
+        const pubCount = data.published_count !== undefined ? data.published_count : (publishedAdsData ? publishedAdsData.length : 0);
         const badgePub = document.getElementById('badgePublished');
         if (badgePub) badgePub.innerText = pubCount;
         const stPub = document.getElementById('stPublishedAds');
         if (stPub) stPub.innerText = pubCount;
-        const pubListCount = document.getElementById('publishedListCount');
+        
         const fCount = data.flagged_count || 0;
         const stFlagged = document.getElementById('stFlaggedAds');
         if (stFlagged) stFlagged.innerText = fCount;
         const badgeFlagged = document.getElementById('badgeFlagged');
         if (badgeFlagged) badgeFlagged.innerText = fCount;
 
-        const readyCount = adsData.filter(a => a.evaluation && a.evaluation.is_ready_to_publish).length;
-        document.getElementById('stReadyAds').innerText = readyCount;
+        const readyCount = adsData.filter(a => a && a.evaluation && a.evaluation.is_ready_to_publish).length;
+        const stReady = document.getElementById('stReadyAds');
+        if (stReady) stReady.innerText = readyCount;
 
         renderAdsGrid();
-        renderPublishedGrid();
+        if (publishedAdsData && publishedAdsData.length > 0) {
+          renderPublishedGrid();
+        }
       } catch (e) {
         console.error("Error loading ads:", e);
+        if (grid && (!silent || adsData.length === 0)) {
+          grid.innerHTML = `
+            <div style="grid-column:1/-1; text-align:center; padding:50px 20px; background:var(--card-bg); border-radius:16px; border:1px solid #ef4444; color:#f87171;">
+              <div style="font-size:32px; margin-bottom:10px;">⚠️</div>
+              <div style="font-weight:800; font-size:16px; margin-bottom:6px;">تعذر تحميل وتجهيز الإعلانات حالياً</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-bottom:16px;">${escapeHtml(e.message || String(e))}</div>
+              <button class="btn btn-primary" onclick="loadAllAds(false)" style="padding:10px 22px; font-weight:800; font-size:13px;">🔄 إعادة المحاولة الآن</button>
+            </div>
+          `;
+        }
       }
     }
 
@@ -1940,167 +1984,186 @@ HTML_PAGE = r"""<!DOCTYPE html>
         if (currentFilter === 'review') filtered = filtered.filter(a => a && (!a.evaluation || !a.evaluation.is_ready_to_publish));
 
         if (filtered.length === 0) {
-          grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:60px; background:var(--card-bg); border-radius:16px; color:var(--text-muted);">🎉 لا توجد إعلانات مطابقة لفلتر العرض!</div>`;
+          grid.innerHTML = `
+            <div style="grid-column:1/-1; text-align:center; padding:60px 20px; background:var(--card-bg); border-radius:16px; color:var(--text-muted); border:1px solid var(--border);">
+              <div style="font-size:36px; margin-bottom:12px;">📦</div>
+              <div style="font-size:16px; font-weight:800; color:#f8fafc; margin-bottom:6px;">لا توجد إعلانات مطابقة لفلتر العرض حالياً</div>
+              <div style="font-size:12px; color:var(--text-muted);">ابدأ السحب المتوازي من تبويب "تشغيل السحب المتوازي" لتظهر الإعلانات هنا فوراً وتلقائياً.</div>
+            </div>
+          `;
           return;
         }
 
         const visibleAds = filtered.slice(0, adsLimit);
         const cardsHtml = visibleAds.map((ad, idx) => {
           if (!ad) return '';
-          const ev = ad.evaluation || {};
-          const sp = ev.specs_details || {};
-          const sh = ev.sharia_details || {};
+          try {
+            const ev = (typeof ad.evaluation === 'object' && ad.evaluation !== null) ? ad.evaluation : {};
+            const sp = (typeof ev.specs_details === 'object' && ev.specs_details !== null) ? ev.specs_details : {};
+            const sh = (typeof ev.sharia_details === 'object' && ev.sharia_details !== null) ? ev.sharia_details : {};
 
-          const rawTitle = ad.clean_title || ad.title || (ad.description || '').substring(0, 60) || 'إعلان بدون عنوان';
-          const title = String(rawTitle);
-          const city = sp.city_name || ad.city_name || ad.location_detected || 'دمشق';
-          const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : (ad.sub_district_name ? ` (${ad.sub_district_name})` : '');
-          const cat = ad.category || 'عام';
-          const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
-          const accountName = ad.publisher_name || 'أبو محمد الشامي';
-          const currSymbol = (ad.price_info && ad.price_info.currency === 'USD') ? '$' : 'ل.س';
-          const price = ad.price_info && ad.price_info.amount ? `${Number(ad.price_info.amount).toLocaleString()} ${currSymbol}` : 'السعر: على السوم';
-          
-          const images = Array.isArray(ad.nimages) ? ad.nimages : [];
-          const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
+            const rawTitle = ad.clean_title || ad.title || (ad.description || '').substring(0, 60) || 'إعلان بدون عنوان';
+            const title = String(rawTitle);
+            const city = sp.city_name || ad.city_name || ad.location_detected || 'دمشق';
+            const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : (ad.sub_district_name ? ` (${ad.sub_district_name})` : '');
+            const cat = ad.category || 'عام';
+            const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
+            const accountName = ad.publisher_name || 'أبو محمد الشامي';
+            
+            const priceInfo = (typeof ad.price_info === 'object' && ad.price_info !== null) ? ad.price_info : {};
+            const currSymbol = (priceInfo.currency === 'USD') ? '$' : 'ل.س';
+            const price = (priceInfo.amount !== undefined && priceInfo.amount !== null && !isNaN(Number(priceInfo.amount))) ? `${Number(priceInfo.amount).toLocaleString()} ${currSymbol}` : 'السعر: على السوم';
+            
+            const images = Array.isArray(ad.nimages) ? ad.nimages : [];
+            const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
 
-          const adId = escapeHtml(ad.ad_url || ad.clean_title || (ad.description || '').substring(0, 30));
-          const thumbsHtml = images.map((img, i) => `
-            <div class="ad-thumb-wrapper">
-              <img src="${API_BASE}/imgs/${encodeURIComponent(img)}" class="ad-thumb ${i===0?'active':''}" onclick="const mainImg=document.getElementById('adMainImg-${idx}'); if(mainImg) mainImg.src='${API_BASE}/imgs/${encodeURIComponent(img)}'" onerror="this.style.display='none'" />
-              <button type="button" class="del-thumb-btn" title="حذف هذه الصورة نهائياً" onclick="deleteAdImage('${adId}', '${encodeURIComponent(img)}', ${idx}, event)">✕</button>
-            </div>
-          `).join('');
+            const adId = encodeURIComponent(String(ad.ad_url || ad.clean_title || (ad.description || '').substring(0, 30)));
+            const thumbsHtml = images.map((img, i) => `
+              <div class="ad-thumb-wrapper">
+                <img src="${API_BASE}/imgs/${encodeURIComponent(img)}" class="ad-thumb ${i===0?'active':''}" onclick="const mainImg=document.getElementById('adMainImg-${idx}'); if(mainImg) mainImg.src='${API_BASE}/imgs/${encodeURIComponent(img)}'" onerror="this.style.display='none'" />
+                <button type="button" class="del-thumb-btn" title="حذف هذه الصورة نهائياً" onclick="deleteAdImage('${adId}', '${encodeURIComponent(img)}', ${idx}, event)">✕</button>
+              </div>
+            `).join('');
 
-          // أشرطة الفحص
-          const specsStatusHtml = sp.has_images && sp.has_desc && sp.has_phone ? 
-            `<span style="color:#34d399;">✔️ مكتمل (${sp.images_count || images.length} صور + هاتف + وصف + موقع)</span>` :
-            `<span style="color:#f87171;">⚠️ ناقص بعض الحقول</span>`;
+            // أشرطة الفحص
+            const specsStatusHtml = sp.has_images && sp.has_desc && sp.has_phone ? 
+              `<span style="color:#34d399;">✔️ مكتمل (${sp.images_count || images.length} صور + هاتف + وصف + موقع)</span>` :
+              `<span style="color:#f87171;">⚠️ ناقص بعض الحقول</span>`;
 
-          const shFlags = Array.isArray(sh.flags) ? sh.flags : [];
-          const summaryStr = sh.summary || ad.moderation_summary || '';
-          const isAiDone = Boolean(ad.ai_evaluated || ev.is_ai_evaluated);
-          let shariaStatusHtml = '';
-          if (sh.is_safe) {
-            if (isAiDone) {
-              shariaStatusHtml = `<span style="color:#34d399; font-weight:800;" title="${escapeHtml(summaryStr)}">🟢 مطابق للضوابط (Gemini Vision API)</span>`;
+            const shFlags = Array.isArray(sh.flags) ? sh.flags : [];
+            const summaryStr = sh.summary || ad.moderation_summary || '';
+            const isAiDone = Boolean(ad.ai_evaluated || ev.is_ai_evaluated);
+            let shariaStatusHtml = '';
+            if (sh.is_safe) {
+              if (isAiDone) {
+                shariaStatusHtml = `<span style="color:#34d399; font-weight:800;" title="${escapeHtml(summaryStr)}">🟢 مطابق للضوابط (Gemini Vision API)</span>`;
+              } else {
+                shariaStatusHtml = `<span style="color:#facc15; font-weight:700;" title="الإعلان بانتظار فحص الرؤية الذكية">⏳ بانتظار فحص AI (Gemini)</span>`;
+              }
             } else {
-              shariaStatusHtml = `<span style="color:#facc15; font-weight:700;" title="الإعلان بانتظار فحص الرؤية الذكية">⏳ بانتظار فحص AI (Gemini)</span>`;
+              shariaStatusHtml = `<span style="color:#f87171; font-weight:800;" title="${escapeHtml(summaryStr)}">🚫 ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
             }
-          } else {
-            shariaStatusHtml = `<span style="color:#f87171; font-weight:800;" title="${escapeHtml(summaryStr)}">🚫 ملاحظة رقابية: ${escapeHtml(shFlags.join(', ') || summaryStr || 'بحاجة لمراجعة')}</span>`;
+
+            const dupStatusHtml = ad.is_duplicate ?
+              `<span style="color:#ef4444; font-weight:700;">⚠️ مكرر مسبقاً على الموقع</span>` :
+              `<span style="color:#34d399; font-weight:700;">✔️ جديد كلياً (غير مكرر)</span>`;
+
+            const readyBadgeHtml = ev.is_ready_to_publish ?
+              `<span class="badge badge-success" style="font-size:12px;">🚀 جاهز للنشر الفوري</span>` :
+              `<span class="badge badge-warning" style="font-size:12px;">⏳ بحاجة لمراجعة</span>`;
+
+            // استخراج بادجات المواصفات الفنية
+            const specsObj = (typeof ad.specifications === 'object' && ad.specifications !== null) ? ad.specifications : {};
+            const specItems = [];
+            if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
+            if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
+            if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
+            if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
+            if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
+            if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
+            if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
+            if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
+            if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
+            if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
+            if (Array.isArray(specsObj.features) && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
+
+            const specsBadgesHtml = specItems.length > 0 ? `
+              <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
+                ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${escapeHtml(s)}</span>`).join('')}
+              </div>
+            ` : '';
+
+            // رد وتقرير الذكاء الاصطناعي
+            const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
+              ad.ai_review.full_text : 
+              (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية.');
+
+            const descText = ad.clean_description || ad.description || 'لا يوجد وصف متاح';
+
+            return `
+              <div class="ad-card" id="adCard-${idx}">
+                <div class="ad-gallery">
+                  <img id="adMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
+                  <div class="ad-thumbs">${thumbsHtml}</div>
+                </div>
+
+                <div class="ad-body">
+                  
+                  <!-- التصنيف بأصغر ابن واسم الحساب -->
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
+                    <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${escapeHtml(catHierarchy)}</span>
+                    <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${escapeHtml(accountName)}</span>
+                  </div>
+
+                  <!-- صندوق المراحل التفصيلي -->
+                  <div class="verification-box">
+                    <div class="pillar-row">
+                      <span class="pillar-label">1️⃣ المواصفات والبيانات:</span>
+                      ${specsStatusHtml}
+                    </div>
+                    <div class="pillar-row">
+                      <span class="pillar-label">2️⃣ الفحص الشرعي والرقابي:</span>
+                      ${shariaStatusHtml}
+                    </div>
+                    <div class="pillar-row">
+                      <span class="pillar-label">3️⃣ عدم التكرار على الموقع:</span>
+                      ${dupStatusHtml}
+                    </div>
+                    <div class="pillar-row">
+                      <span class="pillar-label">4️⃣ حالة الجاهزية للنشر:</span>
+                      ${readyBadgeHtml}
+                    </div>
+                  </div>
+
+                  <!-- بادجات المواصفات المستخرجة -->
+                  ${specsBadgesHtml}
+
+                  <!-- رد وتقرير الذكاء الاصطناعي الشامل -->
+                  <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:10px; padding:10px; margin:8px 0;">
+                    <div style="font-size:11px; font-weight:800; color:#a5b4fc; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between;">
+                      <span>🤖 رد وتقرير فحص الذكاء الاصطناعي:</span>
+                      <span style="color:#34d399; font-size:10px;">✔️ فحص دقيق</span>
+                    </div>
+                    <div style="font-size:11px; color:#cbd5e1; line-height:1.55; white-space:pre-line; background:rgba(15,23,42,0.65); padding:8px 10px; border-radius:6px; font-family:monospace; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(aiReviewText)}</div>
+                  </div>
+
+                  <div>
+                    <label style="font-size:11px; color:var(--text-muted); font-weight:700;">العنوان المهيكل:</label>
+                    <input type="text" class="ad-title-input" id="titleInp-${idx}" value="${escapeHtml(title)}" />
+                  </div>
+
+                  <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
+                    <span style="color:#60a5fa;">📍 ${escapeHtml(city)}${escapeHtml(subDist)}</span>
+                    <span style="color:#fde047;">💰 ${escapeHtml(price)}</span>
+                  </div>
+
+                  <div class="ad-desc-box">${escapeHtml(descText)}</div>
+
+                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8;">
+                    <span>📞 ${escapeHtml(ad.phone_number || 'لا يوجد')}</span>
+                    <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
+                  </div>
+
+                  <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
+                    <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1; min-width:140px;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
+                    <button id="aiBtn-${idx}" class="btn btn-outline btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="reclassifySingleAd(${idx})" title="إعادة فحص وتصنيف الإعلان بالذكاء الاصطناعي (Gemini)">🤖 فحص AI</button>
+                    <button id="rejBtn-${idx}" class="btn btn-warning btn-sm" onclick="rejectSingleAd(${idx})" title="استبعاد الإعلان ونقله للمخالفات">⚠️ استبعاد</button>
+                    <button id="delBtn-${idx}" class="btn btn-danger btn-sm" onclick="deleteSingleAd(${idx})" title="حذف نهائي للإعلان وصوره من الجهاز">🗑️ حذف نهائي</button>
+                  </div>
+
+                </div>
+              </div>
+            `;
+          } catch (cardErr) {
+            console.error("Error rendering ad card at index", idx, cardErr);
+            return `
+              <div class="ad-card" id="adCard-${idx}" style="border:1px dashed #f59e0b; padding:20px; text-align:center;">
+                <div style="color:#f59e0b; font-weight:800; margin-bottom:6px;">⚠️ تعذر عرض تفاصيل هذا الإعلان</div>
+                <div style="font-size:11px; color:var(--text-muted);">${escapeHtml(ad.clean_title || ad.title || 'إعلان')}</div>
+                <button class="btn btn-danger btn-sm" style="margin-top:10px;" onclick="deleteSingleAd(${idx})">🗑️ حذف</button>
+              </div>
+            `;
           }
-
-          const dupStatusHtml = ad.is_duplicate ?
-            `<span style="color:#ef4444; font-weight:700;">⚠️ مكرر مسبقاً على الموقع</span>` :
-            `<span style="color:#34d399; font-weight:700;">✔️ جديد كلياً (غير مكرر)</span>`;
-
-          const readyBadgeHtml = ev.is_ready_to_publish ?
-            `<span class="badge badge-success" style="font-size:12px;">🚀 جاهز للنشر الفوري</span>` :
-            `<span class="badge badge-warning" style="font-size:12px;">⏳ بحاجة لمراجعة</span>`;
-
-          // استخراج بادجات المواصفات الفنية
-          const specsObj = (typeof ad.specifications === 'object' && ad.specifications !== null) ? ad.specifications : {};
-          const specItems = [];
-          if (specsObj.make) specItems.push(`🏢 الشركة: ${specsObj.make}`);
-          if (specsObj.model) specItems.push(`🚗 الطراز: ${specsObj.model}`);
-          if (specsObj.year) specItems.push(`📅 سنة: ${specsObj.year}`);
-          if (specsObj.transmission) specItems.push(`⚙️ الكير: ${specsObj.transmission}`);
-          if (specsObj.fuel_type) specItems.push(`⛽ الوقود: ${specsObj.fuel_type}`);
-          if (specsObj.condition) specItems.push(`✨ الهيكل: ${specsObj.condition}`);
-          if (specsObj.color) specItems.push(`🎨 اللون: ${specsObj.color}`);
-          if (specsObj.mileage) specItems.push(`📟 ممشى: ${specsObj.mileage}`);
-          if (specsObj.area) specItems.push(`📐 مساحة: ${specsObj.area}`);
-          if (specsObj.rooms) specItems.push(`🚪 غرف: ${specsObj.rooms}`);
-          if (Array.isArray(specsObj.features) && specsObj.features.length) specItems.push(`⭐ ميزات: ${specsObj.features.slice(0, 3).join(', ')}`);
-
-          const specsBadgesHtml = specItems.length > 0 ? `
-            <div style="display:flex; flex-wrap:wrap; gap:4px; margin:6px 0;">
-              ${specItems.map(s => `<span style="background:rgba(56,189,248,0.12); color:#38bdf8; border:1px solid rgba(56,189,248,0.25); border-radius:6px; padding:2px 6px; font-size:10px; font-weight:700;">${escapeHtml(s)}</span>`).join('')}
-            </div>
-          ` : '';
-
-          // رد وتقرير الذكاء الاصطناعي
-          const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
-            ad.ai_review.full_text : 
-            (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية.');
-
-          const descText = ad.clean_description || ad.description || 'لا يوجد وصف متاح';
-
-          return `
-            <div class="ad-card" id="adCard-${idx}">
-              <div class="ad-gallery">
-                <img id="adMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
-                <div class="ad-thumbs">${thumbsHtml}</div>
-              </div>
-
-              <div class="ad-body">
-                
-                <!-- التصنيف بأصغر ابن واسم الحساب -->
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
-                  <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${escapeHtml(catHierarchy)}</span>
-                  <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${escapeHtml(accountName)}</span>
-                </div>
-
-                <!-- صندوق المراحل التفصيلي -->
-                <div class="verification-box">
-                  <div class="pillar-row">
-                    <span class="pillar-label">1️⃣ المواصفات والبيانات:</span>
-                    ${specsStatusHtml}
-                  </div>
-                  <div class="pillar-row">
-                    <span class="pillar-label">2️⃣ الفحص الشرعي والرقابي:</span>
-                    ${shariaStatusHtml}
-                  </div>
-                  <div class="pillar-row">
-                    <span class="pillar-label">3️⃣ عدم التكرار على الموقع:</span>
-                    ${dupStatusHtml}
-                  </div>
-                  <div class="pillar-row">
-                    <span class="pillar-label">4️⃣ حالة الجاهزية للنشر:</span>
-                    ${readyBadgeHtml}
-                  </div>
-                </div>
-
-                <!-- بادجات المواصفات المستخرجة -->
-                ${specsBadgesHtml}
-
-                <!-- رد وتقرير الذكاء الاصطناعي الشامل -->
-                <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:10px; padding:10px; margin:8px 0;">
-                  <div style="font-size:11px; font-weight:800; color:#a5b4fc; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between;">
-                    <span>🤖 رد وتقرير فحص الذكاء الاصطناعي:</span>
-                    <span style="color:#34d399; font-size:10px;">✔️ فحص دقيق</span>
-                  </div>
-                  <div style="font-size:11px; color:#cbd5e1; line-height:1.55; white-space:pre-line; background:rgba(15,23,42,0.65); padding:8px 10px; border-radius:6px; font-family:monospace; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(aiReviewText)}</div>
-                </div>
-
-                <div>
-                  <label style="font-size:11px; color:var(--text-muted); font-weight:700;">العنوان المهيكل:</label>
-                  <input type="text" class="ad-title-input" id="titleInp-${idx}" value="${escapeHtml(title)}" />
-                </div>
-
-                <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
-                  <span style="color:#60a5fa;">📍 ${escapeHtml(city)}${escapeHtml(subDist)}</span>
-                  <span style="color:#fde047;">💰 ${escapeHtml(price)}</span>
-                </div>
-
-                <div class="ad-desc-box">${escapeHtml(descText)}</div>
-
-                <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8;">
-                  <span>📞 ${escapeHtml(ad.phone_number || 'لا يوجد')}</span>
-                  <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
-                </div>
-
-                <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
-                  <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1; min-width:140px;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
-                  <button id="aiBtn-${idx}" class="btn btn-outline btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="reclassifySingleAd(${idx})" title="إعادة فحص وتصنيف الإعلان بالذكاء الاصطناعي (Gemini)">🤖 فحص AI</button>
-                  <button id="rejBtn-${idx}" class="btn btn-warning btn-sm" onclick="rejectSingleAd(${idx})" title="استبعاد الإعلان ونقله للمخالفات">⚠️ استبعاد</button>
-                  <button id="delBtn-${idx}" class="btn btn-danger btn-sm" onclick="deleteSingleAd(${idx})" title="حذف نهائي للإعلان وصوره من الجهاز">🗑️ حذف نهائي</button>
-                </div>
-
-              </div>
-            </div>
-          `;
         }).join('');
 
         let moreHtml = '';
@@ -2120,6 +2183,17 @@ HTML_PAGE = r"""<!DOCTYPE html>
         grid.innerHTML = cardsHtml + moreHtml;
       } catch (err) {
         console.error("renderAdsGrid error:", err);
+        const grid = document.getElementById('adsCardsGrid');
+        if (grid) {
+          grid.innerHTML = `
+            <div style="grid-column:1/-1; text-align:center; padding:40px; background:var(--card-bg); border-radius:16px; border:1px solid #ef4444; color:#f87171;">
+              <div style="font-size:24px; margin-bottom:8px;">⚠️</div>
+              <div style="font-weight:800; font-size:15px;">حدث خطأ أثناء عرض الإعلانات</div>
+              <div style="font-size:12px; color:var(--text-muted); margin-top:6px;">${escapeHtml(err.message || String(err))}</div>
+              <button class="btn btn-primary btn-sm" style="margin-top:12px;" onclick="renderAdsGrid()">🔄 إعادة المحاولة</button>
+            </div>
+          `;
+        }
       }
     }
 
@@ -2237,14 +2311,15 @@ HTML_PAGE = r"""<!DOCTYPE html>
       if (!confirm("هل أنت متأكد من رغبتك في حذف هذه الصورة من الإعلان نهائياً؟")) return;
 
       const imgName = decodeURIComponent(imgNameEncoded);
+      const cleanAdId = decodeURIComponent(adIdentifier);
       try {
         const res = await apiFetch('/api/delete_ad_image', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({
             image_name: imgName,
-            ad_url: adIdentifier,
-            clean_title: adIdentifier,
+            ad_url: cleanAdId,
+            clean_title: cleanAdId,
             ad_index: cardIndex
           })
         });
@@ -2943,6 +3018,14 @@ HTML_PAGE = r"""<!DOCTYPE html>
           if (spa) spa.innerText = st.published_count || 0;
           const sfa = document.getElementById('stFlaggedAds');
           if (sfa) sfa.innerText = st.flagged_count || 0;
+
+          // تحديث حي فوري لشبكة الإعلانات إذا تم سحب إعلانات جديدة أثناء تواجد المستخدم في تبويب المراجعة
+          const reviewTab = document.getElementById('tab-review');
+          if (reviewTab && reviewTab.classList.contains('active')) {
+            if (st.pending_count !== adsData.length) {
+              loadAllAds(true);
+            }
+          }
         }
 
         if (st.gemini_usage) {
@@ -3575,14 +3658,18 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                 raw_pending = clean_pending
                 write_json_file(PENDING_FILE, raw_pending)
 
-            enriched_pending = [enrich_ad_status(ad) for ad in raw_pending]
-            enriched_published = [enrich_ad_status(ad) for ad in published]
+            enriched_pending = []
+            for ad in raw_pending:
+                try:
+                    enriched_pending.append(enrich_ad_status(ad))
+                except Exception as ex:
+                    print(f"[!] تحذير أثناء إثراء إعلان المراجعة: {ex}")
+                    enriched_pending.append(ad)
 
             resp = {
                 "pending": enriched_pending,
                 "pending_count": len(enriched_pending),
-                "published": enriched_published,
-                "published_count": len(enriched_published),
+                "published_count": len(published),
                 "flagged_count": len(flagged)
             }
             self.send_json(resp)
@@ -3590,7 +3677,12 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
 
         elif path == "/api/published_ads":
             published = read_json_file(PUBLISHED_FILE)
-            enriched_published = [enrich_ad_status(ad) for ad in published]
+            enriched_published = []
+            for ad in published:
+                try:
+                    enriched_published.append(enrich_ad_status(ad))
+                except Exception:
+                    enriched_published.append(ad)
             self.send_json({
                 "published": enriched_published,
                 "count": len(enriched_published)
