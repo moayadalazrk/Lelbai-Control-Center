@@ -1781,16 +1781,12 @@ HTML_PAGE = r"""<!DOCTYPE html>
             alert(`✅ تم تشغيل سيرفر الإدارة بنجاح!\nيرجى السماح بالنوافذ المنبثقة أو فتح الرابط التالي مباشرة:\n${targetUrl}`);
           }
         } else if (data.not_installed) {
-          const goToSettings = confirm(
-            data.message + "\n\n👉 هل ترغب بالانتقال الآن إلى تبويب الإعدادات لإدخال رابط/آي بي الكمبيوتر الأول؟"
+          const liveUrl = data.real_server_url || "https://lelbai.com/admin";
+          const openLive = confirm(
+            (data.message || "ملفات المنجر المحلي غير موجودة على هذا الجهاز.") + "\n\n🌐 هل تريد فتح لوحة الإدارة على السيرفر الحقيقي أونلاين الآن؟\n(" + liveUrl + ")"
           );
-          if (goToSettings) {
-            switchTab('tab-settings', document.getElementById('navBtnSettings'));
-            const inp = document.getElementById('setManagerUrl');
-            if (inp) {
-              inp.focus();
-              inp.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+          if (openLive) {
+            window.open(liveUrl, '_blank');
           }
         } else {
           alert("⚠️ " + (data.message || "فشل تشغيل سيرفرات الإدارة."));
@@ -3491,17 +3487,17 @@ def launch_manager_and_all_servers(client_host: str = "localhost") -> dict:
 
     # 3. التحقق من وجود ملفات المنجر محلياً (إذا لم تكن موجودة - مثل الكمبيوتر الثاني)
     if not os.path.exists(az_base) or not (os.path.exists(start_bot_js) or os.path.exists(start_servers_bat)):
+        real_server_admin = "https://lelbai.com/admin"
         return {
             "success": False,
             "not_installed": True,
+            "real_server_url": real_server_admin,
             "message": (
-                "⚠️ لم يتم العثور على ملفات سيرفر المنجر على هذا الجهاز (" + az_base + ").\n\n"
-                "💡 بما أنك تستخدم الكمبيوتر الثاني وتريد فتح المنجر:\n"
-                "1. تأكد من تشغيل المنجر على الكمبيوتر الأول (الرئيسي).\n"
-                "2. ضع عنوان IP الكمبيوتر الأول في خانة 'رابط صفحة المنجر' في صفحة الإعدادات (مثال: http://192.168.1.229:8002).\n\n"
-                "أو يمكنك نسخ مجلد المنجر وتثبيت XAMPP ليعمل محلياً على هذا الجهاز."
+                "⚠️ لم يتم العثور على سيرفر المنجر المحلي على هذا الجهاز (" + az_base + ").\n\n"
+                "💡 بما أنك تستخدم الكمبيوتر الثاني وتريد فتح لوحة الإدارة على السيرفر الحقيقي مباشرة:\n"
+                f"{real_server_admin}"
             ),
-            "url": manager_url,
+            "url": real_server_admin,
             "lan_url": lan_url,
             "manager_running": False
         }

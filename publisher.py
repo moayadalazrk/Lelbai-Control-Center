@@ -18,7 +18,7 @@ from typing import Dict, Any, Tuple, List
 if hasattr(sys.stdout, 'reconfigure'):
     sys.stdout.reconfigure(encoding='utf-8')
 
-from config import load_config
+from config import load_config, MASTER_WEBSITE_API_KEY, MASTER_WEBSITE_API_URL
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PUBLISHED_FILE = os.path.join(BASE_DIR, "published_ads.json")
@@ -400,8 +400,8 @@ def publish_ad_to_website(ad: Dict[str, Any]) -> Tuple[bool, str]:
     export_ok, export_msg = export_ad_to_import_folder(ad)
 
     cfg = load_config()
-    api_url = cfg.get("website_api_url", "").strip() or "https://api.lelbai.com/public/api/listings"
-    api_key = cfg.get("website_api_key", "").strip() or "4|b232da56236d18d5461ad56e14476a4d71b69b0e"
+    api_url = cfg.get("website_api_url", "").strip() or MASTER_WEBSITE_API_URL
+    api_key = cfg.get("website_api_key", "").strip() or MASTER_WEBSITE_API_KEY
 
     online_published = False
     server_ad_id = None
