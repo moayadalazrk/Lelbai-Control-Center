@@ -27,8 +27,8 @@
                 @endif
 
                 <span class="badge bg-light text-dark border p-2">
-                    @if(!empty($category->icon) && (str_starts_with($category->icon, '/') || str_starts_with($category->icon, 'http')))
-                        <img src="{{ $category->icon }}" alt="Icon" style="width: 24px; height: 24px; object-fit: contain;">
+                    @if(!empty($category->icon) && (str_starts_with($category->icon, '/') || str_starts_with($category->icon, 'http') || str_contains($category->icon, '.')))
+                        <img src="{{ str_starts_with($category->icon, 'http') ? $category->icon : 'https://lelbai.com/' . ltrim($category->icon, '/') }}" alt="Icon" style="width: 24px; height: 24px; object-fit: contain;">
                     @elseif(!empty($category->icon))
                         <i class="fa-solid {{ $category->icon }} text-success fs-6"></i>
                     @else

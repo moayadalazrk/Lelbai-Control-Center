@@ -23,6 +23,8 @@ Route::delete('categories/filters/{filterId}', [CategoryController::class, 'dest
 // إدارة وتدقيق الإعلانات
 Route::get('listings', [ListingController::class, 'index'])->name('admin.listings.index');
 Route::post('listings/{id}/status', [ListingController::class, 'updateStatus'])->name('admin.listings.updateStatus');
+Route::post('listings/{id}/update', [ListingController::class, 'update'])->name('admin.listings.update');
+Route::put('listings/{id}', [ListingController::class, 'update'])->name('admin.listings.putUpdate');
 Route::post('listings/{id}/recheck-ai', [ListingController::class, 'recheckAiModeration'])->name('admin.listings.recheckAi');
 Route::post('listings/toggle-ai-auto', [ListingController::class, 'toggleAiAutoModeration'])->name('admin.listings.toggleAiAuto');
 Route::post('listings/bulk-action', [ListingController::class, 'bulkAction'])->name('admin.listings.bulkAction');

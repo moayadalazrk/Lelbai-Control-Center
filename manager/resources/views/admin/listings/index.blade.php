@@ -147,7 +147,7 @@
                 <a href="{{ route('admin.listings.index', array_merge(request()->except(['page']), ['category_id' => $cat->id])) }}" 
                    class="btn btn-sm rounded-pill px-3 py-2 fw-bold {{ $isMainActive ? 'btn-success text-white shadow-sm' : 'btn-light border text-dark' }}">
                     @if($cat->icon)
-                        <img src="{{ asset($cat->icon) }}" style="width: 18px; height: 18px; object-fit: contain; margin-left: 4px;" alt="">
+                        <img src="{{ str_starts_with($cat->icon, 'http') ? $cat->icon : 'https://lelbai.com/' . ltrim($cat->icon, '/') }}" style="width: 18px; height: 18px; object-fit: contain; margin-left: 4px;" alt="">
                     @endif
                     <span>{{ $cat->name_ar }}</span>
                     <span class="badge {{ $isMainActive ? 'bg-white text-success' : 'bg-dark bg-opacity-10 text-dark' }} ms-1 rounded-pill">
@@ -350,7 +350,14 @@
                                 $badgeColor = 'bg-info text-dark';
                             }
 
-                            $primaryImg = $listing->primaryImage ? asset('storage/' . ltrim($listing->primaryImage->image_path, '/')) : ($listing->category?->icon ? asset($listing->category->icon) : null);
+                            $primaryImg = null;
+                            if ($listing->primaryImage && !empty($listing->primaryImage->image_path)) {
+                                $rawP = $listing->primaryImage->image_path;
+                                $primaryImg = str_starts_with($rawP, 'http') ? $rawP : 'https://lelbai.com/' . ltrim($rawP, '/');
+                            } elseif ($listing->category && !empty($listing->category->icon)) {
+                                $rawI = $listing->category->icon;
+                                $primaryImg = str_starts_with($rawI, 'http') ? $rawI : 'https://lelbai.com/' . ltrim($rawI, '/');
+                            }
                         @endphp
                         <tr>
                             <!-- Checkbox -->
@@ -362,7 +369,9 @@
                             <td class="col-cell-0">
                                 <div class="d-flex align-items-center gap-2">
                                     @if($primaryImg)
-                                        <img src="{{ $primaryImg }}" class="rounded-3 border shadow-xs" style="width: 46px; height: 46px; object-fit: cover; flex-shrink: 0;" alt="">
+                                        <a href="{{ $primaryImg }}" target="_blank" title="عرض الصورة بالحجم الكامل">
+                                            <img src="{{ $primaryImg }}" class="rounded-3 border shadow-xs" style="width: 46px; height: 46px; object-fit: cover; flex-shrink: 0;" alt="" onerror="this.onerror=null; this.src='https://lelbai.com/icons/cars.svg';">
+                                        </a>
                                     @else
                                         <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted" style="width: 46px; height: 46px; flex-shrink: 0;">
                                             <i class="fa-solid fa-image"></i>
@@ -488,10 +497,27 @@
                             <!-- Actions -->
                             <td>
                                 <div class="d-flex align-items-center justify-content-center gap-1">
-                                    <!-- معاينة بالمنصة -->
-                                    <a href="http://localhost:3000/listings/{{ $listing->uuid ?: $listing->id }}/details" target="_blank" class="btn btn-sm btn-outline-primary fw-bold px-2 py-1" title="فتح الإعلان ومعاينته بالمنصة">
+                                    <!-- معاينة بالمنصة على الدومين الحقيقي -->
+                                    <a href="https://lelbai.com/listings/{{ $listing->uuid ?: $listing->id }}/details" target="_blank" class="btn btn-sm btn-outline-primary fw-bold px-2 py-1" title="معاينة الإعلان مباشرة على الدومين الحقيقي (lelbai.com)">
                                         <i class="fa-solid fa-arrow-up-right-from-square"></i> معاينة
                                     </a>
+
+                                    <!-- زر تعديل الإعلان -->
+                                    <button type="button" 
+                                            class="btn btn-sm btn-warning fw-bold px-2 py-1 btn-edit-listing text-dark shadow-xs" 
+                                            data-id="{{ $listing->id }}" 
+                                            data-title="{{ $listing->title }}"
+                                            data-price="{{ (float)$listing->price }}"
+                                            data-currency="{{ $listing->currency ?: 'SYP' }}"
+                                            data-category-id="{{ $listing->category_id }}"
+                                            data-city-id="{{ $listing->city_id }}"
+                                            data-phone="{{ $listing->contact_phone ?: ($listing->user?->phone ?: '') }}"
+                                            data-description="{{ $listing->description }}"
+                                            data-status="{{ $listing->status }}"
+                                            data-featured="{{ $listing->is_featured ? 1 : 0 }}"
+                                            title="تعديل بيانات وتفاصيل الإعلان">
+                                        <i class="fa-solid fa-pen-to-square"></i> تعديل
+                                    </button>
 
                                     @if($listing->status !== 'active')
                                         <button type="submit" form="quickStatusForm_{{ $listing->id }}_active" class="btn btn-sm btn-success fw-bold px-2 py-1" title="قبول وتفعيل الإعلان">
@@ -618,6 +644,108 @@
     </div>
 </div>
 
+<!-- Modal تعديل الإعلان المباشر -->
+<div class="modal fade" id="editListingModal" tabindex="-1" aria-labelledby="editListingModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <form id="editListingForm" method="POST" action="">
+                @csrf
+                <div class="modal-header bg-warning bg-opacity-10 border-bottom py-3 px-4">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-pen-to-square text-warning fs-5"></i>
+                        <h5 class="modal-title fw-bold text-dark mb-0" id="editListingModalLabel">تعديل الإعلان رقم #<span id="modalListingIdDisplay"></span></h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <!-- عنوان الإعلان -->
+                        <div class="col-12">
+                            <label class="form-label fw-bold fs-7 text-dark">عنوان الإعلان <span class="text-danger">*</span></label>
+                            <input type="text" name="title" id="editListingTitle" class="form-control fw-bold" required maxlength="255">
+                        </div>
+
+                        <!-- القسم / التصنيف -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold fs-7 text-dark">القسم / التصنيف <span class="text-danger">*</span></label>
+                            <select name="category_id" id="editListingCategory" class="form-select fw-semibold" required>
+                                <option value="">اختر القسم...</option>
+                                @foreach($allCategoriesList ?? $categories as $c)
+                                    <option value="{{ $c->id }}">
+                                        {{ $c->parent_id ? '　↳ ' : '' }}{{ $c->name_ar }}
+                                    </option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- المدينة -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold fs-7 text-dark">المدينة <span class="text-danger">*</span></label>
+                            <select name="city_id" id="editListingCity" class="form-select fw-semibold" required>
+                                <option value="">اختر المدينة...</option>
+                                @foreach($cities as $ct)
+                                    <option value="{{ $ct->id }}">{{ $ct->name_ar }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- السعر والعملة -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold fs-7 text-dark">السعر</label>
+                            <div class="input-group">
+                                <input type="number" step="any" name="price" id="editListingPrice" class="form-control fw-bold" min="0" placeholder="0">
+                                <select name="currency" id="editListingCurrency" class="form-select" style="max-width: 100px;">
+                                    <option value="SYP">ل.س</option>
+                                    <option value="USD">$</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- رقم الهاتف -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold fs-7 text-dark">رقم هاتف التواصل</label>
+                            <input type="text" name="contact_phone" id="editListingPhone" class="form-control text-start" dir="ltr" placeholder="09xxxxxxxx">
+                        </div>
+
+                        <!-- حالة الإعلان -->
+                        <div class="col-md-6">
+                            <label class="form-label fw-bold fs-7 text-dark">حالة الإعلان</label>
+                            <select name="status" id="editListingStatus" class="form-select fw-bold">
+                                <option value="active">نشط ✅</option>
+                                <option value="pending">بانتظار المراجعة ⏳</option>
+                                <option value="suspended">موقوف مؤقتاً ⏸️</option>
+                                <option value="rejected">مرفوض ❌</option>
+                            </select>
+                        </div>
+
+                        <!-- تمييز الإعلان -->
+                        <div class="col-md-6 d-flex align-items-center">
+                            <div class="form-check form-switch mt-3">
+                                <input class="form-check-input" type="checkbox" name="is_featured" value="1" id="editListingFeatured">
+                                <label class="form-check-label fw-bold text-dark fs-7 ms-2" for="editListingFeatured">
+                                    ⭐ إعلان مميز (يظهر في الصدارة)
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- الوصف الكامل -->
+                        <div class="col-12">
+                            <label class="form-label fw-bold fs-7 text-dark">وصف الإعلان والمواصفات</label>
+                            <textarea name="description" id="editListingDescription" class="form-control" rows="5" placeholder="أدخل تفاصيل ومواصفات الإعلان..."></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top py-3 px-4 d-flex justify-content-between">
+                    <button type="button" class="btn btn-secondary rounded-pill px-4 fw-bold" data-bs-dismiss="modal">إلغاء</button>
+                    <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
+                        <i class="fa-solid fa-floppy-disk me-1"></i> حفظ التعديلات الآن
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     // Column Visibility Toggles
@@ -676,6 +804,62 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const modal = new bootstrap.Modal(document.getElementById('rejectListingModal'));
             modal.show();
+        });
+    });
+
+    // Edit Modal trigger
+    const editBtns = document.querySelectorAll('.btn-edit-listing');
+    editBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const id = this.dataset.id;
+            const title = this.dataset.title || '';
+            const price = this.dataset.price || '';
+            const currency = this.dataset.currency || 'SYP';
+            const categoryId = this.dataset.categoryId || '';
+            const cityId = this.dataset.cityId || '';
+            const phone = this.dataset.phone || '';
+            const description = this.dataset.description || '';
+            const status = this.dataset.status || 'active';
+            const featured = this.dataset.featured == '1';
+
+            const modalTitleSpan = document.getElementById('modalListingIdDisplay');
+            if (modalTitleSpan) modalTitleSpan.textContent = id;
+
+            const titleInput = document.getElementById('editListingTitle');
+            if (titleInput) titleInput.value = title;
+
+            const catSelect = document.getElementById('editListingCategory');
+            if (catSelect) catSelect.value = categoryId;
+
+            const citySelect = document.getElementById('editListingCity');
+            if (citySelect) citySelect.value = cityId;
+
+            const priceInput = document.getElementById('editListingPrice');
+            if (priceInput) priceInput.value = price;
+
+            const currSelect = document.getElementById('editListingCurrency');
+            if (currSelect) currSelect.value = currency;
+
+            const phoneInput = document.getElementById('editListingPhone');
+            if (phoneInput) phoneInput.value = phone;
+
+            const statusSelect = document.getElementById('editListingStatus');
+            if (statusSelect) statusSelect.value = status;
+
+            const featCheck = document.getElementById('editListingFeatured');
+            if (featCheck) featCheck.checked = featured;
+
+            const descText = document.getElementById('editListingDescription');
+            if (descText) descText.value = description;
+
+            const form = document.getElementById('editListingForm');
+            if (form) form.action = '{{ url("listings") }}/' + id + '/update';
+
+            const modalEl = document.getElementById('editListingModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
         });
     });
 

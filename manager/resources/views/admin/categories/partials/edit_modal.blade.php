@@ -30,10 +30,10 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold fs-7">رفع أيقونة/صورة مخصصة للقسم (SVG, PNG, JPG)</label>
                     <input type="file" name="icon_file" accept=".svg,.png,.jpg,.jpeg,.webp" class="form-control mb-2">
-                    @if(!empty($category->icon) && (str_starts_with($category->icon, '/') || str_starts_with($category->icon, 'http')))
+                    @if(!empty($category->icon) && (str_starts_with($category->icon, '/') || str_starts_with($category->icon, 'http') || str_contains($category->icon, '.')))
                         <div class="p-2 border rounded bg-white d-inline-block">
                             <small class="text-muted d-block mb-1">الأيقونة المرفوعة حالياً:</small>
-                            <img src="{{ $category->icon }}" alt="Icon" style="height: 35px; object-fit: contain;">
+                            <img src="{{ str_starts_with($category->icon, 'http') ? $category->icon : 'https://lelbai.com/' . ltrim($category->icon, '/') }}" alt="Icon" style="height: 35px; object-fit: contain;">
                         </div>
                     @endif
                 </div>

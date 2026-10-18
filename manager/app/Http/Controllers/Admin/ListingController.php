@@ -18,6 +18,7 @@ class ListingController extends Controller
         $activeEnv = session('active_db_env', env('DEFAULT_DB_ENV', 'local'));
         $listings = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
         $categories = collect();
+        $allCategoriesList = collect();
         $cities = collect();
         $counts = [
             'all' => 0,
@@ -93,6 +94,7 @@ class ListingController extends Controller
                     $cat->setRelation('children', $childModels);
                 }
                 $categories = $rawCategories->whereNull('parent_id')->values();
+                $allCategoriesList = $rawCategories;
 
                 // 2. جلب المدن
                 $cityRows = LiveBridgeService::query("SELECT id, name_ar, slug, is_active FROM cities WHERE is_active = 1 ORDER BY name_ar ASC");
@@ -454,6 +456,7 @@ class ListingController extends Controller
                 ];
 
                 $cities = City::where('is_active', true)->orderBy('name_ar')->get();
+                $allCategoriesList = Category::with('children')->orderBy('name_ar')->get();
                 $aiAutoSetting = \App\Models\Setting::get('ai_auto_moderation_enabled', '1');
                 $isAiAutoEnabled = filter_var($aiAutoSetting, FILTER_VALIDATE_BOOLEAN) || $aiAutoSetting === '1';
             } catch (\Throwable $e) {
@@ -464,6 +467,7 @@ class ListingController extends Controller
         return view('admin.listings.index', compact(
             'listings',
             'categories',
+            'allCategoriesList',
             'cities',
             'counts',
             'isAiAutoEnabled',
@@ -663,5 +667,65 @@ class ListingController extends Controller
         $listing->delete();
 
         return redirect()->back()->with('success', 'تم حذف الإعلان وصوره بنجاح.');
+    }
+
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'price' => 'nullable|numeric|min:0',
+            'currency' => 'nullable|string|in:SYP,USD',
+            'category_id' => 'required|integer',
+            'city_id' => 'required|integer',
+            'contact_phone' => 'nullable|string|max:30',
+            'description' => 'nullable|string',
+            'status' => 'required|in:active,pending,suspended,rejected',
+        ]);
+
+        $activeEnv = session('active_db_env', env('DEFAULT_DB_ENV', 'local'));
+        $title = trim($request->input('title'));
+        $price = $request->input('price', 0);
+        $currency = $request->input('currency', 'SYP');
+        $categoryId = (int)$request->input('category_id');
+        $cityId = (int)$request->input('city_id');
+        $phone = trim($request->input('contact_phone', ''));
+        $desc = trim($request->input('description', ''));
+        $status = $request->input('status');
+        $isFeatured = $request->has('is_featured') ? 1 : 0;
+
+        if ($activeEnv === 'production') {
+            LiveBridgeService::statement(
+                "UPDATE listings SET 
+                    title = ?, 
+                    price = ?, 
+                    currency = ?, 
+                    category_id = ?, 
+                    city_id = ?, 
+                    contact_phone = ?, 
+                    description = ?, 
+                    status = ?, 
+                    is_featured = ?, 
+                    updated_at = NOW() 
+                 WHERE id = ?",
+                [$title, $price, $currency, $categoryId, $cityId, $phone, $desc, $status, $isFeatured, (int)$id]
+            );
+
+            return redirect()->back()->with('success', '✅ تم حفظ تعديلات الإعلان بنجاح على السيرفر الحقيقي!');
+        }
+
+        $listing = Listing::findOrFail($id);
+        $listing->update([
+            'title' => $title,
+            'price' => $price,
+            'currency' => $currency,
+            'category_id' => $categoryId,
+            'city_id' => $cityId,
+            'contact_phone' => $phone,
+            'description' => $desc,
+            'status' => $status,
+            'is_featured' => (bool)$isFeatured,
+        ]);
+
+        return redirect()->back()->with('success', '✅ تم حفظ تعديلات الإعلان بنجاح!');
     }
 }

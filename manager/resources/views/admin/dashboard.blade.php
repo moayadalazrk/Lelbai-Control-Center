@@ -76,7 +76,12 @@
                     @forelse($recentListings as $listing)
                         <tr>
                             <td class="fw-bold">#{{ $listing->id }}</td>
-                            <td class="fw-semibold">{{ $listing->title }}</td>
+                            <td class="fw-semibold">
+                                <a href="https://lelbai.com/listings/{{ $listing->uuid ?: $listing->id }}/details" target="_blank" class="text-dark text-decoration-none" title="معاينة الإعلان على الدومين الحقيقي (lelbai.com)">
+                                    {{ $listing->title }}
+                                    <i class="fa-solid fa-arrow-up-right-from-square text-primary ms-1 fs-8"></i>
+                                </a>
+                            </td>
                             <td>{{ $listing->user->name ?? 'غير معروف' }}</td>
                             <td class="fw-bold text-success">{{ number_format($listing->price) }} ل.س</td>
                             <td>
