@@ -190,6 +190,13 @@
                     <i class="fa-solid fa-users"></i>
                     <span>إدارة المستخدمين</span>
                 </a>
+                <a href="{{ route('admin.complaints.index') }}" class="nav-link-item {{ request()->routeIs('admin.complaints.*') ? 'active' : '' }}">
+                    <i class="fa-solid fa-headset text-warning fs-5"></i>
+                    <span>الشكاوى والرسائل</span>
+                    @if(!empty($pendingComplaintsCount) && $pendingComplaintsCount > 0)
+                        <span class="badge bg-danger rounded-pill ms-auto fs-8">{{ $pendingComplaintsCount }}</span>
+                    @endif
+                </a>
                 <a href="{{ route('categories.index') }}" class="nav-link-item {{ request()->routeIs('categories.*') ? 'active' : '' }}">
                     <i class="fa-solid fa-layer-group"></i>
                     <span>إدارة التصنيفات والخصائص</span>

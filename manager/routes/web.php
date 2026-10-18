@@ -45,3 +45,11 @@ Route::post('whatsapp/check-number', [WhatsAppController::class, 'checkNumber'])
 Route::post('whatsapp/verifications/{id}/manual-verify', [WhatsAppController::class, 'manualVerify'])->name('admin.whatsapp.manualVerify');
 Route::delete('whatsapp/verifications/{id}', [WhatsAppController::class, 'destroyVerification'])->name('admin.whatsapp.destroyVerification');
 
+// إدارة الشكاوى ورسائل العملاء
+use App\Http\Controllers\Admin\ComplaintController;
+Route::get('complaints', [ComplaintController::class, 'index'])->name('admin.complaints.index');
+Route::post('complaints/{id}/status', [ComplaintController::class, 'updateStatus'])->name('admin.complaints.updateStatus');
+Route::delete('complaints/{id}', [ComplaintController::class, 'destroy'])->name('admin.complaints.destroy');
+Route::post('complaints/reports/{id}/status', [ComplaintController::class, 'updateReportStatus'])->name('admin.complaints.updateReportStatus');
+Route::delete('complaints/reports/{id}', [ComplaintController::class, 'destroyReport'])->name('admin.complaints.destroyReport');
+

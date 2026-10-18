@@ -10,8 +10,8 @@ git add -A
 git commit -m "update: sync changes"
 git push origin main
 git push origin main:master
-git tag -f v1.5.1
-git push origin -f v1.5.1
+git tag -f v1.5.2
+git push origin -f v1.5.2
 
 if %errorlevel% equ 0 (
     echo.

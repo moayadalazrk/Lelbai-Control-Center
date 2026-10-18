@@ -60,6 +60,24 @@ class DatabaseSwitcherMiddleware
         }
 
         // Share environment details globally with all views
+        $pendingComplaintsCount = 0;
+        try {
+            if ($activeEnv === 'production') {
+                $cachedCount = session('pending_complaints_count');
+                $cachedTime = session('pending_complaints_count_time', 0);
+                if ($cachedCount !== null && (time() - $cachedTime < 30)) {
+                    $pendingComplaintsCount = (int)$cachedCount;
+                } else {
+                    $r = LiveBridgeService::query("SELECT COUNT(*) as c FROM contact_messages WHERE status = 'pending'");
+                    $pendingComplaintsCount = (int)($r[0]->c ?? $r[0]['c'] ?? 0);
+                    session(['pending_complaints_count' => $pendingComplaintsCount, 'pending_complaints_count_time' => time()]);
+                }
+            } else {
+                $pendingComplaintsCount = \App\Models\ContactMessage::where('status', 'pending')->count();
+            }
+        } catch (\Throwable $e) {}
+
+        View::share('pendingComplaintsCount', $pendingComplaintsCount);
         View::share('activeDbEnv', $activeEnv);
         View::share('dbConnected', $dbConnected);
         View::share('dbError', $dbError);
