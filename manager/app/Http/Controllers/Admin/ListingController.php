@@ -96,10 +96,29 @@ class ListingController extends Controller
                 $categories = $rawCategories->whereNull('parent_id')->values();
                 $allCategoriesList = $rawCategories;
 
+                $allCatsSimple = collect($catRows)->map(function ($row) {
+                    $r = (array)$row;
+                    $icon = $r['icon'] ?? '';
+                    if (!empty($icon) && !str_starts_with($icon, 'http')) {
+                        $icon = 'https://lelbai.com/' . ltrim($icon, '/');
+                    }
+                    return [
+                        'id' => (int)$r['id'],
+                        'name_ar' => $r['name_ar'],
+                        'parent_id' => !empty($r['parent_id']) ? (int)$r['parent_id'] : null,
+                        'icon' => $icon,
+                    ];
+                })->values();
+                $categoriesJson = json_encode($allCatsSimple, JSON_UNESCAPED_UNICODE);
+
                 // 2. جلب المدن
                 $cityRows = LiveBridgeService::query("SELECT id, name_ar, slug, is_active FROM cities WHERE is_active = 1 ORDER BY name_ar ASC");
                 $cities = collect($cityRows)->map(function ($row) {
-                    return new City((array)$row);
+                    $r = (array)$row;
+                    $c = new City();
+                    $c->forceFill($r);
+                    $c->id = (int)$r['id'];
+                    return $c;
                 });
 
                 // 3. حساب عدادات الحالات الشاملة
@@ -457,6 +476,20 @@ class ListingController extends Controller
 
                 $cities = City::where('is_active', true)->orderBy('name_ar')->get();
                 $allCategoriesList = Category::with('children')->orderBy('name_ar')->get();
+                $allCatsSimple = Category::where('is_active', true)->orderBy('sort_order')->orderBy('name_ar')->get()->map(function ($c) {
+                    $icon = $c->icon ?? '';
+                    if (!empty($icon) && !str_starts_with($icon, 'http')) {
+                        $icon = 'https://lelbai.com/' . ltrim($icon, '/');
+                    }
+                    return [
+                        'id' => (int)$c->id,
+                        'name_ar' => $c->name_ar,
+                        'parent_id' => !empty($c->parent_id) ? (int)$c->parent_id : null,
+                        'icon' => $icon,
+                    ];
+                })->values();
+                $categoriesJson = json_encode($allCatsSimple, JSON_UNESCAPED_UNICODE);
+
                 $aiAutoSetting = \App\Models\Setting::get('ai_auto_moderation_enabled', '1');
                 $isAiAutoEnabled = filter_var($aiAutoSetting, FILTER_VALIDATE_BOOLEAN) || $aiAutoSetting === '1';
             } catch (\Throwable $e) {
@@ -468,6 +501,7 @@ class ListingController extends Controller
             'listings',
             'categories',
             'allCategoriesList',
+            'categoriesJson',
             'cities',
             'counts',
             'isAiAutoEnabled',
@@ -671,20 +705,33 @@ class ListingController extends Controller
 
     public function update(Request $request, $id)
     {
-        $request->validate([
+        $validator = \Illuminate\Support\Facades\Validator::make($request->all(), [
             'title' => 'required|string|max:255',
             'price' => 'nullable|numeric|min:0',
             'currency' => 'nullable|string|in:SYP,USD',
-            'category_id' => 'required|integer',
-            'city_id' => 'required|integer',
+            'category_id' => 'required|integer|min:1',
+            'city_id' => 'required|integer|min:1',
             'contact_phone' => 'nullable|string|max:30',
             'description' => 'nullable|string',
             'status' => 'required|in:active,pending,suspended,rejected',
+        ], [
+            'title.required' => 'يرجى إدخال عنوان الإعلان.',
+            'category_id.required' => 'يرجى اختيار القسم أو التصنيف.',
+            'category_id.min' => 'يرجى اختيار قسم صحيح.',
+            'city_id.required' => 'يرجى اختيار المدينة أو المحافظة.',
+            'city_id.min' => 'يرجى اختيار مدينة صحيحة.',
         ]);
+
+        if ($validator->fails()) {
+            return redirect()->back()
+                ->withErrors($validator)
+                ->withInput()
+                ->with('warning', '⚠️ تعذر حفظ التعديلات: ' . $validator->errors()->first());
+        }
 
         $activeEnv = session('active_db_env', env('DEFAULT_DB_ENV', 'local'));
         $title = trim($request->input('title'));
-        $price = $request->input('price', 0);
+        $price = $request->filled('price') ? (float)$request->input('price') : 0;
         $currency = $request->input('currency', 'SYP');
         $categoryId = (int)$request->input('category_id');
         $cityId = (int)$request->input('city_id');
@@ -694,23 +741,44 @@ class ListingController extends Controller
         $isFeatured = $request->has('is_featured') ? 1 : 0;
 
         if ($activeEnv === 'production') {
-            LiveBridgeService::statement(
-                "UPDATE listings SET 
-                    title = ?, 
-                    price = ?, 
-                    currency = ?, 
-                    category_id = ?, 
-                    city_id = ?, 
-                    contact_phone = ?, 
-                    description = ?, 
-                    status = ?, 
-                    is_featured = ?, 
-                    updated_at = NOW() 
-                 WHERE id = ?",
-                [$title, $price, $currency, $categoryId, $cityId, $phone, $desc, $status, $isFeatured, (int)$id]
-            );
+            if ($status === 'active') {
+                LiveBridgeService::statement(
+                    "UPDATE listings SET 
+                        title = ?, 
+                        price = ?, 
+                        currency = ?, 
+                        category_id = ?, 
+                        city_id = ?, 
+                        contact_phone = ?, 
+                        description = ?, 
+                        status = ?, 
+                        is_featured = ?, 
+                        rejection_reason = NULL,
+                        previous_rejection_reason = NULL,
+                        published_at = COALESCE(published_at, NOW()),
+                        updated_at = NOW() 
+                     WHERE id = ?",
+                    [$title, $price, $currency, $categoryId, $cityId, $phone, $desc, $status, $isFeatured, (int)$id]
+                );
+            } else {
+                LiveBridgeService::statement(
+                    "UPDATE listings SET 
+                        title = ?, 
+                        price = ?, 
+                        currency = ?, 
+                        category_id = ?, 
+                        city_id = ?, 
+                        contact_phone = ?, 
+                        description = ?, 
+                        status = ?, 
+                        is_featured = ?, 
+                        updated_at = NOW() 
+                     WHERE id = ?",
+                    [$title, $price, $currency, $categoryId, $cityId, $phone, $desc, $status, $isFeatured, (int)$id]
+                );
+            }
 
-            return redirect()->back()->with('success', '✅ تم حفظ تعديلات الإعلان بنجاح على السيرفر الحقيقي!');
+            return redirect()->back()->with('success', '✅ تم حفظ وتطبيق تعديلات الإعلان #' . (int)$id . ' بنجاح على السيرفر الحقيقي!');
         }
 
         $listing = Listing::findOrFail($id);
@@ -726,6 +794,6 @@ class ListingController extends Controller
             'is_featured' => (bool)$isFeatured,
         ]);
 
-        return redirect()->back()->with('success', '✅ تم حفظ تعديلات الإعلان بنجاح!');
+        return redirect()->back()->with('success', '✅ تم حفظ تعديلات الإعلان #' . (int)$id . ' بنجاح!');
     }
 }

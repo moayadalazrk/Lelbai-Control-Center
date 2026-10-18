@@ -43,6 +43,18 @@
     </div>
 </div>
 
+@if($errors->any())
+    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4" role="alert">
+        <i class="fa-solid fa-circle-exclamation me-2"></i> <strong>تنبيه الأخطاء:</strong>
+        <ul class="mb-0 mt-2 fs-7 pe-3">
+            @foreach($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+@endif
+
 @if(session('success'))
     <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm rounded-3 mb-4" role="alert">
         <i class="fa-solid fa-circle-check me-2"></i> {{ session('success') }}
@@ -665,17 +677,30 @@
                             <input type="text" name="title" id="editListingTitle" class="form-control fw-bold" required maxlength="255">
                         </div>
 
-                        <!-- القسم / التصنيف -->
+                        <!-- القسم / التصنيف التفاعلي المبوب -->
                         <div class="col-md-6">
-                            <label class="form-label fw-bold fs-7 text-dark">القسم / التصنيف <span class="text-danger">*</span></label>
-                            <select name="category_id" id="editListingCategory" class="form-select fw-semibold" required>
-                                <option value="">اختر القسم...</option>
-                                @foreach($allCategoriesList ?? $categories as $c)
-                                    <option value="{{ $c->id }}">
-                                        {{ $c->parent_id ? '　↳ ' : '' }}{{ $c->name_ar }}
-                                    </option>
-                                @endforeach
-                            </select>
+                            <label class="form-label fw-bold fs-7 text-dark d-flex align-items-center justify-content-between">
+                                <span>القسم / التصنيف <span class="text-danger">*</span></span>
+                                <a href="javascript:void(0)" onclick="openCategoryPicker()" class="text-decoration-none fs-8 text-primary fw-bold">
+                                    <i class="fa-solid fa-folder-tree me-1"></i> تصفح الشجرة الهرمية
+                                </a>
+                            </label>
+                            <div class="input-group">
+                                <div class="form-control d-flex align-items-center justify-content-between bg-white cursor-pointer py-2 border rounded-end-3" 
+                                     id="editCategoryDisplayBox" 
+                                     onclick="openCategoryPicker()" 
+                                     style="cursor: pointer; min-height: 42px;"
+                                     title="اضغط لاختيار وتحديد القسم بالبوب اب">
+                                    <div id="editCategoryDisplayText" class="fw-bold text-dark fs-7 text-truncate">
+                                        <span class="text-muted">اضغط لاختيار القسم...</span>
+                                    </div>
+                                    <i class="fa-solid fa-chevron-left text-muted fs-8 ms-2"></i>
+                                </div>
+                                <button type="button" class="btn btn-primary fw-bold px-3 rounded-start-3" onclick="openCategoryPicker()" title="فتح نافذة اختيار القسم">
+                                    <i class="fa-solid fa-list-check me-1"></i> اختيار
+                                </button>
+                            </div>
+                            <input type="hidden" name="category_id" id="editListingCategory" value="" required>
                         </div>
 
                         <!-- المدينة -->
@@ -746,7 +771,317 @@
     </div>
 </div>
 
+<!-- Modal اختيار وتصفح القسم الهرمي التفاعلي (بوب اب الأقسام) -->
+<div class="modal fade" id="categoryPickerModal" tabindex="-1" aria-labelledby="categoryPickerModalLabel" aria-hidden="true" style="z-index: 1070;">
+    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header bg-dark text-white py-3 px-4">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="fa-solid fa-layer-group text-warning fs-5"></i>
+                    <div>
+                        <h6 class="modal-title fw-bold mb-0" id="categoryPickerModalLabel">اختيار وتحديد تصنيف الإعلان</h6>
+                        <small class="text-white-50 fs-8">اختر القسم الرئيسي ثم تفرع وصولاً لأصغر قسم فرعي مناسب</small>
+                    </div>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+            </div>
+            
+            <div class="p-3 bg-light border-bottom">
+                <!-- شريط المسار والرجوع Breadcrumbs -->
+                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb mb-0 py-1 px-3 bg-white border rounded-pill shadow-xs fs-7 fw-semibold" id="categoryPickerBreadcrumbs">
+                            <li class="breadcrumb-item active"><i class="fa-solid fa-house me-1"></i> الرئيسية</li>
+                        </ol>
+                    </nav>
+                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold shadow-xs" id="btnPickerBack" style="display: none;" onclick="navigatePickerBack()">
+                        <i class="fa-solid fa-arrow-right me-1"></i> رجوع للخلف
+                    </button>
+                </div>
+
+                <!-- شريط البحث السريع في الأقسام -->
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                    <input type="text" id="categoryPickerSearch" class="form-control border-start-0 py-2 fs-7 fw-semibold" placeholder="ابحث عن أي قسم بسرعة (مثال: سيراتو، كيا، شقق، كنبايات...)" oninput="filterCategoryPicker(this.value)">
+                    <button type="button" class="btn btn-outline-secondary px-3" onclick="document.getElementById('categoryPickerSearch').value=''; filterCategoryPicker('');" title="مسح البحث">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="modal-body p-3 bg-white" style="min-height: 380px; max-height: 520px; overflow-y: auto;">
+                <!-- زر اعتماد القسم الأب الحالي إذا أراد المستخدم التوقف عنده -->
+                <div id="pickerCurrentParentAction" class="mb-3" style="display: none;"></div>
+
+                <!-- شبكة الأقسام المعروضة -->
+                <div id="categoryPickerGrid" class="row g-2"></div>
+
+                <!-- في حال لا توجد نتائج بحث -->
+                <div id="categoryPickerEmpty" class="text-center py-5 text-muted" style="display: none;">
+                    <i class="fa-solid fa-folder-open fs-1 text-secondary mb-2 d-block"></i>
+                    <span class="fw-bold fs-7">لم يتم العثور على أي قسم مطابق لكلمة البحث.</span>
+                </div>
+            </div>
+
+            <div class="modal-footer bg-light py-2 px-3 d-flex justify-content-between align-items-center">
+                <span class="text-muted fs-8"><i class="fa-solid fa-circle-info text-primary me-1"></i> النقر على أصغر قسم فرعي (أصغر ابن) يقوم باختياره فورياً وتثبيته.</span>
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4 fw-bold" data-bs-dismiss="modal">إلغاء</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script>
+// Categories Data and Hierarchical Maps
+const allCategoriesData = {!! $categoriesJson ?? '[]' !!};
+const catMap = {};
+const childrenMap = {};
+
+allCategoriesData.forEach(c => {
+    catMap[c.id] = c;
+    const pid = c.parent_id ? String(c.parent_id) : 'root';
+    if (!childrenMap[pid]) {
+        childrenMap[pid] = [];
+    }
+    childrenMap[pid].push(c);
+});
+
+function getCategoryPathText(catId) {
+    if (!catId || !catMap[catId]) return '';
+    const parts = [];
+    let cur = catMap[catId];
+    let visited = new Set();
+    while (cur && !visited.has(cur.id)) {
+        visited.add(cur.id);
+        parts.unshift(cur.name_ar);
+        cur = cur.parent_id ? catMap[cur.parent_id] : null;
+    }
+    return parts.join(' > ');
+}
+
+let pickerCurrentPid = 'root';
+let pickerTrail = [];
+
+function openCategoryPicker() {
+    const searchInp = document.getElementById('categoryPickerSearch');
+    if (searchInp) searchInp.value = '';
+
+    renderPickerLevel('root', []);
+
+    const modalEl = document.getElementById('categoryPickerModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+}
+
+function renderPickerLevel(parentId, trail) {
+    pickerCurrentPid = parentId;
+    pickerTrail = trail || [];
+
+    const searchInp = document.getElementById('categoryPickerSearch');
+    if (searchInp) searchInp.value = '';
+
+    const backBtn = document.getElementById('btnPickerBack');
+    if (backBtn) {
+        backBtn.style.display = (parentId !== 'root' && pickerTrail.length > 0) ? 'inline-block' : 'none';
+    }
+
+    const bcEl = document.getElementById('categoryPickerBreadcrumbs');
+    if (bcEl) {
+        let html = '<li class="breadcrumb-item cursor-pointer text-primary" onclick="renderPickerLevel(\'root\', [])"><i class="fa-solid fa-house me-1"></i> الرئيسية</li>';
+        pickerTrail.forEach((item, idx) => {
+            if (idx === pickerTrail.length - 1) {
+                html += '<li class="breadcrumb-item active text-dark fw-bold" aria-current="page">' + escapeHtml(item.name_ar) + '</li>';
+            } else {
+                html += '<li class="breadcrumb-item cursor-pointer text-primary" onclick="goToPickerBreadcrumb(' + idx + ')">' + escapeHtml(item.name_ar) + '</li>';
+            }
+        });
+        bcEl.innerHTML = html;
+    }
+
+    const parentActionEl = document.getElementById('pickerCurrentParentAction');
+    if (parentActionEl) {
+        if (parentId !== 'root' && catMap[parentId]) {
+            const curObj = catMap[parentId];
+            parentActionEl.innerHTML = `
+                <div class="alert alert-info py-2 px-3 d-flex align-items-center justify-content-between mb-0 border-0 rounded-3 shadow-xs">
+                    <span class="fs-7 fw-semibold"><i class="fa-solid fa-circle-info me-1"></i> هل تريد اعتماد هذا القسم (${escapeHtml(curObj.name_ar)}) مباشرة؟</span>
+                    <button type="button" class="btn btn-sm btn-success fw-bold px-3 rounded-pill" onclick="selectCategoryFinal(${curObj.id})">
+                        <i class="fa-solid fa-check me-1"></i> اعتماد: ${escapeHtml(curObj.name_ar)}
+                    </button>
+                </div>
+            `;
+            parentActionEl.style.display = 'block';
+        } else {
+            parentActionEl.style.display = 'none';
+        }
+    }
+
+    const items = childrenMap[parentId] || [];
+    renderCategoryGrid(items, false);
+}
+
+function goToPickerBreadcrumb(index) {
+    if (index < 0 || index >= pickerTrail.length) {
+        renderPickerLevel('root', []);
+        return;
+    }
+    const targetItem = pickerTrail[index];
+    const newTrail = pickerTrail.slice(0, index + 1);
+    renderPickerLevel(targetItem.id, newTrail);
+}
+
+function navigatePickerBack() {
+    if (pickerTrail.length <= 1) {
+        renderPickerLevel('root', []);
+    } else {
+        const newTrail = pickerTrail.slice(0, -1);
+        const prevItem = newTrail[newTrail.length - 1];
+        renderPickerLevel(prevItem.id, newTrail);
+    }
+}
+
+function renderCategoryGrid(items, isSearchResult) {
+    const gridEl = document.getElementById('categoryPickerGrid');
+    const emptyEl = document.getElementById('categoryPickerEmpty');
+
+    if (!items || items.length === 0) {
+        gridEl.innerHTML = '';
+        if (emptyEl) emptyEl.style.display = 'block';
+        return;
+    }
+
+    if (emptyEl) emptyEl.style.display = 'none';
+
+    let html = '';
+    items.forEach(cat => {
+        const hasChildren = (childrenMap[cat.id] || []).length > 0;
+        const iconSrc = cat.icon || '';
+        let iconHtml = '';
+        if (iconSrc) {
+            iconHtml = '<img src="' + escapeHtml(iconSrc) + '" style="width: 24px; height: 24px; object-fit: contain; flex-shrink: 0;" alt="" onerror="this.onerror=null; this.src=\'https://lelbai.com/icons/cars.svg\';">';
+        } else {
+            iconHtml = hasChildren 
+                ? '<i class="fa-solid fa-folder-tree text-primary fs-5"></i>' 
+                : '<i class="fa-solid fa-tag text-success fs-5"></i>';
+        }
+
+        if (isSearchResult) {
+            const pathText = getCategoryPathText(cat.id);
+            html += `
+                <div class="col-12">
+                    <div class="card p-2.5 border rounded-3 hover-shadow-sm cursor-pointer d-flex flex-row align-items-center justify-content-between" 
+                         onclick="selectCategoryFinal(${cat.id})" style="cursor: pointer; transition: all 0.15s ease;">
+                        <div class="d-flex align-items-center gap-2">
+                            ${iconHtml}
+                            <div>
+                                <span class="fw-bold text-dark fs-7 d-block">${escapeHtml(cat.name_ar)}</span>
+                                <small class="text-muted fs-8">${escapeHtml(pathText)}</small>
+                            </div>
+                        </div>
+                        <span class="badge bg-success-subtle text-success fs-8 px-2 py-1 rounded-pill">
+                            اختيار <i class="fa-solid fa-check ms-1"></i>
+                        </span>
+                    </div>
+                </div>
+            `;
+        } else if (hasChildren) {
+            const childCount = (childrenMap[cat.id] || []).length;
+            html += `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card p-3 border rounded-3 hover-bg-light cursor-pointer h-100 d-flex flex-column justify-content-between" 
+                         onclick="drillDownCategory(${cat.id})" style="cursor: pointer; transition: all 0.15s ease; border-color: #E2E8F0;">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            ${iconHtml}
+                            <span class="fw-bold text-dark fs-6">${escapeHtml(cat.name_ar)}</span>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top">
+                            <span class="badge bg-light text-secondary border fs-9">${childCount} قسم فرعي</span>
+                            <span class="text-primary fs-8 fw-bold">تفرع <i class="fa-solid fa-chevron-left ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        } else {
+            html += `
+                <div class="col-md-6 col-lg-4">
+                    <div class="card p-3 border border-success-subtle rounded-3 bg-success bg-opacity-10 cursor-pointer h-100 d-flex flex-column justify-content-between" 
+                         onclick="selectCategoryFinal(${cat.id})" style="cursor: pointer; transition: all 0.15s ease;">
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            ${iconHtml}
+                            <span class="fw-bold text-dark fs-6">${escapeHtml(cat.name_ar)}</span>
+                        </div>
+                        <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top border-success-subtle">
+                            <span class="badge bg-success text-white fs-9 rounded-pill">أصغر قسم (نهائي)</span>
+                            <span class="text-success fs-8 fw-bold">اختر هذا <i class="fa-solid fa-check ms-1"></i></span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    });
+
+    gridEl.innerHTML = html;
+}
+
+function drillDownCategory(catId) {
+    if (!catMap[catId]) return;
+    const cat = catMap[catId];
+    renderPickerLevel(cat.id, [...pickerTrail, cat]);
+}
+
+function selectCategoryFinal(catId) {
+    if (!catMap[catId]) return;
+    
+    const catInp = document.getElementById('editListingCategory');
+    if (catInp) catInp.value = catId;
+
+    const displayEl = document.getElementById('editCategoryDisplayText');
+    if (displayEl) {
+        const fullPath = getCategoryPathText(catId);
+        displayEl.innerHTML = '<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fs-7 px-2 py-1"><i class="fa-solid fa-check-circle me-1"></i> ' + escapeHtml(fullPath) + '</span>';
+    }
+
+    const pickerEl = document.getElementById('categoryPickerModal');
+    if (pickerEl) {
+        const pickerModal = bootstrap.Modal.getInstance(pickerEl);
+        if (pickerModal) pickerModal.hide();
+    }
+}
+
+function filterCategoryPicker(query) {
+    query = (query || '').trim().toLowerCase();
+    if (!query) {
+        renderPickerLevel(pickerCurrentPid, pickerTrail);
+        return;
+    }
+
+    const backBtn = document.getElementById('btnPickerBack');
+    if (backBtn) backBtn.style.display = 'none';
+
+    const parentActionEl = document.getElementById('pickerCurrentParentAction');
+    if (parentActionEl) parentActionEl.style.display = 'none';
+
+    const bcEl = document.getElementById('categoryPickerBreadcrumbs');
+    if (bcEl) {
+        bcEl.innerHTML = '<li class="breadcrumb-item text-secondary"><i class="fa-solid fa-magnifying-glass me-1"></i> نتائج البحث عن: <strong>' + escapeHtml(query) + '</strong></li>';
+    }
+
+    const results = allCategoriesData.filter(c => c.name_ar.toLowerCase().includes(query));
+    renderCategoryGrid(results, true);
+}
+
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     // Column Visibility Toggles
     const checkboxes = document.querySelectorAll('.col-toggle');
@@ -828,11 +1163,25 @@ document.addEventListener('DOMContentLoaded', function() {
             const titleInput = document.getElementById('editListingTitle');
             if (titleInput) titleInput.value = title;
 
-            const catSelect = document.getElementById('editListingCategory');
-            if (catSelect) catSelect.value = categoryId;
+            // Set Category
+            const catInp = document.getElementById('editListingCategory');
+            if (catInp) catInp.value = categoryId;
 
+            const catDisplay = document.getElementById('editCategoryDisplayText');
+            if (catDisplay) {
+                if (categoryId && catMap[categoryId]) {
+                    const fullPath = getCategoryPathText(categoryId);
+                    catDisplay.innerHTML = '<span class="badge bg-primary bg-opacity-10 text-primary fs-7 px-2 py-1"><i class="fa-solid fa-folder-tree me-1"></i> ' + escapeHtml(fullPath) + '</span>';
+                } else {
+                    catDisplay.innerHTML = '<span class="text-muted">اضغط لاختيار القسم...</span>';
+                }
+            }
+
+            // Set City
             const citySelect = document.getElementById('editListingCity');
-            if (citySelect) citySelect.value = cityId;
+            if (citySelect) {
+                citySelect.value = String(cityId || '');
+            }
 
             const priceInput = document.getElementById('editListingPrice');
             if (priceInput) priceInput.value = price;
@@ -857,11 +1206,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const modalEl = document.getElementById('editListingModal');
             if (modalEl) {
-                const modal = new bootstrap.Modal(modalEl);
+                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
                 modal.show();
             }
         });
     });
+
+    // Ensure scrolling works properly when closing the category picker over edit modal
+    const pickerModalEl = document.getElementById('categoryPickerModal');
+    if (pickerModalEl) {
+        pickerModalEl.addEventListener('hidden.bs.modal', function () {
+            const editModalEl = document.getElementById('editListingModal');
+            if (editModalEl && editModalEl.classList.contains('show')) {
+                document.body.classList.add('modal-open');
+            }
+        });
+    }
 
     // Delete Modal trigger
     const deleteBtns = document.querySelectorAll('.btn-open-delete-modal');
