@@ -44,12 +44,12 @@ class ListingController extends Controller
 
         if ($activeEnv === 'production') {
             try {
-                // 1. جلب شجرة الأقسام وإحصائياتها المباشرة من الإنتاج مع التخزين المؤقت الذكي (10 دقائق للأقسام ودقيقتين للأعداد)
-                $catRows = Cache::remember('bridge_cat_rows', 600, function () {
+                // 1. جلب شجرة الأقسام وإحصائياتها المباشرة من الإنتاج مع التخزين المؤقت الذكي (24 ساعة للأقسام و30 دقيقة للأعداد)
+                $catRows = Cache::remember('bridge_cat_rows', 86400, function () {
                     return LiveBridgeService::query("SELECT id, name_ar, slug, icon, parent_id, sort_order FROM categories ORDER BY sort_order ASC, name_ar ASC");
                 });
 
-                $directCountRows = Cache::remember('bridge_cat_direct_counts', 120, function () {
+                $directCountRows = Cache::remember('bridge_cat_direct_counts', 1800, function () {
                     return LiveBridgeService::query("SELECT category_id, COUNT(*) as count FROM listings WHERE deleted_at IS NULL GROUP BY category_id");
                 });
                 
@@ -125,8 +125,8 @@ class ListingController extends Controller
                 })->values();
                 $categoriesJson = json_encode($allCatsSimple, JSON_UNESCAPED_UNICODE);
 
-                // 2. جلب المدن مع التخزين المؤقت الذكي (30 دقيقة)
-                $cityRows = Cache::remember('bridge_city_rows', 1800, function () {
+                // 2. جلب المدن مع التخزين المؤقت الذكي (24 ساعة)
+                $cityRows = Cache::remember('bridge_city_rows', 86400, function () {
                     return LiveBridgeService::query("SELECT id, name_ar, slug, is_active FROM cities WHERE is_active = 1 ORDER BY name_ar ASC");
                 });
                 $cities = collect($cityRows)->map(function ($row) {
@@ -137,12 +137,12 @@ class ListingController extends Controller
                     return $c;
                 });
 
-                // 3. حساب عدادات الحالات الشاملة (تخزين مؤقت لدقيقة واحدة)
+                // 3. حساب عدادات الحالات الشاملة (تخزين مؤقت لـ 10 دقائق)
                 $cutoff30Days = Carbon::now()->subDays(30)->toDateTimeString();
                 $cutoffExpiringSoon = Carbon::now()->subDays(25)->toDateTimeString();
                 $todayCutoff = Carbon::now()->subHours(24)->toDateTimeString();
 
-                $countRow = Cache::remember('bridge_status_counts', 60, function () use ($todayCutoff, $cutoffExpiringSoon, $cutoff30Days) {
+                $countRow = Cache::remember('bridge_status_counts', 600, function () use ($todayCutoff, $cutoffExpiringSoon, $cutoff30Days) {
                     return LiveBridgeService::query("
                         SELECT 
                             COUNT(*) as total_all,
@@ -257,16 +257,20 @@ class ListingController extends Controller
                         $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
                     }
                 } else {
-                    $countSql = "
-                        SELECT COUNT(*) as total
-                        FROM listings l
-                        LEFT JOIN users u ON l.user_id = u.id
-                        LEFT JOIN categories c ON l.category_id = c.id
-                        LEFT JOIN cities ci ON l.city_id = ci.id
-                        WHERE {$whereSql}
-                    ";
-                    $countRes = LiveBridgeService::query($countSql, $bindings);
-                    $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
+                    if ($request->filled('category_id') && !$request->filled('city_id') && !$request->filled('search') && !$request->filled('source') && !$request->filled('status') && !$request->filled('ai_status')) {
+                        $totalFiltered = $selectedCategoryObj ? ($selectedCategoryObj->total_listings_count ?? 0) : 0;
+                    } else {
+                        $countSql = "
+                            SELECT COUNT(*) as total
+                            FROM listings l
+                            LEFT JOIN users u ON l.user_id = u.id
+                            LEFT JOIN categories c ON l.category_id = c.id
+                            LEFT JOIN cities ci ON l.city_id = ci.id
+                            WHERE {$whereSql}
+                        ";
+                        $countRes = LiveBridgeService::query($countSql, $bindings);
+                        $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
+                    }
                 }
 
                 // الترتيب
@@ -585,8 +589,23 @@ class ListingController extends Controller
                 );
             }
 
-            Cache::forget('bridge_status_counts');
-            Cache::forget('bridge_cat_direct_counts');
+            // تحديث العدادات الذكية فورياً في الذاكرة لتجنب أي بطء في الصفحة التالية
+            $cachedCounts = Cache::get('bridge_status_counts');
+            if ($cachedCounts && is_array($cachedCounts)) {
+                if ($status === 'active') {
+                    if (isset($cachedCounts['total_pending']) && $cachedCounts['total_pending'] > 0) $cachedCounts['total_pending']--;
+                    if (isset($cachedCounts['total_active'])) $cachedCounts['total_active']++;
+                } elseif ($status === 'rejected') {
+                    if (isset($cachedCounts['total_pending']) && $cachedCounts['total_pending'] > 0) $cachedCounts['total_pending']--;
+                    if (isset($cachedCounts['total_rejected'])) $cachedCounts['total_rejected']++;
+                } elseif ($status === 'suspended') {
+                    if (isset($cachedCounts['total_active']) && $cachedCounts['total_active'] > 0) $cachedCounts['total_active']--;
+                    if (isset($cachedCounts['total_suspended'])) $cachedCounts['total_suspended']++;
+                }
+                Cache::put('bridge_status_counts', $cachedCounts, 600);
+            } else {
+                Cache::forget('bridge_status_counts');
+            }
 
             $statusText = [
                 'active' => 'تم قبول وتفعيل الإعلان بنجاح على السيرفر.',

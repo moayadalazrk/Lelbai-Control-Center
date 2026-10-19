@@ -42,17 +42,19 @@ class ComplaintController extends Controller
 
         if ($activeEnv === 'production') {
             try {
-                // 1. KPI Counts via Bridge
-                $kpiRows = LiveBridgeService::query("
-                    SELECT 
-                        (SELECT COUNT(*) FROM contact_messages) as total_messages,
-                        (SELECT COUNT(*) FROM contact_messages WHERE status = 'pending') as pending_messages,
-                        (SELECT COUNT(*) FROM contact_messages WHERE status = 'in_progress') as in_progress_messages,
-                        (SELECT COUNT(*) FROM contact_messages WHERE status = 'resolved') as resolved_messages,
-                        (SELECT COUNT(*) FROM reports) as total_reports,
-                        (SELECT COUNT(*) FROM reports WHERE status = 'pending') as pending_reports,
-                        (SELECT COUNT(*) FROM reports WHERE status = 'resolved') as resolved_reports
-                ");
+                // 1. KPI Counts via Bridge with Smart Caching (5 minutes)
+                $kpiRows = \Illuminate\Support\Facades\Cache::remember('complaint_kpis', 300, function () {
+                    return LiveBridgeService::query("
+                        SELECT 
+                            (SELECT COUNT(*) FROM contact_messages) as total_messages,
+                            (SELECT COUNT(*) FROM contact_messages WHERE status = 'pending') as pending_messages,
+                            (SELECT COUNT(*) FROM contact_messages WHERE status = 'in_progress') as in_progress_messages,
+                            (SELECT COUNT(*) FROM contact_messages WHERE status = 'resolved') as resolved_messages,
+                            (SELECT COUNT(*) FROM reports) as total_reports,
+                            (SELECT COUNT(*) FROM reports WHERE status = 'pending') as pending_reports,
+                            (SELECT COUNT(*) FROM reports WHERE status = 'resolved') as resolved_reports
+                    ");
+                });
 
                 if (!empty($kpiRows[0])) {
                     $row = (array)$kpiRows[0];
@@ -266,6 +268,7 @@ class ComplaintController extends Controller
                     );
                 }
                 session()->forget('pending_complaints_count');
+                \Illuminate\Support\Facades\Cache::forget('complaint_kpis');
                 return redirect()->back()->with('success', 'تم تحديث حالة الشكوى/الرسالة بنجاح.');
             } catch (\Throwable $e) {
                 return redirect()->back()->with('error', 'تعذر التحديث: ' . $e->getMessage());
@@ -298,6 +301,7 @@ class ComplaintController extends Controller
             try {
                 LiveBridgeService::statement("DELETE FROM contact_messages WHERE id = ?", [$id]);
                 session()->forget('pending_complaints_count');
+                \Illuminate\Support\Facades\Cache::forget('complaint_kpis');
                 return redirect()->back()->with('success', 'تم حذف الرسالة بنجاح.');
             } catch (\Throwable $e) {
                 return redirect()->back()->with('error', 'تعذر حذف الرسالة: ' . $e->getMessage());
@@ -310,6 +314,7 @@ class ComplaintController extends Controller
         }
 
         session()->forget('pending_complaints_count');
+        \Illuminate\Support\Facades\Cache::forget('complaint_kpis');
         return redirect()->back()->with('success', 'تم حذف الرسالة بنجاح.');
     }
 
@@ -328,6 +333,7 @@ class ComplaintController extends Controller
         if ($activeEnv === 'production') {
             try {
                 LiveBridgeService::statement("UPDATE reports SET status = ?, updated_at = NOW() WHERE id = ?", [$newStatus, $id]);
+                \Illuminate\Support\Facades\Cache::forget('complaint_kpis');
                 return redirect()->back()->with('success', 'تم تحديث حالة البلاغ بنجاح.');
             } catch (\Throwable $e) {
                 return redirect()->back()->with('error', 'تعذر تحديث البلاغ: ' . $e->getMessage());
@@ -342,6 +348,7 @@ class ComplaintController extends Controller
         $report->status = $newStatus;
         $report->save();
 
+        \Illuminate\Support\Facades\Cache::forget('complaint_kpis');
         return redirect()->back()->with('success', 'تم تحديث حالة البلاغ بنجاح.');
     }
 
@@ -355,6 +362,7 @@ class ComplaintController extends Controller
         if ($activeEnv === 'production') {
             try {
                 LiveBridgeService::statement("DELETE FROM reports WHERE id = ?", [$id]);
+                \Illuminate\Support\Facades\Cache::forget('complaint_kpis');
                 return redirect()->back()->with('success', 'تم حذف البلاغ بنجاح.');
             } catch (\Throwable $e) {
                 return redirect()->back()->with('error', 'تعذر حذف البلاغ: ' . $e->getMessage());
@@ -366,6 +374,7 @@ class ComplaintController extends Controller
             $report->delete();
         }
 
+        \Illuminate\Support\Facades\Cache::forget('complaint_kpis');
         return redirect()->back()->with('success', 'تم حذف البلاغ بنجاح.');
     }
 }

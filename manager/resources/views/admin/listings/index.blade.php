@@ -128,7 +128,7 @@
 </div>
 
 <!-- Category Ads Count & Hierarchy Navigation Box -->
-<div class="card border-0 shadow-sm rounded-3 mb-4 overflow-hidden">
+<div class="card border-0 shadow-sm rounded-3 mb-4 overflow-hidden" id="categoryHierarchyCard">
     <div class="card-header bg-white py-3 px-4 border-bottom d-flex align-items-center justify-content-between">
         <div class="d-flex align-items-center gap-2">
             <i class="fa-solid fa-chart-pie text-success fs-5"></i>
@@ -206,7 +206,7 @@
 </div>
 
 <!-- Search, Status Tabs & Filters Bar -->
-<div class="card border-0 shadow-sm rounded-3 mb-4">
+<div class="card border-0 shadow-sm rounded-3 mb-4" id="filterStatusCard">
     <div class="card-body p-3">
         <!-- Status Filter Tabs -->
         <div class="d-flex flex-wrap gap-2 mb-3 pb-3 border-bottom">
@@ -306,7 +306,7 @@
 </div>
 
 <!-- Listings Table Card with Bulk Actions -->
-<div class="card border-0 shadow-sm rounded-3 overflow-hidden">
+<div class="card border-0 shadow-sm rounded-3 overflow-hidden" id="listingsTableCard">
     <div class="card-header bg-white py-3 px-4 border-bottom d-flex flex-wrap align-items-center justify-content-between gap-2">
         <div class="d-flex align-items-center gap-2">
             <span class="fw-bold text-dark fs-6">قائمة الإعلانات التفصيلية</span>
@@ -1516,6 +1516,141 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
     }
+
+    // تفعيل التنقل الفوري الذكي (SPA Dynamic Navigation) لجميع التبويبات والصفحات
+    initDynamicListingHandlers();
+});
+
+// نظام التنقل الفوري وتحديث الجدول بدون إعادة تحميل الصفحة (0ms SPA Mode)
+function loadListingsAsync(url, updateHistory = true) {
+    const tableCard = document.getElementById('listingsTableCard');
+    const catCard = document.getElementById('categoryHierarchyCard');
+    const filterCard = document.getElementById('filterStatusCard');
+
+    if (tableCard) {
+        tableCard.style.transition = 'opacity 0.15s ease';
+        tableCard.style.opacity = '0.35';
+        tableCard.style.pointerEvents = 'none';
+    }
+
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        const newTable = doc.getElementById('listingsTableCard');
+        if (newTable && tableCard) {
+            tableCard.innerHTML = newTable.innerHTML;
+        }
+
+        const newCat = doc.getElementById('categoryHierarchyCard');
+        if (newCat && catCard) {
+            catCard.innerHTML = newCat.innerHTML;
+        }
+
+        const newFilter = doc.getElementById('filterStatusCard');
+        if (newFilter && filterCard) {
+            filterCard.innerHTML = newFilter.innerHTML;
+        }
+
+        const newKpi = doc.querySelector('.row.g-3.mb-4');
+        const oldKpi = document.querySelector('.row.g-3.mb-4');
+        if (newKpi && oldKpi) {
+            oldKpi.innerHTML = newKpi.innerHTML;
+        }
+
+        if (updateHistory) {
+            window.history.pushState(null, '', url);
+        }
+
+        initDynamicListingHandlers();
+    })
+    .catch(err => {
+        window.location.href = url;
+    })
+    .finally(() => {
+        if (tableCard) {
+            tableCard.style.opacity = '1';
+            tableCard.style.pointerEvents = 'auto';
+        }
+    });
+}
+
+function initDynamicListingHandlers() {
+    // 1. اعتراض النقر على تبويبات الحالة والأقسام والترقيم
+    const filterLinks = document.querySelectorAll('#filterStatusCard a, #categoryHierarchyCard a, #listingsTableCard .pagination a');
+    filterLinks.forEach(link => {
+        if (link.href && !link.href.includes('javascript:') && !link.getAttribute('target') && !link.classList.contains('no-ajax')) {
+            link.onclick = function(e) {
+                e.preventDefault();
+                loadListingsAsync(this.href);
+            };
+        }
+    });
+
+    // 2. اعتراض إرسال نموذج البحث والفلترة
+    const filterForm = document.querySelector('#filterStatusCard form');
+    if (filterForm) {
+        filterForm.onsubmit = function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const params = new URLSearchParams(formData);
+            const actionUrl = this.action.split('?')[0] + '?' + params.toString();
+            loadListingsAsync(actionUrl);
+        };
+    }
+
+    // 3. إعادة ربط صندوق التحديد للكل
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            document.querySelectorAll('.listing-checkbox').forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+            updateBulkToolbar();
+        });
+    }
+
+    document.querySelectorAll('.listing-checkbox').forEach(cb => {
+        cb.addEventListener('change', updateBulkToolbar);
+    });
+
+    // 4. إعادة ربط أزرار مودال الحذف
+    document.querySelectorAll('.btn-open-delete-modal').forEach(btn => {
+        btn.onclick = function() {
+            const id = this.getAttribute('data-id');
+            const title = this.getAttribute('data-title');
+            const form = document.getElementById('deleteListingForm');
+            if (form) form.action = '{{ url("listings") }}/' + id;
+            const tEl = document.getElementById('deleteModalListingTitle');
+            if (tEl) tEl.textContent = title;
+            const modalEl = document.getElementById('deleteListingModal');
+            if (modalEl) new bootstrap.Modal(modalEl).show();
+        };
+    });
+
+    // 5. إعادة ربط أزرار مودال الرفض
+    document.querySelectorAll('.btn-open-reject-modal').forEach(btn => {
+        btn.onclick = function() {
+            const id = this.getAttribute('data-id');
+            const title = this.getAttribute('data-title');
+            const form = document.getElementById('rejectListingForm');
+            if (form) form.action = '{{ url("listings") }}/' + id + '/status';
+            const tEl = document.getElementById('modalListingTitle');
+            if (tEl) tEl.textContent = title;
+            const modalEl = document.getElementById('rejectListingModal');
+            if (modalEl) new bootstrap.Modal(modalEl).show();
+        };
+    });
+}
+
+window.addEventListener('popstate', () => {
+    loadListingsAsync(location.href, false);
 });
 
 function submitBulkAction(action) {

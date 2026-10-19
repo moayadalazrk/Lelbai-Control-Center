@@ -28,8 +28,10 @@ class DashboardController extends Controller
 
         if ($activeEnv === 'production') {
             try {
-                // Fetch everything in 1 single ultra-fast HTTPS call (< 250ms total)
-                $dashData = LiveBridgeService::getDashboardData();
+                // Fetch everything in 1 single HTTPS call with 2-minute caching
+                $dashData = \Illuminate\Support\Facades\Cache::remember('dashboard_bridge_data', 120, function () {
+                    return LiveBridgeService::getDashboardData();
+                });
 
                 if (!empty($dashData['success'])) {
                     $stats = $dashData['stats'] ?? $stats;

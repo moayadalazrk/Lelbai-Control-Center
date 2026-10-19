@@ -41,7 +41,7 @@ class Category extends Model
      */
     public function childrenRecursive()
     {
-        return $this->children()->with(['childrenRecursive', 'parents', 'filters', 'listings']);
+        return $this->children()->with(['childrenRecursive', 'parents', 'filters']);
     }
 
     /**

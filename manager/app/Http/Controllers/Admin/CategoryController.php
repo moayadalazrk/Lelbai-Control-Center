@@ -16,17 +16,19 @@ class CategoryController extends Controller
         $treeCategories = collect();
 
         try {
-            // Root categories (categories that have no parents) with full recursive relations
-            $mainCategories = Category::with(['childrenRecursive', 'parents', 'filters', 'listings'])
-                ->whereDoesntHave('parents')
-                ->orderBy('sort_order', 'asc')
-                ->get();
+            $mainCategories = \Illuminate\Support\Facades\Cache::remember('admin_categories_main', 1800, function () {
+                return Category::with(['childrenRecursive', 'parents', 'filters'])
+                    ->whereDoesntHave('parents')
+                    ->orderBy('sort_order', 'asc')
+                    ->get();
+            });
 
-            // Tree structure for parent picker in modals
-            $treeCategories = Category::with('childrenRecursive')
-                ->whereDoesntHave('parents')
-                ->orderBy('name_ar', 'asc')
-                ->get();
+            $treeCategories = \Illuminate\Support\Facades\Cache::remember('admin_categories_tree', 1800, function () {
+                return Category::with('childrenRecursive')
+                    ->whereDoesntHave('parents')
+                    ->orderBy('name_ar', 'asc')
+                    ->get();
+            });
         } catch (\Throwable $e) {
             // Handled gracefully
         }
@@ -84,6 +86,10 @@ class CategoryController extends Controller
             $category->parents()->sync($validated['parent_ids']);
         }
 
+        \Illuminate\Support\Facades\Cache::forget('admin_categories_main');
+        \Illuminate\Support\Facades\Cache::forget('admin_categories_tree');
+        \Illuminate\Support\Facades\Cache::forget('bridge_cat_rows');
+
         return redirect()->back()->with('success', 'تم إضافة القسم والأيقونة بنجاح.');
     }
 
@@ -126,6 +132,10 @@ class CategoryController extends Controller
 
         $category->parents()->sync($validated['parent_ids'] ?? []);
 
+        \Illuminate\Support\Facades\Cache::forget('admin_categories_main');
+        \Illuminate\Support\Facades\Cache::forget('admin_categories_tree');
+        \Illuminate\Support\Facades\Cache::forget('bridge_cat_rows');
+
         return redirect()->back()->with('success', 'تم تحديث القسم والأيقونة بنجاح.');
     }
 
@@ -136,6 +146,10 @@ class CategoryController extends Controller
         $category->children()->detach();
         $category->filters()->delete();
         $category->delete();
+
+        \Illuminate\Support\Facades\Cache::forget('admin_categories_main');
+        \Illuminate\Support\Facades\Cache::forget('admin_categories_tree');
+        \Illuminate\Support\Facades\Cache::forget('bridge_cat_rows');
 
         return redirect()->back()->with('success', 'تم حذف القسم بنجاح.');
     }
