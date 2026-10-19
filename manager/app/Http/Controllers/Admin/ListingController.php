@@ -10,12 +10,21 @@ use App\Services\LiveBridgeService;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class ListingController extends Controller
 {
     public function index(Request $request)
     {
         $activeEnv = session('active_db_env', env('DEFAULT_DB_ENV', 'local'));
+
+        if ($request->has('refresh_cache')) {
+            Cache::forget('bridge_cat_rows');
+            Cache::forget('bridge_cat_direct_counts');
+            Cache::forget('bridge_city_rows');
+            Cache::forget('bridge_status_counts');
+        }
+
         $listings = new \Illuminate\Pagination\LengthAwarePaginator([], 0, 20);
         $categories = collect();
         $allCategoriesList = collect();
@@ -35,9 +44,14 @@ class ListingController extends Controller
 
         if ($activeEnv === 'production') {
             try {
-                // 1. جلب شجرة الأقسام وإحصائياتها المباشرة من الإنتاج
-                $catRows = LiveBridgeService::query("SELECT id, name_ar, slug, icon, parent_id, sort_order FROM categories ORDER BY sort_order ASC, name_ar ASC");
-                $directCountRows = LiveBridgeService::query("SELECT category_id, COUNT(*) as count FROM listings WHERE deleted_at IS NULL GROUP BY category_id");
+                // 1. جلب شجرة الأقسام وإحصائياتها المباشرة من الإنتاج مع التخزين المؤقت الذكي (10 دقائق للأقسام ودقيقتين للأعداد)
+                $catRows = Cache::remember('bridge_cat_rows', 600, function () {
+                    return LiveBridgeService::query("SELECT id, name_ar, slug, icon, parent_id, sort_order FROM categories ORDER BY sort_order ASC, name_ar ASC");
+                });
+
+                $directCountRows = Cache::remember('bridge_cat_direct_counts', 120, function () {
+                    return LiveBridgeService::query("SELECT category_id, COUNT(*) as count FROM listings WHERE deleted_at IS NULL GROUP BY category_id");
+                });
                 
                 $directCounts = [];
                 foreach ($directCountRows as $d) {
@@ -111,8 +125,10 @@ class ListingController extends Controller
                 })->values();
                 $categoriesJson = json_encode($allCatsSimple, JSON_UNESCAPED_UNICODE);
 
-                // 2. جلب المدن
-                $cityRows = LiveBridgeService::query("SELECT id, name_ar, slug, is_active FROM cities WHERE is_active = 1 ORDER BY name_ar ASC");
+                // 2. جلب المدن مع التخزين المؤقت الذكي (30 دقيقة)
+                $cityRows = Cache::remember('bridge_city_rows', 1800, function () {
+                    return LiveBridgeService::query("SELECT id, name_ar, slug, is_active FROM cities WHERE is_active = 1 ORDER BY name_ar ASC");
+                });
                 $cities = collect($cityRows)->map(function ($row) {
                     $r = (array)$row;
                     $c = new City();
@@ -121,24 +137,26 @@ class ListingController extends Controller
                     return $c;
                 });
 
-                // 3. حساب عدادات الحالات الشاملة
+                // 3. حساب عدادات الحالات الشاملة (تخزين مؤقت لدقيقة واحدة)
                 $cutoff30Days = Carbon::now()->subDays(30)->toDateTimeString();
                 $cutoffExpiringSoon = Carbon::now()->subDays(25)->toDateTimeString();
                 $todayCutoff = Carbon::now()->subHours(24)->toDateTimeString();
 
-                $countRow = LiveBridgeService::query("
-                    SELECT 
-                        COUNT(*) as total_all,
-                        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as total_active,
-                        SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as total_pending,
-                        SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as total_rejected,
-                        SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as total_suspended,
-                        SUM(CASE WHEN ai_status = 'flagged' THEN 1 ELSE 0 END) as total_flagged,
-                        SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as total_today,
-                        SUM(CASE WHEN created_at <= ? AND created_at >= ? THEN 1 ELSE 0 END) as total_expiring_soon
-                    FROM listings
-                    WHERE deleted_at IS NULL
-                ", [$todayCutoff, $cutoffExpiringSoon, $cutoff30Days])[0] ?? [];
+                $countRow = Cache::remember('bridge_status_counts', 60, function () use ($todayCutoff, $cutoffExpiringSoon, $cutoff30Days) {
+                    return LiveBridgeService::query("
+                        SELECT 
+                            COUNT(*) as total_all,
+                            SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as total_active,
+                            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as total_pending,
+                            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as total_rejected,
+                            SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as total_suspended,
+                            SUM(CASE WHEN ai_status = 'flagged' THEN 1 ELSE 0 END) as total_flagged,
+                            SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as total_today,
+                            SUM(CASE WHEN created_at <= ? AND created_at >= ? THEN 1 ELSE 0 END) as total_expiring_soon
+                        FROM listings
+                        WHERE deleted_at IS NULL
+                    ", [$todayCutoff, $cutoffExpiringSoon, $cutoff30Days])[0] ?? [];
+                });
 
                 $cArr = (array)$countRow;
                 $counts = [
@@ -225,17 +243,31 @@ class ListingController extends Controller
 
                 $whereSql = implode(' AND ', $whereClauses);
 
-                // إجمالي النتائج بعد الفلترة
-                $countSql = "
-                    SELECT COUNT(*) as total
-                    FROM listings l
-                    LEFT JOIN users u ON l.user_id = u.id
-                    LEFT JOIN categories c ON l.category_id = c.id
-                    LEFT JOIN cities ci ON l.city_id = ci.id
-                    WHERE {$whereSql}
-                ";
-                $countRes = LiveBridgeService::query($countSql, $bindings);
-                $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
+                // إجمالي النتائج بعد الفلترة (استخدام العدادات المحسوبة مسبقاً لتوفير استعلام كامل)
+                $hasComplexFilters = $request->filled('category_id') || $request->filled('city_id') || $request->filled('search') || $request->filled('source');
+                if (!$hasComplexFilters) {
+                    if (!$request->filled('status') && !$request->filled('ai_status')) {
+                        $totalFiltered = $counts['all'];
+                    } elseif ($request->input('ai_status') === 'flagged') {
+                        $totalFiltered = $counts['flagged'];
+                    } elseif ($request->filled('status') && isset($counts[$request->status])) {
+                        $totalFiltered = $counts[$request->status];
+                    } else {
+                        $countRes = LiveBridgeService::query("SELECT COUNT(*) as total FROM listings l WHERE {$whereSql}", $bindings);
+                        $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
+                    }
+                } else {
+                    $countSql = "
+                        SELECT COUNT(*) as total
+                        FROM listings l
+                        LEFT JOIN users u ON l.user_id = u.id
+                        LEFT JOIN categories c ON l.category_id = c.id
+                        LEFT JOIN cities ci ON l.city_id = ci.id
+                        WHERE {$whereSql}
+                    ";
+                    $countRes = LiveBridgeService::query($countSql, $bindings);
+                    $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
+                }
 
                 // الترتيب
                 $sort = $request->input('sort', 'newest_created');
@@ -553,12 +585,24 @@ class ListingController extends Controller
                 );
             }
 
+            Cache::forget('bridge_status_counts');
+            Cache::forget('bridge_cat_direct_counts');
+
             $statusText = [
                 'active' => 'تم قبول وتفعيل الإعلان بنجاح على السيرفر.',
                 'suspended' => 'تم إيقاف الإعلان فورياً على السيرفر.',
                 'rejected' => 'تم رفض الإعلان وحجبه عن الظهور على السيرفر.',
                 'pending' => 'تم نقل الإعلان بانتظار المراجعة.',
             ];
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => $statusText[$status] ?? 'تم تحديث حالة الإعلان.',
+                    'id' => (int)$id,
+                    'status' => $status,
+                ]);
+            }
 
             return redirect()->back()->with('success', $statusText[$status] ?? 'تم تحديث حالة الإعلان.');
         }
@@ -599,6 +643,15 @@ class ListingController extends Controller
             'pending' => 'تم نقل الإعلان بانتظار المراجعة.',
         ];
 
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => $statusText[$status] ?? 'تم تحديث حالة الإعلان.',
+                'id' => (int)$id,
+                'status' => $status,
+            ]);
+        }
+
         return redirect()->back()->with('success', $statusText[$request->status] ?? 'تم تحديث حالة الإعلان.');
     }
 
@@ -615,23 +668,35 @@ class ListingController extends Controller
         $count = count($ids);
 
         if ($count === 0) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => false, 'message' => 'لم تقم بتحديد أي إعلان.'], 400);
+            }
             return redirect()->back()->with('warning', 'لم تقم بتحديد أي إعلان لتطبيق الإجراء عليه.');
         }
 
         $activeEnv = session('active_db_env', env('DEFAULT_DB_ENV', 'local'));
 
+        Cache::forget('bridge_status_counts');
+        Cache::forget('bridge_cat_direct_counts');
+
         if ($activeEnv === 'production') {
             $placeholders = implode(',', array_fill(0, count($ids), '?'));
+            $msg = '';
             if ($action === 'delete') {
                 LiveBridgeService::statement("UPDATE listings SET deleted_at = NOW() WHERE id IN ({$placeholders})", $ids);
-                return redirect()->back()->with('success', "تم حذف {$count} إعلان بنجاح من السيرفر.");
+                $msg = "تم حذف {$count} إعلان بنجاح من السيرفر.";
             } elseif ($action === 'activate') {
                 LiveBridgeService::statement("UPDATE listings SET status = 'active', rejection_reason = NULL, previous_rejection_reason = NULL, published_at = COALESCE(published_at, NOW()) WHERE id IN ({$placeholders})", $ids);
-                return redirect()->back()->with('success', "تم قبول وتفعيل {$count} إعلان بنجاح على السيرفر.");
+                $msg = "تم قبول وتفعيل {$count} إعلان بنجاح على السيرفر.";
             } elseif ($action === 'suspend') {
                 LiveBridgeService::statement("UPDATE listings SET status = 'suspended' WHERE id IN ({$placeholders})", $ids);
-                return redirect()->back()->with('success', "تم إيقاف {$count} إعلان بنجاح على السيرفر.");
+                $msg = "تم إيقاف {$count} إعلان بنجاح على السيرفر.";
             }
+
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json(['success' => true, 'message' => $msg, 'count' => $count, 'action' => $action, 'ids' => $ids]);
+            }
+            return redirect()->back()->with('success', $msg);
         }
 
         if ($action === 'delete') {
@@ -682,8 +747,14 @@ class ListingController extends Controller
     {
         $activeEnv = session('active_db_env', env('DEFAULT_DB_ENV', 'local'));
 
+        Cache::forget('bridge_status_counts');
+        Cache::forget('bridge_cat_direct_counts');
+
         if ($activeEnv === 'production') {
             LiveBridgeService::statement("UPDATE listings SET deleted_at = NOW() WHERE id = ?", [(int)$id]);
+            if (request()->ajax() || request()->wantsJson()) {
+                return response()->json(['success' => true, 'message' => 'تم حذف الإعلان بنجاح من السيرفر.', 'id' => (int)$id]);
+            }
             return redirect()->back()->with('success', 'تم حذف الإعلان بنجاح من السيرفر.');
         }
 
@@ -700,6 +771,9 @@ class ListingController extends Controller
 
         $listing->delete();
 
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json(['success' => true, 'message' => 'تم حذف الإعلان وصوره بنجاح.', 'id' => (int)$id]);
+        }
         return redirect()->back()->with('success', 'تم حذف الإعلان وصوره بنجاح.');
     }
 
@@ -723,6 +797,13 @@ class ListingController extends Controller
         ]);
 
         if ($validator->fails()) {
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => false,
+                    'message' => '⚠️ تعذر حفظ التعديلات: ' . $validator->errors()->first(),
+                    'errors' => $validator->errors()
+                ], 422);
+            }
             return redirect()->back()
                 ->withErrors($validator)
                 ->withInput()
@@ -739,6 +820,9 @@ class ListingController extends Controller
         $desc = trim($request->input('description', ''));
         $status = $request->input('status');
         $isFeatured = $request->has('is_featured') ? 1 : 0;
+
+        Cache::forget('bridge_status_counts');
+        Cache::forget('bridge_cat_direct_counts');
 
         if ($activeEnv === 'production') {
             if ($status === 'active') {
@@ -778,6 +862,23 @@ class ListingController extends Controller
                 );
             }
 
+            if ($request->ajax() || $request->wantsJson()) {
+                return response()->json([
+                    'success' => true,
+                    'message' => '✅ تم حفظ وتطبيق تعديلات الإعلان #' . (int)$id . ' بنجاح على السيرفر الحقيقي!',
+                    'id' => (int)$id,
+                    'data' => [
+                        'title' => $title,
+                        'price' => $price,
+                        'currency' => $currency,
+                        'category_id' => $categoryId,
+                        'city_id' => $cityId,
+                        'contact_phone' => $phone,
+                        'status' => $status,
+                        'is_featured' => (bool)$isFeatured,
+                    ]
+                ]);
+            }
             return redirect()->back()->with('success', '✅ تم حفظ وتطبيق تعديلات الإعلان #' . (int)$id . ' بنجاح على السيرفر الحقيقي!');
         }
 
@@ -793,6 +894,24 @@ class ListingController extends Controller
             'status' => $status,
             'is_featured' => (bool)$isFeatured,
         ]);
+
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => '✅ تم حفظ تعديلات الإعلان #' . (int)$id . ' بنجاح!',
+                'id' => (int)$id,
+                'data' => [
+                    'title' => $title,
+                    'price' => $price,
+                    'currency' => $currency,
+                    'category_id' => $categoryId,
+                    'city_id' => $cityId,
+                    'contact_phone' => $phone,
+                    'status' => $status,
+                    'is_featured' => (bool)$isFeatured,
+                ]
+            ]);
+        }
 
         return redirect()->back()->with('success', '✅ تم حفظ تعديلات الإعلان #' . (int)$id . ' بنجاح!');
     }

@@ -75,7 +75,7 @@
         <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-dark">
             <div class="text-muted fs-8 fw-bold mb-1">إجمالي الإعلانات</div>
             <div class="d-flex align-items-baseline justify-content-between">
-                <span class="fs-4 fw-extrabold text-dark">{{ number_format($counts['all']) }}</span>
+                <span class="fs-4 fw-extrabold text-dark" id="kpi-count-all">{{ number_format($counts['all']) }}</span>
                 <span class="badge bg-light text-dark border">الكل</span>
             </div>
         </div>
@@ -84,7 +84,7 @@
         <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-success">
             <div class="text-muted fs-8 fw-bold mb-1">إعلانات نشطة</div>
             <div class="d-flex align-items-baseline justify-content-between">
-                <span class="fs-4 fw-extrabold text-success">{{ number_format($counts['active']) }}</span>
+                <span class="fs-4 fw-extrabold text-success" id="kpi-count-active">{{ number_format($counts['active']) }}</span>
                 <span class="badge bg-success bg-opacity-10 text-success">مقبول</span>
             </div>
         </div>
@@ -93,7 +93,7 @@
         <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-warning">
             <div class="text-muted fs-8 fw-bold mb-1">بانتظار المراجعة</div>
             <div class="d-flex align-items-baseline justify-content-between">
-                <span class="fs-4 fw-extrabold text-warning">{{ number_format($counts['pending']) }}</span>
+                <span class="fs-4 fw-extrabold text-warning" id="kpi-count-pending">{{ number_format($counts['pending']) }}</span>
                 <span class="badge bg-warning bg-opacity-10 text-dark">معلق</span>
             </div>
         </div>
@@ -102,7 +102,7 @@
         <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-info">
             <div class="text-muted fs-8 fw-bold mb-1">إعلانات اليوم (24h)</div>
             <div class="d-flex align-items-baseline justify-content-between">
-                <span class="fs-4 fw-extrabold text-info">{{ number_format($counts['today']) }}</span>
+                <span class="fs-4 fw-extrabold text-info" id="kpi-count-today">{{ number_format($counts['today']) }}</span>
                 <span class="badge bg-info bg-opacity-10 text-info">جديد</span>
             </div>
         </div>
@@ -111,7 +111,7 @@
         <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-danger">
             <div class="text-muted fs-8 fw-bold mb-1">أوشكت على الحذف (30يوم)</div>
             <div class="d-flex align-items-baseline justify-content-between">
-                <span class="fs-4 fw-extrabold text-danger">{{ number_format($counts['expiring_soon']) }}</span>
+                <span class="fs-4 fw-extrabold text-danger" id="kpi-count-expiring">{{ number_format($counts['expiring_soon']) }}</span>
                 <span class="badge bg-danger bg-opacity-10 text-danger">&lt; 5 أيام</span>
             </div>
         </div>
@@ -120,7 +120,7 @@
         <div class="card border-0 shadow-sm rounded-3 p-3 bg-white h-100 border-start border-4 border-danger border-opacity-50">
             <div class="text-muted fs-8 fw-bold mb-1">مخالفات AI / مرفوض</div>
             <div class="d-flex align-items-baseline justify-content-between">
-                <span class="fs-4 fw-extrabold text-danger">{{ number_format($counts['rejected'] + $counts['flagged']) }}</span>
+                <span class="fs-4 fw-extrabold text-danger" id="kpi-count-rejected">{{ number_format($counts['rejected'] + $counts['flagged']) }}</span>
                 <span class="badge bg-danger text-white">مرفوض</span>
             </div>
         </div>
@@ -292,6 +292,9 @@
                 <button type="submit" class="btn btn-primary btn-sm rounded-pill w-100 fw-bold">
                     <i class="fa-solid fa-filter me-1"></i> تصفية
                 </button>
+                <a href="{{ route('admin.listings.index', array_merge(request()->all(), ['refresh_cache' => 1])) }}" class="btn btn-outline-info btn-sm rounded-pill px-3" title="تحديث مباشر ومسح الكاش">
+                    <i class="fa-solid fa-arrows-rotate"></i>
+                </a>
                 @if(request()->hasAny(['search', 'city_id', 'source', 'sort']))
                     <a href="{{ route('admin.listings.index', request()->only(['category_id', 'status'])) }}" class="btn btn-outline-secondary btn-sm rounded-pill px-3" title="إعادة تعيين">
                         <i class="fa-solid fa-rotate-left"></i>
@@ -371,7 +374,7 @@
                                 $primaryImg = str_starts_with($rawI, 'http') ? $rawI : 'https://lelbai.com/' . ltrim($rawI, '/');
                             }
                         @endphp
-                        <tr>
+                        <tr id="listing-row-{{ $listing->id }}" data-id="{{ $listing->id }}" data-status="{{ $listing->status }}" style="transition: all 0.3s ease;">
                             <!-- Checkbox -->
                             <td class="text-center">
                                 <input type="checkbox" name="listing_ids[]" value="{{ $listing->id }}" class="form-check-input listing-checkbox cursor-pointer">
@@ -488,7 +491,7 @@
                             </td>
 
                             <!-- Status & AI flags -->
-                            <td class="col-cell-6">
+                            <td class="col-cell-6" id="status-cell-{{ $listing->id }}">
                                 @if($listing->status === 'active')
                                     <span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill">نشط ✅</span>
                                 @elseif($listing->status === 'pending')
@@ -507,7 +510,7 @@
                             </td>
 
                             <!-- Actions -->
-                            <td>
+                            <td id="actions-cell-{{ $listing->id }}">
                                 <div class="d-flex align-items-center justify-content-center gap-1">
                                     <!-- معاينة بالمنصة على الدومين الحقيقي -->
                                     <a href="https://lelbai.com/listings/{{ $listing->uuid ?: $listing->id }}/details" target="_blank" class="btn btn-sm btn-outline-primary fw-bold px-2 py-1" title="معاينة الإعلان مباشرة على الدومين الحقيقي (lelbai.com)">
@@ -532,7 +535,7 @@
                                     </button>
 
                                     @if($listing->status !== 'active')
-                                        <button type="submit" form="quickStatusForm_{{ $listing->id }}_active" class="btn btn-sm btn-success fw-bold px-2 py-1" title="قبول وتفعيل الإعلان">
+                                        <button type="button" onclick="quickUpdateListingStatus({{ $listing->id }}, 'active', event)" class="btn btn-sm btn-success fw-bold px-2 py-1 btn-action-active" title="قبول وتفعيل الإعلان فورياً">
                                             <i class="fa-solid fa-check"></i>
                                         </button>
                                     @endif
@@ -550,7 +553,7 @@
                                     @endif
 
                                     @if($listing->status === 'active')
-                                        <button type="submit" form="quickStatusForm_{{ $listing->id }}_suspended" class="btn btn-sm btn-outline-secondary fw-bold px-2 py-1" title="إيقاف مؤقت">
+                                        <button type="button" onclick="quickUpdateListingStatus({{ $listing->id }}, 'suspended', event)" class="btn btn-sm btn-outline-secondary fw-bold px-2 py-1 btn-action-suspended" title="إيقاف مؤقت فورياً">
                                             <i class="fa-solid fa-ban"></i>
                                         </button>
                                     @endif
@@ -560,16 +563,6 @@
                                         <i class="fa-solid fa-trash"></i>
                                     </button>
                                 </div>
-
-                                <!-- Hidden forms for instant action -->
-                                <form id="quickStatusForm_{{ $listing->id }}_active" method="POST" action="{{ route('admin.listings.updateStatus', $listing->id) }}" style="display:none;">
-                                    @csrf
-                                    <input type="hidden" name="status" value="active">
-                                </form>
-                                <form id="quickStatusForm_{{ $listing->id }}_suspended" method="POST" action="{{ route('admin.listings.updateStatus', $listing->id) }}" style="display:none;">
-                                    @csrf
-                                    <input type="hidden" name="status" value="suspended">
-                                </form>
                             </td>
                         </tr>
                     @empty
@@ -1237,6 +1230,292 @@ document.addEventListener('DOMContentLoaded', function() {
             modal.show();
         });
     });
+
+    // Toast Notification System
+    function showFloatingToast(message, type = 'success') {
+        let container = document.getElementById('floatingToastContainer');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'floatingToastContainer';
+            container.style.cssText = 'position:fixed;bottom:25px;left:25px;z-index:99999;display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:380px;';
+            document.body.appendChild(container);
+        }
+
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} shadow-lg rounded-4 p-3 mb-0 d-flex align-items-center gap-2 border-0 text-white`;
+        toast.style.cssText = `pointer-events:auto;transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1);transform:translateY(20px);opacity:0;font-size:0.875rem;font-weight:700;background-color:${type === 'success' ? '#15803D' : (type === 'danger' ? '#DC2626' : '#2563EB')};box-shadow:0 10px 25px rgba(0,0,0,0.2) !important;`;
+        
+        const icon = type === 'success' ? 'fa-circle-check' : (type === 'danger' ? 'fa-circle-xmark' : 'fa-circle-info');
+        toast.innerHTML = `<i class="fa-solid ${icon} fs-5"></i> <span>${escapeHtml(message)}</span>`;
+        
+        container.appendChild(toast);
+        setTimeout(() => {
+            toast.style.transform = 'translateY(0)';
+            toast.style.opacity = '1';
+        }, 10);
+
+        setTimeout(() => {
+            toast.style.transform = 'translateY(20px)';
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 350);
+        }, 3500);
+    }
+    window.showFloatingToast = showFloatingToast;
+
+    function updateKpi(id, delta) {
+        const el = document.getElementById('kpi-count-' + id);
+        if (el) {
+            let current = parseInt(el.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+            current = Math.max(0, current + delta);
+            el.textContent = current.toLocaleString();
+        }
+    }
+    window.updateKpi = updateKpi;
+
+    function fadeOutRow(row, callback) {
+        if (!row) return;
+        row.style.transition = 'all 0.35s ease';
+        row.style.opacity = '0';
+        row.style.transform = 'scale(0.95)';
+        setTimeout(() => {
+            row.style.display = 'none';
+            if (callback) callback();
+        }, 360);
+    }
+
+    const currentUrlParams = new URLSearchParams(window.location.search);
+    const activeTabStatus = currentUrlParams.get('status') || '';
+
+    // Quick Status Update (Accept / Suspend) with Optimistic UI
+    window.quickUpdateListingStatus = function(id, newStatus, event) {
+        if (event) event.preventDefault();
+        const row = document.getElementById('listing-row-' + id);
+        const oldStatus = row ? row.dataset.status : '';
+
+        // Immediate Optimistic Visual Feedback
+        if (row) {
+            row.dataset.status = newStatus;
+            if (activeTabStatus === 'pending' && newStatus === 'active') {
+                row.style.backgroundColor = '#dcfce7';
+                updateKpi('pending', -1);
+                updateKpi('active', +1);
+                fadeOutRow(row);
+                showFloatingToast('تم قبول وتفعيل الإعلان #' + id + ' فورياً ✅', 'success');
+            } else if (activeTabStatus === 'active' && newStatus === 'suspended') {
+                row.style.backgroundColor = '#f1f5f9';
+                updateKpi('active', -1);
+                fadeOutRow(row);
+                showFloatingToast('تم إيقاف الإعلان #' + id + ' مؤقتاً ⏸️', 'info');
+            } else {
+                const statusCell = document.getElementById('status-cell-' + id);
+                if (statusCell) {
+                    if (newStatus === 'active') {
+                        statusCell.innerHTML = '<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill">نشط ✅</span>';
+                        updateKpi('active', +1);
+                        if (oldStatus === 'pending') updateKpi('pending', -1);
+                    } else if (newStatus === 'suspended') {
+                        statusCell.innerHTML = '<span class="badge bg-secondary px-2 py-1 rounded-pill">موقوف ⏸️</span>';
+                        updateKpi('active', -1);
+                    }
+                }
+                showFloatingToast('تم تحديث حالة الإعلان #' + id + ' بنجاح ✅', 'success');
+            }
+        }
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+        fetch('{{ url("listings") }}/' + id + '/status', {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: newStatus })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                showFloatingToast(data.message || 'تعذر حفظ الحالة على السيرفر', 'danger');
+            }
+        })
+        .catch(err => {
+            showFloatingToast('تنبيه: تم الإجراء محلياً ولكن تعذر الاتصال بالسيرفر: ' + err.message, 'warning');
+        });
+    };
+
+    // Reject Form Ajax Submission
+    const rejectForm = document.getElementById('rejectListingForm');
+    if (rejectForm) {
+        rejectForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const actionUrl = this.action;
+            const parts = actionUrl.split('/');
+            const id = parts[parts.indexOf('listings') + 1];
+            const reason = document.getElementById('rejectionReasonInput').value;
+
+            const modalEl = document.getElementById('rejectListingModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+
+            const row = document.getElementById('listing-row-' + id);
+            if (row) {
+                if (activeTabStatus === 'pending') {
+                    row.style.backgroundColor = '#fee2e2';
+                    updateKpi('pending', -1);
+                    updateKpi('rejected', +1);
+                    fadeOutRow(row);
+                } else {
+                    const statusCell = document.getElementById('status-cell-' + id);
+                    if (statusCell) {
+                        statusCell.innerHTML = '<span class="badge bg-danger bg-opacity-15 text-danger border border-danger border-opacity-25 px-2 py-1 rounded-pill">مرفوض ❌</span>';
+                    }
+                }
+            }
+
+            showFloatingToast('تم رفض وحجب الإعلان #' + id + ' فورياً ❌', 'danger');
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+            fetch(actionUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ status: 'rejected', rejection_reason: reason })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    showFloatingToast(data.message || 'تعذر تأكيد الرفض بالسيرفر', 'danger');
+                }
+            })
+            .catch(err => {
+                showFloatingToast('خطأ في الاتصال: ' + err.message, 'warning');
+            });
+        });
+    }
+
+    // Delete Form Ajax Submission
+    const deleteForm = document.getElementById('deleteListingForm');
+    if (deleteForm) {
+        deleteForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const actionUrl = this.action;
+            const parts = actionUrl.split('/');
+            const id = parts[parts.indexOf('listings') + 1];
+
+            const modalEl = document.getElementById('deleteListingModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
+            }
+
+            const row = document.getElementById('listing-row-' + id);
+            if (row) {
+                updateKpi('all', -1);
+                fadeOutRow(row);
+            }
+
+            showFloatingToast('تم حذف الإعلان #' + id + ' نهائياً 🗑️', 'info');
+
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+            fetch(actionUrl, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.success) {
+                    showFloatingToast(data.message || 'تعذر الحذف بالسيرفر', 'danger');
+                }
+            })
+            .catch(err => {
+                showFloatingToast('خطأ في الاتصال: ' + err.message, 'warning');
+            });
+        });
+    }
+
+    // Edit Form Ajax Submission
+    const editForm = document.getElementById('editListingForm');
+    if (editForm) {
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const actionUrl = this.action;
+            const parts = actionUrl.split('/');
+            const id = parts[parts.indexOf('listings') + 1];
+
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> جاري الحفظ...';
+            }
+
+            const formData = new FormData(this);
+            const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+            fetch(actionUrl, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': csrf,
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                }
+
+                if (data.success) {
+                    const modalEl = document.getElementById('editListingModal');
+                    if (modalEl) {
+                        const modal = bootstrap.Modal.getInstance(modalEl);
+                        if (modal) modal.hide();
+                    }
+
+                    showFloatingToast(data.message || 'تم حفظ التعديلات بنجاح!', 'success');
+
+                    const row = document.getElementById('listing-row-' + id);
+                    if (row && data.data) {
+                        const titleEl = row.querySelector('.col-cell-1 .fw-bold');
+                        if (titleEl) titleEl.textContent = data.data.title;
+                        const statusCell = document.getElementById('status-cell-' + id);
+                        if (statusCell) {
+                            if (data.data.status === 'active') statusCell.innerHTML = '<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill">نشط ✅</span>';
+                            else if (data.data.status === 'pending') statusCell.innerHTML = '<span class="badge bg-warning bg-opacity-20 text-dark border border-warning px-2 py-1 rounded-pill">بانتظار المراجعة ⏳</span>';
+                            else if (data.data.status === 'rejected') statusCell.innerHTML = '<span class="badge bg-danger bg-opacity-15 text-danger border border-danger border-opacity-25 px-2 py-1 rounded-pill">مرفوض ❌</span>';
+                            else if (data.data.status === 'suspended') statusCell.innerHTML = '<span class="badge bg-secondary px-2 py-1 rounded-pill">موقوف ⏸️</span>';
+                        }
+                    }
+                } else {
+                    showFloatingToast(data.message || 'تعذر حفظ التعديلات', 'danger');
+                }
+            })
+            .catch(err => {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalBtnText;
+                }
+                showFloatingToast('خطأ: ' + err.message, 'danger');
+            });
+        });
+    }
 });
 
 function submitBulkAction(action) {
@@ -1246,7 +1525,43 @@ function submitBulkAction(action) {
         }
     }
     document.getElementById('bulkActionInput').value = action;
-    document.getElementById('bulkActionForm').submit();
+    const form = document.getElementById('bulkActionForm');
+    const checked = document.querySelectorAll('.listing-checkbox:checked');
+    const ids = Array.from(checked).map(c => c.value);
+
+    // Optimistic UI for bulk action
+    checked.forEach(c => {
+        const row = document.getElementById('listing-row-' + c.value);
+        if (row) {
+            row.style.opacity = '0.4';
+            if (action === 'delete') row.style.display = 'none';
+        }
+    });
+
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: action, listing_ids: ids })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showFloatingToast(data.message || 'تم تنفيذ الإجراء بنجاح', 'success');
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            showFloatingToast(data.message || 'تعذر تطبيق الإجراء', 'danger');
+        }
+    })
+    .catch(err => {
+        form.submit();
+    });
 }
 </script>
 @endsection
