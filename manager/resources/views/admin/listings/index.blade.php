@@ -984,61 +984,149 @@
     </div>
 </div>
 
-<!-- Modal اختيار وتصفح القسم الهرمي التفاعلي (بوب اب الأقسام) -->
+<!-- Modal اختيار وتصفح القسم الهرمي التفاعلي مع كرت معلومات الإعلان (Category Picker with Ad Info Card) -->
 <div class="modal fade" id="categoryPickerModal" tabindex="-1" aria-labelledby="categoryPickerModalLabel" aria-hidden="true" style="z-index: 1070;">
-    <div class="modal-dialog modal-dialog-centered modal-lg modal-dialog-scrollable">
+    <div class="modal-dialog modal-fullscreen-xl-down modal-xl modal-dialog-centered modal-dialog-scrollable" style="max-width: 95vw; width: 1250px;">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-            <div class="modal-header bg-dark text-white py-3 px-4">
-                <div class="d-flex align-items-center gap-2">
-                    <i class="fa-solid fa-layer-group text-warning fs-5"></i>
+            <div class="modal-header bg-dark text-white py-3 px-4 d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-3">
+                    <div class="rounded-circle bg-warning bg-opacity-20 p-2 text-warning d-flex align-items-center justify-content-center" style="width: 38px; height: 38px;">
+                        <i class="fa-solid fa-layer-group fs-5"></i>
+                    </div>
                     <div>
-                        <h6 class="modal-title fw-bold mb-0" id="categoryPickerModalLabel">اختيار وتحديد تصنيف الإعلان</h6>
-                        <small class="text-white-50 fs-8">اختر القسم الرئيسي ثم تفرع وصولاً لأصغر قسم فرعي مناسب</small>
+                        <div class="d-flex align-items-center gap-2">
+                            <h6 class="modal-title fw-bold mb-0 text-white" id="categoryPickerModalLabel">اختيار وتحديد تصنيف الإعلان</h6>
+                            <span class="badge bg-warning text-dark fw-bold fs-8" id="pickerAdIdBadge">#</span>
+                        </div>
+                        <small class="text-white-50 fs-8" id="pickerAdTitleBadge">اختر وتصفح القسم المناسب لمواصفات وتفاصيل هذا الإعلان</small>
                     </div>
                 </div>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="إغلاق"></button>
             </div>
             
-            <div class="p-3 bg-light border-bottom">
-                <!-- شريط المسار والرجوع Breadcrumbs -->
-                <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-2">
-                    <nav aria-label="breadcrumb">
-                        <ol class="breadcrumb mb-0 py-1 px-3 bg-white border rounded-pill shadow-xs fs-7 fw-semibold" id="categoryPickerBreadcrumbs">
-                            <li class="breadcrumb-item active"><i class="fa-solid fa-house me-1"></i> الرئيسية</li>
-                        </ol>
-                    </nav>
-                    <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold shadow-xs" id="btnPickerBack" style="display: none;" onclick="navigatePickerBack()">
-                        <i class="fa-solid fa-arrow-right me-1"></i> رجوع للخلف
-                    </button>
-                </div>
+            <div class="modal-body p-3 bg-light bg-opacity-50">
+                <div class="row g-3 align-items-start">
+                    <!-- اليمين: متصفح وشبكة الأقسام (Category Picker Navigation & Tiles) -->
+                    <div class="col-lg-7 col-xl-8 order-1">
+                        <div class="bg-white rounded-3 border p-3 shadow-xs h-100 d-flex flex-column">
+                            <!-- شريط المسار والرجوع Breadcrumbs -->
+                            <div class="d-flex align-items-center justify-content-between gap-2 flex-wrap mb-3">
+                                <nav aria-label="breadcrumb">
+                                    <ol class="breadcrumb mb-0 py-1 px-3 bg-light border rounded-pill shadow-xs fs-7 fw-semibold" id="categoryPickerBreadcrumbs">
+                                        <li class="breadcrumb-item active"><i class="fa-solid fa-house me-1"></i> الرئيسية</li>
+                                    </ol>
+                                </nav>
+                                <button type="button" class="btn btn-sm btn-outline-secondary rounded-pill px-3 fw-bold shadow-xs" id="btnPickerBack" style="display: none;" onclick="navigatePickerBack()">
+                                    <i class="fa-solid fa-arrow-right me-1"></i> رجوع للخلف
+                                </button>
+                            </div>
 
-                <!-- شريط البحث السريع في الأقسام -->
-                <div class="input-group">
-                    <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
-                    <input type="text" id="categoryPickerSearch" class="form-control border-start-0 py-2 fs-7 fw-semibold" placeholder="ابحث عن أي قسم بسرعة (مثال: سيراتو، كيا، شقق، كنبايات...)" oninput="filterCategoryPicker(this.value)">
-                    <button type="button" class="btn btn-outline-secondary px-3" onclick="document.getElementById('categoryPickerSearch').value=''; filterCategoryPicker('');" title="مسح البحث">
-                        <i class="fa-solid fa-xmark"></i>
-                    </button>
+                            <!-- شريط البحث السريع في الأقسام -->
+                            <div class="input-group mb-3">
+                                <span class="input-group-text bg-light border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                                <input type="text" id="categoryPickerSearch" class="form-control border-start-0 py-2 fs-7 fw-semibold" placeholder="ابحث عن أي قسم بسرعة (مثال: سيراتو، كيا، شقق، كنبايات...)" oninput="filterCategoryPicker(this.value)">
+                                <button type="button" class="btn btn-outline-secondary px-3" onclick="document.getElementById('categoryPickerSearch').value=''; filterCategoryPicker('');" title="مسح البحث">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+
+                            <!-- زر اعتماد القسم الأب الحالي إذا أراد المستخدم التوقف عنده -->
+                            <div id="pickerCurrentParentAction" class="mb-3" style="display: none;"></div>
+
+                            <!-- شبكة الأقسام المعروضة -->
+                            <div class="category-scroll-container flex-grow-1" style="min-height: 380px; max-height: 58vh; overflow-y: auto;">
+                                <div id="categoryPickerGrid" class="row g-2"></div>
+
+                                <!-- في حال لا توجد نتائج بحث -->
+                                <div id="categoryPickerEmpty" class="text-center py-5 text-muted" style="display: none;">
+                                    <i class="fa-solid fa-folder-open fs-1 text-secondary mb-2 d-block"></i>
+                                    <span class="fw-bold fs-7">لم يتم العثور على أي قسم مطابق لكلمة البحث.</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- اليسار: كرت معلومات الإعلان الأصلي (Reference Card INSIDE Picker) -->
+                    <div class="col-lg-5 col-xl-4 order-2">
+                        <div class="card border-0 shadow-sm rounded-3 h-100 edit-ref-card" style="position: sticky; top: 0; background-color: #f8fafc; border: 1px solid #e2e8f0;">
+                            <div class="card-header bg-dark text-white py-2 px-3 rounded-top-3 d-flex align-items-center justify-content-between">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="fa-solid fa-clipboard-list text-warning"></i>
+                                    <span class="fw-bold fs-8">بطاقة تفاصيل الإعلان (للمطابقة)</span>
+                                </div>
+                                <span class="badge bg-primary px-2 py-1 fs-9" id="pickerRefViewsBadge">👁️ 0</span>
+                            </div>
+                            <div class="card-body p-3 d-flex flex-column gap-2" style="max-height: 70vh; overflow-y: auto;">
+                                <!-- صورة الإعلان المرجعية (قابلة للنقر للتكبير في البوب اب) -->
+                                <div class="position-relative text-center rounded-3 overflow-hidden border bg-white shadow-xs" style="height: 160px; cursor: pointer;" onclick="openImageLightboxFromPickerRef()" title="انقر لتكبير ومعاينة الصورة في البوب اب">
+                                    <img id="pickerRefImage" src="" alt="صورة الإعلان" class="w-100 h-100" style="object-fit: cover;" onerror="this.onerror=null; this.src='https://lelbai.com/icons/cars.svg';">
+                                    <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white py-1 px-2 d-flex justify-content-between align-items-center fs-9">
+                                        <span><i class="fa-solid fa-magnifying-glass-plus me-1 text-warning"></i> انقر للتكبير</span>
+                                        <span class="badge bg-secondary fs-9">معاينة الصورة</span>
+                                    </div>
+                                </div>
+
+                                <!-- العنوان المسجل -->
+                                <div class="bg-white p-2 rounded-2 border">
+                                    <span class="text-muted fs-9 fw-bold d-block mb-1">عنوان الإعلان:</span>
+                                    <div id="pickerRefTitle" class="fw-bold text-dark fs-7" style="word-break: break-word;"></div>
+                                </div>
+
+                                <!-- التصنيف المسجل حالياً -->
+                                <div class="bg-white p-2 rounded-2 border">
+                                    <span class="text-muted fs-9 fw-bold d-block mb-1">القسم المسجل حالياً:</span>
+                                    <span id="pickerRefCategory" class="fw-bold text-primary fs-8 text-truncate d-block"></span>
+                                </div>
+
+                                <!-- السعر والمدينة -->
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="bg-white p-2 rounded-2 border">
+                                            <span class="text-muted fs-9 fw-bold d-block">السعر:</span>
+                                            <span id="pickerRefPrice" class="fw-bold text-success fs-8"></span>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="bg-white p-2 rounded-2 border">
+                                            <span class="text-muted fs-9 fw-bold d-block">المدينة:</span>
+                                            <span id="pickerRefCity" class="fw-bold text-dark fs-8"></span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- المعلن والهاتف -->
+                                <div class="bg-white p-2 rounded-2 border">
+                                    <div class="d-flex justify-content-between align-items-center mb-1">
+                                        <span class="text-muted fs-9 fw-bold"><i class="fa-solid fa-user me-1 text-primary"></i> المعلن:</span>
+                                        <span id="pickerRefUser" class="fw-bold text-dark fs-8"></span>
+                                    </div>
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <span class="text-muted fs-9 fw-bold"><i class="fa-solid fa-phone me-1 text-success"></i> الهاتف:</span>
+                                        <span id="pickerRefPhone" class="fw-bold text-dark fs-8" dir="ltr"></span>
+                                    </div>
+                                </div>
+
+                                <!-- الوصف الأصلي الكامل (أهم جزء لتحديد القسم!) -->
+                                <div>
+                                    <span class="text-muted fs-9 fw-bold d-block mb-1">وصف ومواصفات الإعلان (اقرأه لاختيار القسم بدقة):</span>
+                                    <div id="pickerRefDescription" class="bg-white p-2 rounded-2 border text-muted fs-8" style="max-height: 150px; overflow-y: auto; white-space: pre-wrap; line-height: 1.55; border-color: #cbd5e1 !important;"></div>
+                                </div>
+
+                                <!-- رابط المعاينة -->
+                                <div class="mt-auto pt-1">
+                                    <a id="pickerRefLiveUrl" href="#" target="_blank" class="btn btn-sm btn-outline-primary w-100 fw-bold rounded-pill fs-8">
+                                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> فتح الإعلان بالكامل على lelbai.com
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <div class="modal-body p-3 bg-white" style="min-height: 380px; max-height: 520px; overflow-y: auto;">
-                <!-- زر اعتماد القسم الأب الحالي إذا أراد المستخدم التوقف عنده -->
-                <div id="pickerCurrentParentAction" class="mb-3" style="display: none;"></div>
-
-                <!-- شبكة الأقسام المعروضة -->
-                <div id="categoryPickerGrid" class="row g-2"></div>
-
-                <!-- في حال لا توجد نتائج بحث -->
-                <div id="categoryPickerEmpty" class="text-center py-5 text-muted" style="display: none;">
-                    <i class="fa-solid fa-folder-open fs-1 text-secondary mb-2 d-block"></i>
-                    <span class="fw-bold fs-7">لم يتم العثور على أي قسم مطابق لكلمة البحث.</span>
-                </div>
-            </div>
-
-            <div class="modal-footer bg-light py-2 px-3 d-flex justify-content-between align-items-center">
-                <span class="text-muted fs-8"><i class="fa-solid fa-circle-info text-primary me-1"></i> النقر على أصغر قسم فرعي (أصغر ابن) يقوم باختياره فورياً وتثبيته.</span>
-                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4 fw-bold" data-bs-dismiss="modal">إلغاء</button>
+            <div class="modal-footer bg-white border-top py-2 px-3 d-flex justify-content-between align-items-center">
+                <span class="text-muted fs-8"><i class="fa-solid fa-circle-info text-primary me-1"></i> النقر على أصغر قسم فرعي (أصغر ابن) يقوم باختياره فورياً وتثبيته في نموذج التعديل.</span>
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4 fw-bold" data-bs-dismiss="modal">إغلاق بدون تغيير</button>
             </div>
         </div>
     </div>
@@ -1192,10 +1280,80 @@ function getCategoryPathText(catId) {
 let pickerCurrentPid = 'root';
 let pickerTrail = [];
 
+function openImageLightboxFromPickerRef() {
+    const refImg = document.getElementById('pickerRefImage');
+    if (refImg && refImg.src) {
+        openImageLightbox(
+            refImg.src,
+            refImg.dataset.title || '',
+            refImg.dataset.price || '',
+            refImg.dataset.id || '',
+            refImg.dataset.liveUrl || ''
+        );
+    }
+}
+window.openImageLightboxFromPickerRef = openImageLightboxFromPickerRef;
+
 function openCategoryPicker() {
     const searchInp = document.getElementById('categoryPickerSearch');
     if (searchInp) searchInp.value = '';
 
+    // تعبئة بطاقة معلومات الإعلان المرجعية داخل بوب اب اختيار القسم فورياً (0ms)
+    const adId = document.getElementById('modalListingIdDisplay')?.textContent || '';
+    const adTitle = document.getElementById('editListingTitle')?.value || document.getElementById('refCardTitle')?.textContent || '';
+    const refImg = document.getElementById('refCardImage');
+    const refPrice = document.getElementById('refCardPrice')?.textContent || '';
+    const refCat = document.getElementById('editCategoryDisplayText')?.textContent?.trim() || document.getElementById('refCardCategory')?.textContent || '';
+    const refCity = document.getElementById('refCardCity')?.textContent || '';
+    const refUser = document.getElementById('refCardUser')?.textContent || '';
+    const refPhone = document.getElementById('editListingPhone')?.value || document.getElementById('refCardPhone')?.textContent || '';
+    const refDesc = document.getElementById('editListingDescription')?.value || document.getElementById('refCardDescription')?.textContent || '';
+    const refViews = document.getElementById('refCardViewsBadge')?.textContent || '';
+    const refLive = document.getElementById('refCardLiveUrl')?.href || '';
+
+    const pIdBadge = document.getElementById('pickerAdIdBadge');
+    if (pIdBadge) pIdBadge.textContent = adId ? '#' + adId : '';
+
+    const pTitleBadge = document.getElementById('pickerAdTitleBadge');
+    if (pTitleBadge) pTitleBadge.textContent = adTitle ? ('الإعلان: ' + (adTitle.length > 50 ? adTitle.substring(0, 50) + '...' : adTitle)) : 'اختر وتصفح القسم المناسب لمواصفات وتفاصيل هذا الإعلان';
+
+    const pImg = document.getElementById('pickerRefImage');
+    if (pImg && refImg) {
+        pImg.src = refImg.src;
+        pImg.dataset.title = adTitle;
+        pImg.dataset.price = refPrice;
+        pImg.dataset.id = adId;
+        pImg.dataset.liveUrl = refLive;
+    }
+
+    const pViews = document.getElementById('pickerRefViewsBadge');
+    if (pViews) pViews.textContent = refViews || '👁️ 0';
+
+    const pTitle = document.getElementById('pickerRefTitle');
+    if (pTitle) pTitle.textContent = adTitle;
+
+    const pPrice = document.getElementById('pickerRefPrice');
+    if (pPrice) pPrice.textContent = refPrice;
+
+    const pCat = document.getElementById('pickerRefCategory');
+    if (pCat) pCat.textContent = refCat && !refCat.includes('اضغط') ? refCat : 'بدون تصنيف';
+
+    const pCity = document.getElementById('pickerRefCity');
+    if (pCity) pCity.textContent = refCity;
+
+    const pUser = document.getElementById('pickerRefUser');
+    if (pUser) pUser.textContent = refUser;
+
+    const pPhone = document.getElementById('pickerRefPhone');
+    if (pPhone) pPhone.textContent = refPhone || '-';
+
+    const pDesc = document.getElementById('pickerRefDescription');
+    if (pDesc) pDesc.textContent = refDesc || '(لا يوجد نص وصف مسجل)';
+
+    const pLive = document.getElementById('pickerRefLiveUrl');
+    if (pLive) pLive.href = refLive;
+
+    // فتح القسم المختار حالياً إن وجد أو المستوى الرئيسي
     const currentSelectedId = document.getElementById('editListingCategory')?.value;
     if (currentSelectedId && catMap[currentSelectedId]) {
         pickerTrail = [];
