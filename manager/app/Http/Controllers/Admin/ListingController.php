@@ -137,177 +137,194 @@ class ListingController extends Controller
                     return $c;
                 });
 
-                // 3. حساب عدادات الحالات الشاملة (تخزين مؤقت لـ 10 دقائق)
-                $cutoff30Days = Carbon::now()->subDays(30)->toDateTimeString();
-                $cutoffExpiringSoon = Carbon::now()->subDays(25)->toDateTimeString();
-                $todayCutoff = Carbon::now()->subHours(24)->toDateTimeString();
-
-                $countRow = Cache::remember('bridge_status_counts', 600, function () use ($todayCutoff, $cutoffExpiringSoon, $cutoff30Days) {
-                    return LiveBridgeService::query("
-                        SELECT 
-                            COUNT(*) as total_all,
-                            SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as total_active,
-                            SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as total_pending,
-                            SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as total_rejected,
-                            SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as total_suspended,
-                            SUM(CASE WHEN ai_status = 'flagged' THEN 1 ELSE 0 END) as total_flagged,
-                            SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as total_today,
-                            SUM(CASE WHEN created_at <= ? AND created_at >= ? THEN 1 ELSE 0 END) as total_expiring_soon
-                        FROM listings
-                        WHERE deleted_at IS NULL
-                    ", [$todayCutoff, $cutoffExpiringSoon, $cutoff30Days])[0] ?? [];
-                });
-
-                $cArr = (array)$countRow;
-                $counts = [
-                    'all' => (int)($cArr['total_all'] ?? 0),
-                    'active' => (int)($cArr['total_active'] ?? 0),
-                    'pending' => (int)($cArr['total_pending'] ?? 0),
-                    'rejected' => (int)($cArr['total_rejected'] ?? 0),
-                    'suspended' => (int)($cArr['total_suspended'] ?? 0),
-                    'flagged' => (int)($cArr['total_flagged'] ?? 0),
-                    'today' => (int)($cArr['total_today'] ?? 0),
-                    'expiring_soon' => (int)($cArr['total_expiring_soon'] ?? 0),
-                ];
-
-                // 4. بناء شروط الفلترة
-                $whereClauses = ['l.deleted_at IS NULL'];
-                $bindings = [];
-
-                if ($request->filled('category_id')) {
-                    $catId = (int)$request->category_id;
-                    $selectedCategoryObj = $categoryMap->get($catId);
-                    $allCatIds = [$catId];
-                    if ($selectedCategoryObj) {
-                        $gatherChildren = function ($cId) use (&$gatherChildren, $childrenByParent) {
-                            $ids = [];
-                            if (isset($childrenByParent[$cId])) {
-                                foreach ($childrenByParent[$cId] as $childId) {
-                                    $ids[] = $childId;
-                                    $ids = array_merge($ids, $gatherChildren($childId));
-                                }
-                            }
-                            return $ids;
-                        };
-                        $allCatIds = array_merge($allCatIds, $gatherChildren($catId));
-                    }
-                    $placeholders = implode(',', array_fill(0, count($allCatIds), '?'));
-                    $whereClauses[] = "l.category_id IN ({$placeholders})";
-                    $bindings = array_merge($bindings, $allCatIds);
-                }
-
-                if ($request->filled('city_id')) {
-                    $whereClauses[] = "l.city_id = ?";
-                    $bindings[] = (int)$request->city_id;
-                }
-
-                $status = $request->input('status');
-                if ($status === 'expiring_soon') {
-                    $whereClauses[] = "l.created_at <= ? AND l.created_at >= ?";
-                    $bindings[] = $cutoffExpiringSoon;
-                    $bindings[] = $cutoff30Days;
-                } elseif ($status && in_array($status, ['active', 'pending', 'rejected', 'suspended'])) {
-                    $whereClauses[] = "l.status = ?";
-                    $bindings[] = $status;
-                }
-
-                if ($request->input('ai_status') === 'flagged') {
-                    $whereClauses[] = "l.ai_status = 'flagged'";
-                } elseif ($request->filled('ai_status')) {
-                    $whereClauses[] = "l.ai_status = ?";
-                    $bindings[] = $request->ai_status;
-                }
-
-                $source = $request->input('source');
-                if ($source === 'organic') {
-                    $whereClauses[] = "l.is_scraped = 0";
-                } elseif ($source === 'bot') {
-                    $whereClauses[] = "l.is_scraped = 1";
-                } elseif ($source === 'facebook') {
-                    $whereClauses[] = "l.source_url LIKE '%facebook.com%'";
-                }
-
-                if ($request->filled('search')) {
-                    $search = trim($request->search);
-                    $searchLike = "%{$search}%";
-                    $whereClauses[] = "(l.title LIKE ? OR l.description LIKE ? OR l.id = ? OR l.uuid = ? OR l.contact_phone LIKE ? OR u.name LIKE ? OR u.phone LIKE ? OR c.name_ar LIKE ?)";
-                    $bindings[] = $searchLike;
-                    $bindings[] = $searchLike;
-                    $bindings[] = is_numeric($search) ? (int)$search : 0;
-                    $bindings[] = $search;
-                    $bindings[] = $searchLike;
-                    $bindings[] = $searchLike;
-                    $bindings[] = $searchLike;
-                    $bindings[] = $searchLike;
-                }
-
-                $whereSql = implode(' AND ', $whereClauses);
-
-                // إجمالي النتائج بعد الفلترة (استخدام العدادات المحسوبة مسبقاً لتوفير استعلام كامل)
-                $hasComplexFilters = $request->filled('category_id') || $request->filled('city_id') || $request->filled('search') || $request->filled('source');
-                if (!$hasComplexFilters) {
-                    if (!$request->filled('status') && !$request->filled('ai_status')) {
-                        $totalFiltered = $counts['all'];
-                    } elseif ($request->input('ai_status') === 'flagged') {
-                        $totalFiltered = $counts['flagged'];
-                    } elseif ($request->filled('status') && isset($counts[$request->status])) {
-                        $totalFiltered = $counts[$request->status];
-                    } else {
-                        $countRes = LiveBridgeService::query("SELECT COUNT(*) as total FROM listings l WHERE {$whereSql}", $bindings);
-                        $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
-                    }
-                } else {
-                    if ($request->filled('category_id') && !$request->filled('city_id') && !$request->filled('search') && !$request->filled('source') && !$request->filled('status') && !$request->filled('ai_status')) {
-                        $totalFiltered = $selectedCategoryObj ? ($selectedCategoryObj->total_listings_count ?? 0) : 0;
-                    } else {
-                        $countSql = "
-                            SELECT COUNT(*) as total
-                            FROM listings l
-                            LEFT JOIN users u ON l.user_id = u.id
-                            LEFT JOIN categories c ON l.category_id = c.id
-                            LEFT JOIN cities ci ON l.city_id = ci.id
-                            WHERE {$whereSql}
-                        ";
-                        $countRes = LiveBridgeService::query($countSql, $bindings);
-                        $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
-                    }
-                }
-
-                // الترتيب
-                $sort = $request->input('sort', 'newest_created');
-                $orderSql = "l.created_at DESC, l.id DESC";
-                if ($sort === 'oldest_created') {
-                    $orderSql = "l.created_at ASC, l.id ASC";
-                } elseif ($sort === 'most_viewed') {
-                    $orderSql = "l.views_count DESC, l.id DESC";
-                } elseif ($sort === 'most_impressions') {
-                    $orderSql = "l.impressions_count DESC, l.id DESC";
-                } elseif ($sort === 'price_desc') {
-                    $orderSql = "l.price DESC, l.id DESC";
-                } elseif ($sort === 'price_asc') {
-                    $orderSql = "l.price ASC, l.id DESC";
-                }
-
                 $page = max(1, (int)$request->input('page', 1));
                 $perPage = 20;
                 $offset = ($page - 1) * $perPage;
 
-                $dataSql = "
-                    SELECT 
-                        l.*,
-                        u.name as user_name, u.phone as user_phone, u.username as user_username, u.avatar as user_avatar, u.is_bot as user_is_bot,
-                        c.name_ar as category_name_ar, c.slug as category_slug, c.icon as category_icon, c.parent_id as category_parent_id,
-                        ci.name_ar as city_name_ar, ci.slug as city_slug,
-                        (SELECT image_path FROM listing_images WHERE listing_id = l.id ORDER BY is_primary DESC, sort_order ASC, id ASC LIMIT 1) as primary_image_path
-                    FROM listings l
-                    LEFT JOIN users u ON l.user_id = u.id
-                    LEFT JOIN categories c ON l.category_id = c.id
-                    LEFT JOIN cities ci ON l.city_id = ci.id
-                    WHERE {$whereSql}
-                    ORDER BY {$orderSql}
-                    LIMIT {$perPage} OFFSET {$offset}
-                ";
-                $rows = LiveBridgeService::query($dataSql, $bindings);
+                // 3. محاولة جلب التغذية الموحدة فائقة السرعة في استدعاء سحابي واحد (Single Fast Round-Trip)
+                $feed = LiveBridgeService::getListingsFeed([
+                    'page' => $page,
+                    'per_page' => $perPage,
+                    'status' => $request->input('status'),
+                    'ai_status' => $request->input('ai_status'),
+                    'category_id' => $request->input('category_id'),
+                    'city_id' => $request->input('city_id'),
+                    'search' => $request->input('search'),
+                    'source' => $request->input('source'),
+                    'sort' => $request->input('sort', 'newest_created'),
+                ]);
+
+                if (!empty($feed['success']) && isset($feed['rows'])) {
+                    $counts = $feed['counts'] ?? $counts;
+                    $totalFiltered = (int)($feed['total'] ?? 0);
+                    $rows = $feed['rows'];
+                } else {
+                    // نظام الاحتياط (Fallback) في حال لم يتم رفع ملف bridge.php المحدث بعد إلى السيرفر
+                    $cutoff30Days = Carbon::now()->subDays(30)->toDateTimeString();
+                    $cutoffExpiringSoon = Carbon::now()->subDays(25)->toDateTimeString();
+                    $todayCutoff = Carbon::now()->subHours(24)->toDateTimeString();
+
+                    $countRow = Cache::remember('bridge_status_counts', 600, function () use ($todayCutoff, $cutoffExpiringSoon, $cutoff30Days) {
+                        return LiveBridgeService::query("
+                            SELECT 
+                                COUNT(*) as total_all,
+                                SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as total_active,
+                                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as total_pending,
+                                SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END) as total_rejected,
+                                SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as total_suspended,
+                                SUM(CASE WHEN ai_status = 'flagged' THEN 1 ELSE 0 END) as total_flagged,
+                                SUM(CASE WHEN created_at >= ? THEN 1 ELSE 0 END) as total_today,
+                                SUM(CASE WHEN created_at <= ? AND created_at >= ? THEN 1 ELSE 0 END) as total_expiring_soon
+                            FROM listings
+                            WHERE deleted_at IS NULL
+                        ", [$todayCutoff, $cutoffExpiringSoon, $cutoff30Days])[0] ?? [];
+                    });
+
+                    $cArr = (array)$countRow;
+                    $counts = [
+                        'all' => (int)($cArr['total_all'] ?? 0),
+                        'active' => (int)($cArr['total_active'] ?? 0),
+                        'pending' => (int)($cArr['total_pending'] ?? 0),
+                        'rejected' => (int)($cArr['total_rejected'] ?? 0),
+                        'suspended' => (int)($cArr['total_suspended'] ?? 0),
+                        'flagged' => (int)($cArr['total_flagged'] ?? 0),
+                        'today' => (int)($cArr['total_today'] ?? 0),
+                        'expiring_soon' => (int)($cArr['total_expiring_soon'] ?? 0),
+                    ];
+
+                    // بناء شروط الفلترة الاحتياطية
+                    $whereClauses = ['l.deleted_at IS NULL'];
+                    $bindings = [];
+
+                    if ($request->filled('category_id')) {
+                        $catId = (int)$request->category_id;
+                        $selectedCategoryObj = $categoryMap->get($catId);
+                        $allCatIds = [$catId];
+                        if ($selectedCategoryObj) {
+                            $gatherChildren = function ($cId) use (&$gatherChildren, $childrenByParent) {
+                                $ids = [];
+                                if (isset($childrenByParent[$cId])) {
+                                    foreach ($childrenByParent[$cId] as $childId) {
+                                        $ids[] = $childId;
+                                        $ids = array_merge($ids, $gatherChildren($childId));
+                                    }
+                                }
+                                return $ids;
+                            };
+                            $allCatIds = array_merge($allCatIds, $gatherChildren($catId));
+                        }
+                        $placeholders = implode(',', array_fill(0, count($allCatIds), '?'));
+                        $whereClauses[] = "l.category_id IN ({$placeholders})";
+                        $bindings = array_merge($bindings, $allCatIds);
+                    }
+
+                    if ($request->filled('city_id')) {
+                        $whereClauses[] = "l.city_id = ?";
+                        $bindings[] = (int)$request->city_id;
+                    }
+
+                    $status = $request->input('status');
+                    if ($status === 'expiring_soon') {
+                        $whereClauses[] = "l.created_at <= ? AND l.created_at >= ?";
+                        $bindings[] = $cutoffExpiringSoon;
+                        $bindings[] = $cutoff30Days;
+                    } elseif ($status && in_array($status, ['active', 'pending', 'rejected', 'suspended'])) {
+                        $whereClauses[] = "l.status = ?";
+                        $bindings[] = $status;
+                    }
+
+                    if ($request->input('ai_status') === 'flagged') {
+                        $whereClauses[] = "l.ai_status = 'flagged'";
+                    } elseif ($request->filled('ai_status')) {
+                        $whereClauses[] = "l.ai_status = ?";
+                        $bindings[] = $request->ai_status;
+                    }
+
+                    $source = $request->input('source');
+                    if ($source === 'organic') {
+                        $whereClauses[] = "l.is_scraped = 0";
+                    } elseif ($source === 'bot') {
+                        $whereClauses[] = "l.is_scraped = 1";
+                    } elseif ($source === 'facebook') {
+                        $whereClauses[] = "l.source_url LIKE '%facebook.com%'";
+                    }
+
+                    if ($request->filled('search')) {
+                        $search = trim($request->search);
+                        $searchLike = "%{$search}%";
+                        $whereClauses[] = "(l.title LIKE ? OR l.description LIKE ? OR l.id = ? OR l.uuid = ? OR l.contact_phone LIKE ? OR u.name LIKE ? OR u.phone LIKE ? OR c.name_ar LIKE ?)";
+                        $bindings[] = $searchLike;
+                        $bindings[] = $searchLike;
+                        $bindings[] = is_numeric($search) ? (int)$search : 0;
+                        $bindings[] = $search;
+                        $bindings[] = $searchLike;
+                        $bindings[] = $searchLike;
+                        $bindings[] = $searchLike;
+                        $bindings[] = $searchLike;
+                    }
+
+                    $whereSql = implode(' AND ', $whereClauses);
+
+                    $hasComplexFilters = $request->filled('category_id') || $request->filled('city_id') || $request->filled('search') || $request->filled('source');
+                    if (!$hasComplexFilters) {
+                        if (!$request->filled('status') && !$request->filled('ai_status')) {
+                            $totalFiltered = $counts['all'];
+                        } elseif ($request->input('ai_status') === 'flagged') {
+                            $totalFiltered = $counts['flagged'];
+                        } elseif ($request->filled('status') && isset($counts[$request->status])) {
+                            $totalFiltered = $counts[$request->status];
+                        } else {
+                            $countRes = LiveBridgeService::query("SELECT COUNT(*) as total FROM listings l WHERE {$whereSql}", $bindings);
+                            $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
+                        }
+                    } else {
+                        if ($request->filled('category_id') && !$request->filled('city_id') && !$request->filled('search') && !$request->filled('source') && !$request->filled('status') && !$request->filled('ai_status')) {
+                            $totalFiltered = $selectedCategoryObj ? ($selectedCategoryObj->total_listings_count ?? 0) : 0;
+                        } else {
+                            $countSql = "
+                                SELECT COUNT(*) as total
+                                FROM listings l
+                                LEFT JOIN users u ON l.user_id = u.id
+                                LEFT JOIN categories c ON l.category_id = c.id
+                                LEFT JOIN cities ci ON l.city_id = ci.id
+                                WHERE {$whereSql}
+                            ";
+                            $countRes = LiveBridgeService::query($countSql, $bindings);
+                            $totalFiltered = (int)(is_array($countRes[0] ?? null) ? ($countRes[0]['total'] ?? 0) : ($countRes[0]->total ?? 0));
+                        }
+                    }
+
+                    $sort = $request->input('sort', 'newest_created');
+                    $orderSql = "l.created_at DESC, l.id DESC";
+                    if ($sort === 'oldest_created') {
+                        $orderSql = "l.created_at ASC, l.id ASC";
+                    } elseif ($sort === 'most_viewed') {
+                        $orderSql = "l.views_count DESC, l.id DESC";
+                    } elseif ($sort === 'most_impressions') {
+                        $orderSql = "l.impressions_count DESC, l.id DESC";
+                    } elseif ($sort === 'price_desc') {
+                        $orderSql = "l.price DESC, l.id DESC";
+                    } elseif ($sort === 'price_asc') {
+                        $orderSql = "l.price ASC, l.id DESC";
+                    }
+
+                    $dataSql = "
+                        SELECT 
+                            l.*,
+                            u.name as user_name, u.phone as user_phone, u.username as user_username, u.avatar as user_avatar, u.is_bot as user_is_bot,
+                            c.name_ar as category_name_ar, c.slug as category_slug, c.icon as category_icon, c.parent_id as category_parent_id,
+                            ci.name_ar as city_name_ar, ci.slug as city_slug,
+                            (SELECT image_path FROM listing_images WHERE listing_id = l.id ORDER BY is_primary DESC, sort_order ASC, id ASC LIMIT 1) as primary_image_path
+                        FROM listings l
+                        LEFT JOIN users u ON l.user_id = u.id
+                        LEFT JOIN categories c ON l.category_id = c.id
+                        LEFT JOIN cities ci ON l.city_id = ci.id
+                        WHERE {$whereSql}
+                        ORDER BY {$orderSql}
+                        LIMIT {$perPage} OFFSET {$offset}
+                    ";
+                    $rows = LiveBridgeService::query($dataSql, $bindings);
+                }
 
                 $items = collect($rows)->map(function ($row) use ($categoryMap) {
                     $rowArr = (array)$row;
@@ -572,21 +589,25 @@ class ListingController extends Controller
         $reason = $request->input('rejection_reason');
 
         if ($activeEnv === 'production') {
-            if ($status === 'rejected') {
-                LiveBridgeService::statement(
-                    "UPDATE listings SET status = 'rejected', rejection_reason = ?, previous_rejection_reason = ? WHERE id = ?",
-                    [$reason, $reason, (int)$id]
-                );
-            } elseif ($status === 'active') {
-                LiveBridgeService::statement(
-                    "UPDATE listings SET status = 'active', rejection_reason = NULL, previous_rejection_reason = NULL, published_at = COALESCE(published_at, NOW()) WHERE id = ?",
-                    [(int)$id]
-                );
-            } else {
-                LiveBridgeService::statement(
-                    "UPDATE listings SET status = ? WHERE id = ?",
-                    [$status, (int)$id]
-                );
+            // محاولة التحديث الفوري المخصص (5ms Fast Action)
+            $quickRes = LiveBridgeService::quickUpdateStatus((int)$id, $status, $reason);
+            if (empty($quickRes['success'])) {
+                if ($status === 'rejected') {
+                    LiveBridgeService::statement(
+                        "UPDATE listings SET status = 'rejected', rejection_reason = ?, previous_rejection_reason = ?, updated_at = NOW() WHERE id = ?",
+                        [$reason, $reason, (int)$id]
+                    );
+                } elseif ($status === 'active') {
+                    LiveBridgeService::statement(
+                        "UPDATE listings SET status = 'active', rejection_reason = NULL, previous_rejection_reason = NULL, published_at = COALESCE(published_at, NOW()), updated_at = NOW() WHERE id = ?",
+                        [(int)$id]
+                    );
+                } else {
+                    LiveBridgeService::statement(
+                        "UPDATE listings SET status = ?, updated_at = NOW() WHERE id = ?",
+                        [$status, (int)$id]
+                    );
+                }
             }
 
             // تحديث العدادات الذكية فورياً في الذاكرة لتجنب أي بطء في الصفحة التالية

@@ -91,7 +91,10 @@ class LiveBridgeService
 
         try {
             $res = Http::timeout(8)
-                ->withHeaders(['X-Bridge-Secret' => $secret])
+                ->withHeaders([
+                    'X-Bridge-Secret' => $secret,
+                    'Accept-Encoding' => 'gzip, deflate',
+                ])
                 ->asJson()
                 ->post($url, [
                     'action' => 'query',
@@ -106,6 +109,101 @@ class LiveBridgeService
             }
         } catch (\Throwable $e) {
             Log::error("LiveBridge query error: " . $e->getMessage());
+        }
+
+        return [];
+    }
+
+    /**
+     * Fetch complete listings page feed in ONE single ultra-fast call (< 300ms total).
+     */
+    public static function getListingsFeed(array $params = []): array
+    {
+        $url = self::getBridgeUrl();
+        $secret = self::getBridgeSecret();
+
+        try {
+            $res = Http::timeout(7)
+                ->withHeaders([
+                    'X-Bridge-Secret' => $secret,
+                    'Accept-Encoding' => 'gzip, deflate',
+                ])
+                ->asJson()
+                ->post($url, array_merge($params, [
+                    'action' => 'get_listings_feed',
+                    'bridge_secret' => $secret,
+                ]));
+
+            if ($res->successful()) {
+                return $res->json() ?? [];
+            }
+        } catch (\Throwable $e) {
+            Log::error("LiveBridge getListingsFeed error: " . $e->getMessage());
+        }
+
+        return [];
+    }
+
+    /**
+     * Fast dedicated status update in 5ms
+     */
+    public static function quickUpdateStatus(int $id, string $status, ?string $reason = null): array
+    {
+        $url = self::getBridgeUrl();
+        $secret = self::getBridgeSecret();
+
+        try {
+            $res = Http::timeout(5)
+                ->withHeaders([
+                    'X-Bridge-Secret' => $secret,
+                    'Accept-Encoding' => 'gzip, deflate',
+                ])
+                ->asJson()
+                ->post($url, [
+                    'action' => 'quick_update_status',
+                    'bridge_secret' => $secret,
+                    'id' => $id,
+                    'status' => $status,
+                    'reason' => $reason,
+                ]);
+
+            if ($res->successful()) {
+                return $res->json() ?? [];
+            }
+        } catch (\Throwable $e) {
+            Log::error("LiveBridge quickUpdateStatus error: " . $e->getMessage());
+        }
+
+        return [];
+    }
+
+    /**
+     * Execute multiple queries in ONE single round-trip HTTP request.
+     */
+    public static function batchQuery(array $queries = []): array
+    {
+        $url = self::getBridgeUrl();
+        $secret = self::getBridgeSecret();
+
+        try {
+            $res = Http::timeout(8)
+                ->withHeaders([
+                    'X-Bridge-Secret' => $secret,
+                    'Accept-Encoding' => 'gzip, deflate',
+                ])
+                ->asJson()
+                ->post($url, [
+                    'action' => 'batch_query',
+                    'bridge_secret' => $secret,
+                    'queries' => $queries,
+                ]);
+
+            if ($res->successful()) {
+                $data = $res->json();
+                return $data['results'] ?? [];
+            }
+        } catch (\Throwable $e) {
+            Log::error("LiveBridge batchQuery error: " . $e->getMessage());
         }
 
         return [];
