@@ -1,6 +1,79 @@
 @extends('layouts.admin')
 
 @section('content')
+<!-- مؤشر حالة المزامنة اللحظية مع السيرفر في أعلى اليسار (Top-Left Floating Sync Status Indicator) -->
+<div id="syncStatusIndicator" style="position: fixed; top: 18px; left: 24px; z-index: 100050; display: none; pointer-events: auto; transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);">
+    <div id="syncStatusBadge" class="d-flex align-items-center gap-2 px-3 py-2 rounded-pill shadow-lg fw-bold fs-7 border" style="backdrop-filter: blur(10px); box-shadow: 0 10px 25px rgba(0,0,0,0.25) !important;">
+        <i id="syncStatusIcon" class="fa-solid fa-arrows-rotate fa-spin text-warning fs-6"></i>
+        <span id="syncStatusText">جاري الحفظ والمزامنة مع السيرفر... ⏳</span>
+        <button type="button" id="syncStatusCloseBtn" class="btn btn-sm btn-close btn-close-white p-1 ms-1" style="display: none;" onclick="SyncStatusManager.hide()"></button>
+    </div>
+</div>
+
+<style>
+/* ترويسة وصور الجدول الموسعة - 72px */
+.listing-thumb-box {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    flex-shrink: 0;
+}
+.listing-thumb-box:hover {
+    transform: scale(1.06);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.18);
+}
+.listing-thumb-box:hover .thumb-overlay-icon {
+    opacity: 1;
+}
+.thumb-overlay-icon {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.45);
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+    backdrop-filter: blur(1.5px);
+}
+.listing-thumb-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* تأثير الوميض الأخضر الفوري عند التعديل المحلي Optimistic Flash */
+@keyframes rowFlashOptimistic {
+    0% { background-color: #dcfce7; }
+    50% { background-color: #bbf7d0; }
+    100% { background-color: transparent; }
+}
+.row-optimistic-flash {
+    animation: rowFlashOptimistic 1.8s ease;
+}
+
+/* كرت مرجع الإعلان الأصلي في نافذة التعديل */
+.edit-ref-card {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 14px;
+}
+.ref-prop-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+</style>
+
 <!-- Header & Quick Actions -->
 <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
     <div>
@@ -339,7 +412,7 @@
                         <th style="width: 40px;" class="text-center">
                             <input type="checkbox" id="selectAllCheckbox" class="form-check-input cursor-pointer">
                         </th>
-                        <th class="col-cell-0" style="min-width: 140px;"># والصورة</th>
+                        <th class="col-cell-0" style="min-width: 165px;"># والصورة</th>
                         <th class="col-cell-1" style="min-width: 200px;">الإعلان والتصنيف</th>
                         <th class="col-cell-2" style="min-width: 160px;">المعلن والمصدر</th>
                         <th class="col-cell-3" style="min-width: 130px;">السعر والمدينة</th>
@@ -383,13 +456,22 @@
                             <!-- # and Thumbnail -->
                             <td class="col-cell-0">
                                 <div class="d-flex align-items-center gap-2">
+                                    @php
+                                        $liveUrl = "https://lelbai.com/listings/" . ($listing->uuid ?: $listing->id) . "/details";
+                                        $cleanPrice = $listing->price ? number_format($listing->price) . ' ' . ($listing->currency ?: 'ل.س') : 'غير محدد';
+                                    @endphp
                                     @if($primaryImg)
-                                        <a href="{{ $primaryImg }}" target="_blank" title="عرض الصورة بالحجم الكامل">
-                                            <img src="{{ $primaryImg }}" class="rounded-3 border shadow-xs" style="width: 46px; height: 46px; object-fit: cover; flex-shrink: 0;" alt="" onerror="this.onerror=null; this.src='https://lelbai.com/icons/cars.svg';">
-                                        </a>
+                                        <div class="listing-thumb-box border" 
+                                             onclick="openImageLightbox('{{ addslashes($primaryImg) }}', '{{ addslashes($listing->title) }}', '{{ $cleanPrice }}', '{{ $listing->id }}', '{{ $liveUrl }}')" 
+                                             title="انقر لتكبير ومعاينة الصورة في البوب اب فورياً">
+                                            <img src="{{ $primaryImg }}" class="listing-thumb-img" alt="{{ $listing->title }}" onerror="this.onerror=null; this.src='https://lelbai.com/icons/cars.svg';">
+                                            <div class="thumb-overlay-icon">
+                                                <i class="fa-solid fa-magnifying-glass-plus"></i>
+                                            </div>
+                                        </div>
                                     @else
-                                        <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted" style="width: 46px; height: 46px; flex-shrink: 0;">
-                                            <i class="fa-solid fa-image"></i>
+                                        <div class="rounded-3 border bg-light d-flex align-items-center justify-content-center text-muted" style="width: 72px; height: 72px; flex-shrink: 0;">
+                                            <i class="fa-solid fa-image fs-3 text-secondary opacity-50"></i>
                                         </div>
                                     @endif
                                     <div>
@@ -525,11 +607,18 @@
                                             data-price="{{ (float)$listing->price }}"
                                             data-currency="{{ $listing->currency ?: 'SYP' }}"
                                             data-category-id="{{ $listing->category_id }}"
+                                            data-category-name="{{ $listing->category ? $listing->category->name_ar : 'بدون تصنيف' }}"
                                             data-city-id="{{ $listing->city_id }}"
+                                            data-city-name="{{ $listing->city ? $listing->city->name_ar : 'غير محدد' }}"
                                             data-phone="{{ $listing->contact_phone ?: ($listing->user?->phone ?: '') }}"
                                             data-description="{{ $listing->description }}"
                                             data-status="{{ $listing->status }}"
                                             data-featured="{{ $listing->is_featured ? 1 : 0 }}"
+                                            data-image="{{ $primaryImg }}"
+                                            data-user-name="{{ $listing->user ? $listing->user->name : 'مستخدم مجهول' }}"
+                                            data-views="{{ $listing->views_count ?? 0 }}"
+                                            data-created-at="{{ $listing->created_at ? \Carbon\Carbon::parse($listing->created_at)->format('Y-m-d H:i') : '-' }}"
+                                            data-live-url="{{ $liveUrl }}"
                                             title="تعديل بيانات وتفاصيل الإعلان">
                                         <i class="fa-solid fa-pen-to-square"></i> تعديل
                                     </button>
@@ -649,117 +738,248 @@
     </div>
 </div>
 
-<!-- Modal تعديل الإعلان المباشر -->
+<!-- Modal تعديل الإعلان المباشر مع كرت المرجع الأصلي (Edit Modal with Live Reference Card) -->
 <div class="modal fade" id="editListingModal" tabindex="-1" aria-labelledby="editListingModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
         <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
             <form id="editListingForm" method="POST" action="">
                 @csrf
-                <div class="modal-header bg-warning bg-opacity-10 border-bottom py-3 px-4">
+                <div class="modal-header bg-warning bg-opacity-10 border-bottom py-3 px-4 d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center gap-2">
                         <i class="fa-solid fa-pen-to-square text-warning fs-5"></i>
                         <h5 class="modal-title fw-bold text-dark mb-0" id="editListingModalLabel">تعديل الإعلان رقم #<span id="modalListingIdDisplay"></span></h5>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="إغلاق"></button>
                 </div>
-                <div class="modal-body p-4">
-                    <div class="row g-3">
-                        <!-- عنوان الإعلان -->
-                        <div class="col-12">
-                            <label class="form-label fw-bold fs-7 text-dark">عنوان الإعلان <span class="text-danger">*</span></label>
-                            <input type="text" name="title" id="editListingTitle" class="form-control fw-bold" required maxlength="255">
-                        </div>
-
-                        <!-- القسم / التصنيف التفاعلي المبوب -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold fs-7 text-dark d-flex align-items-center justify-content-between">
-                                <span>القسم / التصنيف <span class="text-danger">*</span></span>
-                                <a href="javascript:void(0)" onclick="openCategoryPicker()" class="text-decoration-none fs-8 text-primary fw-bold">
-                                    <i class="fa-solid fa-folder-tree me-1"></i> تصفح الشجرة الهرمية
-                                </a>
-                            </label>
-                            <div class="input-group">
-                                <div class="form-control d-flex align-items-center justify-content-between bg-white cursor-pointer py-2 border rounded-end-3" 
-                                     id="editCategoryDisplayBox" 
-                                     onclick="openCategoryPicker()" 
-                                     style="cursor: pointer; min-height: 42px;"
-                                     title="اضغط لاختيار وتحديد القسم بالبوب اب">
-                                    <div id="editCategoryDisplayText" class="fw-bold text-dark fs-7 text-truncate">
-                                        <span class="text-muted">اضغط لاختيار القسم...</span>
+                <div class="modal-body p-4 bg-light bg-opacity-50">
+                    <div class="row g-4 align-items-start">
+                        <!-- اليمين: حقول نموذج التعديل (Edit Form Controls) -->
+                        <div class="col-lg-7 col-xl-7 order-1">
+                            <div class="p-3 bg-white rounded-3 border shadow-xs">
+                                <h6 class="fw-bold text-dark mb-3 pb-2 border-bottom d-flex align-items-center justify-content-between">
+                                    <span><i class="fa-solid fa-sliders text-primary me-1"></i> تعديل بيانات ومواصفات الإعلان</span>
+                                    <small class="text-muted fs-8">التعديلات تنعكس فورياً في الجدول (0ms)</small>
+                                </h6>
+                                <div class="row g-3">
+                                    <!-- عنوان الإعلان -->
+                                    <div class="col-12">
+                                        <label class="form-label fw-bold fs-7 text-dark">عنوان الإعلان <span class="text-danger">*</span></label>
+                                        <input type="text" name="title" id="editListingTitle" class="form-control fw-bold" required maxlength="255">
                                     </div>
-                                    <i class="fa-solid fa-chevron-left text-muted fs-8 ms-2"></i>
+
+                                    <!-- القسم / التصنيف التفاعلي المبوب -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold fs-7 text-dark d-flex align-items-center justify-content-between">
+                                            <span>القسم / التصنيف <span class="text-danger">*</span></span>
+                                            <a href="javascript:void(0)" onclick="openCategoryPicker()" class="text-decoration-none fs-8 text-primary fw-bold">
+                                                <i class="fa-solid fa-folder-tree me-1"></i> تصفح الشجرة
+                                            </a>
+                                        </label>
+                                        <div class="input-group">
+                                            <div class="form-control d-flex align-items-center justify-content-between bg-white cursor-pointer py-2 border rounded-end-3" 
+                                                 id="editCategoryDisplayBox" 
+                                                 onclick="openCategoryPicker()" 
+                                                 style="cursor: pointer; min-height: 42px;"
+                                                 title="اضغط لاختيار وتحديد القسم بالبوب اب">
+                                                <div id="editCategoryDisplayText" class="fw-bold text-dark fs-7 text-truncate">
+                                                    <span class="text-muted">اضغط لاختيار القسم...</span>
+                                                </div>
+                                                <i class="fa-solid fa-chevron-left text-muted fs-8 ms-2"></i>
+                                            </div>
+                                            <button type="button" class="btn btn-primary fw-bold px-3 rounded-start-3" onclick="openCategoryPicker()" title="فتح نافذة اختيار القسم">
+                                                <i class="fa-solid fa-list-check me-1"></i> اختيار
+                                            </button>
+                                        </div>
+                                        <input type="hidden" name="category_id" id="editListingCategory" value="" required>
+                                    </div>
+
+                                    <!-- المدينة -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold fs-7 text-dark">المدينة <span class="text-danger">*</span></label>
+                                        <select name="city_id" id="editListingCity" class="form-select fw-semibold" required>
+                                            <option value="">اختر المدينة...</option>
+                                            @foreach($cities as $ct)
+                                                <option value="{{ $ct->id }}">{{ $ct->name_ar }}</option>
+                                            @endforeach
+                                        </select>
+                                    </div>
+
+                                    <!-- السعر والعملة -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold fs-7 text-dark">السعر</label>
+                                        <div class="input-group">
+                                            <input type="number" step="any" name="price" id="editListingPrice" class="form-control fw-bold" min="0" placeholder="0">
+                                            <select name="currency" id="editListingCurrency" class="form-select" style="max-width: 100px;">
+                                                <option value="SYP">ل.س</option>
+                                                <option value="USD">$</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <!-- رقم الهاتف -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold fs-7 text-dark">رقم هاتف التواصل</label>
+                                        <input type="text" name="contact_phone" id="editListingPhone" class="form-control text-start" dir="ltr" placeholder="09xxxxxxxx">
+                                    </div>
+
+                                    <!-- حالة الإعلان -->
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold fs-7 text-dark">حالة الإعلان</label>
+                                        <select name="status" id="editListingStatus" class="form-select fw-bold">
+                                            <option value="active">نشط ✅</option>
+                                            <option value="pending">بانتظار المراجعة ⏳</option>
+                                            <option value="suspended">موقوف مؤقتاً ⏸️</option>
+                                            <option value="rejected">مرفوض ❌</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- تمييز الإعلان -->
+                                    <div class="col-md-6 d-flex align-items-center">
+                                        <div class="form-check form-switch mt-3">
+                                            <input class="form-check-input" type="checkbox" name="is_featured" value="1" id="editListingFeatured">
+                                            <label class="form-check-label fw-bold text-dark fs-7 ms-2" for="editListingFeatured">
+                                                ⭐ إعلان مميز (يظهر في الصدارة)
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- الوصف الكامل -->
+                                    <div class="col-12">
+                                        <label class="form-label fw-bold fs-7 text-dark">وصف الإعلان والمواصفات</label>
+                                        <textarea name="description" id="editListingDescription" class="form-control" rows="5" placeholder="أدخل تفاصيل ومواصفات الإعلان..."></textarea>
+                                    </div>
                                 </div>
-                                <button type="button" class="btn btn-primary fw-bold px-3 rounded-start-3" onclick="openCategoryPicker()" title="فتح نافذة اختيار القسم">
-                                    <i class="fa-solid fa-list-check me-1"></i> اختيار
-                                </button>
-                            </div>
-                            <input type="hidden" name="category_id" id="editListingCategory" value="" required>
-                        </div>
-
-                        <!-- المدينة -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold fs-7 text-dark">المدينة <span class="text-danger">*</span></label>
-                            <select name="city_id" id="editListingCity" class="form-select fw-semibold" required>
-                                <option value="">اختر المدينة...</option>
-                                @foreach($cities as $ct)
-                                    <option value="{{ $ct->id }}">{{ $ct->name_ar }}</option>
-                                @endforeach
-                            </select>
-                        </div>
-
-                        <!-- السعر والعملة -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold fs-7 text-dark">السعر</label>
-                            <div class="input-group">
-                                <input type="number" step="any" name="price" id="editListingPrice" class="form-control fw-bold" min="0" placeholder="0">
-                                <select name="currency" id="editListingCurrency" class="form-select" style="max-width: 100px;">
-                                    <option value="SYP">ل.س</option>
-                                    <option value="USD">$</option>
-                                </select>
                             </div>
                         </div>
 
-                        <!-- رقم الهاتف -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold fs-7 text-dark">رقم هاتف التواصل</label>
-                            <input type="text" name="contact_phone" id="editListingPhone" class="form-control text-start" dir="ltr" placeholder="09xxxxxxxx">
-                        </div>
+                        <!-- اليسار: كرت مرجع الإعلان الأصلي للمقارنة والاستعلام (Sticky Reference Card) -->
+                        <div class="col-lg-5 col-xl-5 order-2">
+                            <div class="card border-0 shadow-sm rounded-4 h-100 edit-ref-card" style="position: sticky; top: 0;">
+                                <div class="card-header bg-dark text-white py-2 px-3 rounded-top-4 d-flex align-items-center justify-content-between">
+                                    <div class="d-flex align-items-center gap-2">
+                                        <i class="fa-solid fa-file-invoice text-warning"></i>
+                                        <span class="fw-bold fs-7">مرجع تفاصيل الإعلان الأصلي</span>
+                                    </div>
+                                    <span class="badge bg-warning text-dark fw-bold fs-8" id="refCardIdBadge">#</span>
+                                </div>
+                                <div class="card-body p-3 d-flex flex-column gap-2" style="max-height: 72vh; overflow-y: auto;">
+                                    <!-- صورة الإعلان المرجعية (قابلة للنقر للتكبير في البوب اب) -->
+                                    <div class="position-relative text-center rounded-3 overflow-hidden border bg-white shadow-xs" style="height: 180px; cursor: pointer;" onclick="openImageLightboxFromRef()" title="انقر لتكبير ومعاينة الصورة في البوب اب">
+                                        <img id="refCardImage" src="" alt="صورة الإعلان" class="w-100 h-100" style="object-fit: cover;" onerror="this.onerror=null; this.src='https://lelbai.com/icons/cars.svg';">
+                                        <div class="position-absolute bottom-0 start-0 end-0 bg-dark bg-opacity-75 text-white py-1 px-2 d-flex justify-content-between align-items-center fs-9">
+                                            <span><i class="fa-solid fa-magnifying-glass-plus me-1 text-warning"></i> انقر للتكبير بالبوب اب</span>
+                                            <span id="refCardViewsBadge" class="badge bg-secondary">👁️ 0</span>
+                                        </div>
+                                    </div>
 
-                        <!-- حالة الإعلان -->
-                        <div class="col-md-6">
-                            <label class="form-label fw-bold fs-7 text-dark">حالة الإعلان</label>
-                            <select name="status" id="editListingStatus" class="form-select fw-bold">
-                                <option value="active">نشط ✅</option>
-                                <option value="pending">بانتظار المراجعة ⏳</option>
-                                <option value="suspended">موقوف مؤقتاً ⏸️</option>
-                                <option value="rejected">مرفوض ❌</option>
-                            </select>
-                        </div>
+                                    <!-- العنوان الأصلي -->
+                                    <div class="bg-white p-2 rounded-2 border">
+                                        <span class="text-muted fs-9 fw-bold d-block mb-1">العنوان الحالي المسجل:</span>
+                                        <div id="refCardTitle" class="fw-bold text-dark fs-7" style="word-break: break-word;"></div>
+                                    </div>
 
-                        <!-- تمييز الإعلان -->
-                        <div class="col-md-6 d-flex align-items-center">
-                            <div class="form-check form-switch mt-3">
-                                <input class="form-check-input" type="checkbox" name="is_featured" value="1" id="editListingFeatured">
-                                <label class="form-check-label fw-bold text-dark fs-7 ms-2" for="editListingFeatured">
-                                    ⭐ إعلان مميز (يظهر في الصدارة)
-                                </label>
+                                    <!-- شبكة تفاصيل: السعر، القسم، المدينة، الحالة -->
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <div class="bg-white p-2 rounded-2 border">
+                                                <span class="text-muted fs-9 fw-bold d-block">السعر الحالي:</span>
+                                                <span id="refCardPrice" class="fw-bold text-success fs-7"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="bg-white p-2 rounded-2 border">
+                                                <span class="text-muted fs-9 fw-bold d-block">القسم الأصلي:</span>
+                                                <span id="refCardCategory" class="fw-bold text-secondary fs-8 text-truncate d-block"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="bg-white p-2 rounded-2 border">
+                                                <span class="text-muted fs-9 fw-bold d-block">المدينة:</span>
+                                                <span id="refCardCity" class="fw-bold text-dark fs-8"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-6">
+                                            <div class="bg-white p-2 rounded-2 border">
+                                                <span class="text-muted fs-9 fw-bold d-block">حالة الإعلان:</span>
+                                                <span id="refCardStatus"></span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- صاحب الإعلان ورقم الهاتف -->
+                                    <div class="bg-white p-2 rounded-2 border">
+                                        <div class="d-flex justify-content-between align-items-center mb-1">
+                                            <span class="text-muted fs-9 fw-bold"><i class="fa-solid fa-user me-1 text-primary"></i> المعلن:</span>
+                                            <span id="refCardUser" class="fw-bold text-dark fs-8"></span>
+                                        </div>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="text-muted fs-9 fw-bold"><i class="fa-solid fa-phone me-1 text-success"></i> الهاتف:</span>
+                                            <span id="refCardPhone" class="fw-bold text-dark fs-8" dir="ltr"></span>
+                                        </div>
+                                    </div>
+
+                                    <!-- تاريخ النشر -->
+                                    <div class="bg-white p-2 rounded-2 border d-flex justify-content-between align-items-center fs-8 text-muted">
+                                        <span><i class="fa-regular fa-calendar-check me-1"></i> تاريخ الإضافة:</span>
+                                        <strong id="refCardCreatedAt" class="text-dark"></strong>
+                                    </div>
+
+                                    <!-- الوصف الأصلي الكامل -->
+                                    <div>
+                                        <span class="text-muted fs-9 fw-bold d-block mb-1">الوصف الأصلي المسجل:</span>
+                                        <div id="refCardDescription" class="bg-white p-2 rounded-2 border text-muted fs-8" style="max-height: 110px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5;"></div>
+                                    </div>
+
+                                    <!-- رابط المعاينة الحقيقي -->
+                                    <div class="mt-auto pt-1">
+                                        <a id="refCardLiveUrl" href="#" target="_blank" class="btn btn-sm btn-outline-primary w-100 fw-bold rounded-pill">
+                                            <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> فتح الإعلان بالكامل على lelbai.com
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-
-                        <!-- الوصف الكامل -->
-                        <div class="col-12">
-                            <label class="form-label fw-bold fs-7 text-dark">وصف الإعلان والمواصفات</label>
-                            <textarea name="description" id="editListingDescription" class="form-control" rows="5" placeholder="أدخل تفاصيل ومواصفات الإعلان..."></textarea>
                         </div>
                     </div>
                 </div>
-                <div class="modal-footer bg-light border-top py-3 px-4 d-flex justify-content-between">
+                <div class="modal-footer bg-white border-top py-3 px-4 d-flex justify-content-between">
                     <button type="button" class="btn btn-secondary rounded-pill px-4 fw-bold" data-bs-dismiss="modal">إلغاء</button>
                     <button type="submit" class="btn btn-success rounded-pill px-4 fw-bold shadow-sm">
-                        <i class="fa-solid fa-floppy-disk me-1"></i> حفظ التعديلات الآن
+                        <i class="fa-solid fa-floppy-disk me-1"></i> حفظ التعديلات فورياً
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal بوب اب تكبير الصورة المباشر (Image Lightbox Popup) -->
+<div class="modal fade" id="imageLightboxModal" tabindex="-1" aria-hidden="true" style="backdrop-filter: blur(8px); background-color: rgba(15, 23, 42, 0.85); z-index: 1080;">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-24 rounded-4 overflow-hidden bg-dark text-white">
+            <div class="modal-header border-bottom border-secondary py-3 px-4 d-flex justify-content-between align-items-center bg-dark">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary px-2 py-1 fs-8" id="lightboxAdId">#</span>
+                    <h6 class="modal-title fw-bold text-truncate mb-0 text-white" id="lightboxAdTitle" style="max-width: 450px;"></h6>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <a href="#" id="lightboxAdUrl" target="_blank" class="btn btn-sm btn-outline-light rounded-pill px-3 fw-bold fs-8" title="فتح الإعلان على lelbai.com">
+                        <i class="fa-solid fa-arrow-up-right-from-square me-1"></i> فتح الإعلان
+                    </a>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="إغلاق"></button>
+                </div>
+            </div>
+            <div class="modal-body p-2 text-center bg-black d-flex align-items-center justify-content-center" style="min-height: 380px; max-height: 75vh;">
+                <img id="lightboxImg" src="" alt="" class="img-fluid rounded-2" style="max-height: 72vh; width: auto; object-fit: contain;">
+            </div>
+            <div class="modal-footer border-top border-secondary py-2 px-4 d-flex justify-content-between align-items-center bg-dark">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-white-50 fs-8">السعر:</span>
+                    <span class="fw-bold text-success fs-7" id="lightboxAdPrice"></span>
+                </div>
+                <button type="button" class="btn btn-secondary btn-sm rounded-pill px-4 fw-bold" data-bs-dismiss="modal">
+                    إغلاق (Esc)
+                </button>
+            </div>
         </div>
     </div>
 </div>
@@ -1135,46 +1355,163 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Edit Modal trigger
+    // Top-Left Floating Sync Status Manager (مؤشر المزامنة الحية)
+    const SyncStatusManager = {
+        pendingCount: 0,
+        successTimer: null,
+
+        start: function(text = 'جاري الحفظ والمزامنة مع السيرفر... ⏳') {
+            this.pendingCount++;
+            if (this.successTimer) {
+                clearTimeout(this.successTimer);
+                this.successTimer = null;
+            }
+            this.render('syncing', text);
+        },
+
+        success: function(text = 'تم الحفظ بنجاح على السيرفر ✅') {
+            this.pendingCount = Math.max(0, this.pendingCount - 1);
+            if (this.pendingCount === 0) {
+                this.render('success', text);
+                if (this.successTimer) clearTimeout(this.successTimer);
+                this.successTimer = setTimeout(() => {
+                    this.hide();
+                }, 2000); // تختفي تماماً بعد ثانيتين بالضبط كما طلب المستخدم
+            }
+        },
+
+        error: function(text = 'حدث خطأ أثناء المزامنة مع السيرفر') {
+            this.pendingCount = Math.max(0, this.pendingCount - 1);
+            if (this.successTimer) clearTimeout(this.successTimer);
+            this.render('error', text);
+        },
+
+        render: function(type, text) {
+            const indicator = document.getElementById('syncStatusIndicator');
+            const badge = document.getElementById('syncStatusBadge');
+            const icon = document.getElementById('syncStatusIcon');
+            const textEl = document.getElementById('syncStatusText');
+            const closeBtn = document.getElementById('syncStatusCloseBtn');
+
+            if (!indicator || !badge) return;
+
+            textEl.textContent = text;
+            indicator.style.display = 'block';
+            indicator.style.opacity = '1';
+            indicator.style.transform = 'translateY(0)';
+
+            if (type === 'syncing') {
+                badge.style.backgroundColor = '#0f172a';
+                badge.style.borderColor = '#f59e0b';
+                badge.style.color = '#ffffff';
+                icon.className = 'fa-solid fa-arrows-rotate fa-spin text-warning fs-6';
+                if (closeBtn) closeBtn.style.display = 'none';
+            } else if (type === 'success') {
+                badge.style.backgroundColor = '#15803d';
+                badge.style.borderColor = '#22c55e';
+                badge.style.color = '#ffffff';
+                icon.className = 'fa-solid fa-circle-check text-white fs-6';
+                if (closeBtn) closeBtn.style.display = 'none';
+            } else if (type === 'error') {
+                badge.style.backgroundColor = '#991b1b';
+                badge.style.borderColor = '#ef4444';
+                badge.style.color = '#ffffff';
+                icon.className = 'fa-solid fa-triangle-exclamation text-white fs-6';
+                if (closeBtn) closeBtn.style.display = 'inline-block';
+            }
+        },
+
+        hide: function() {
+            const indicator = document.getElementById('syncStatusIndicator');
+            if (!indicator) return;
+            indicator.style.transition = 'all 0.3s ease';
+            indicator.style.opacity = '0';
+            indicator.style.transform = 'translateY(-10px)';
+            setTimeout(() => {
+                indicator.style.display = 'none';
+            }, 320);
+        }
+    };
+    window.SyncStatusManager = SyncStatusManager;
+
+    // دالة فتح بوب اب تكبير الصورة Lightbox Popup
+    window.openImageLightbox = function(imgUrl, title, price, id, liveUrl) {
+        const modalEl = document.getElementById('imageLightboxModal');
+        if (!modalEl) return;
+        const imgEl = document.getElementById('lightboxImg');
+        const titleEl = document.getElementById('lightboxAdTitle');
+        const priceEl = document.getElementById('lightboxAdPrice');
+        const idEl = document.getElementById('lightboxAdId');
+        const urlEl = document.getElementById('lightboxAdUrl');
+
+        if (imgEl) imgEl.src = imgUrl;
+        if (titleEl) titleEl.textContent = title || 'معاينة صورة الإعلان';
+        if (priceEl) priceEl.textContent = price || 'غير محدد';
+        if (idEl) idEl.textContent = '#' + (id || '');
+        if (urlEl) urlEl.href = liveUrl || '#';
+
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    };
+
+    window.openImageLightboxFromRef = function() {
+        const refImg = document.getElementById('refCardImage');
+        if (refImg && refImg.src) {
+            openImageLightbox(
+                refImg.src,
+                refImg.dataset.title || '',
+                refImg.dataset.price || '',
+                refImg.dataset.id || '',
+                refImg.dataset.liveUrl || ''
+            );
+        }
+    };
+
+    // Edit Modal trigger مع تعبئة كرت المرجع الأصلي
     const editBtns = document.querySelectorAll('.btn-edit-listing');
     editBtns.forEach(btn => {
         btn.addEventListener('click', function() {
             const id = this.dataset.id;
-            const title = this.dataset.title || '';
-            const price = this.dataset.price || '';
-            const currency = this.dataset.currency || 'SYP';
-            const categoryId = this.dataset.categoryId || '';
-            const cityId = this.dataset.cityId || '';
-            const phone = this.dataset.phone || '';
-            const description = this.dataset.description || '';
-            const status = this.dataset.status || 'active';
-            const featured = this.dataset.featured == '1';
+            const title = this.dataset.title;
+            const price = this.dataset.price;
+            const currency = this.dataset.currency;
+            const categoryId = this.dataset.categoryId;
+            const categoryName = this.dataset.categoryName || 'بدون تصنيف';
+            const cityId = this.dataset.cityId;
+            const cityName = this.dataset.cityName || 'غير محدد';
+            const phone = this.dataset.phone;
+            const description = this.dataset.description;
+            const status = this.dataset.status;
+            const featured = this.dataset.featured === '1';
+            const image = this.dataset.image || '';
+            const userName = this.dataset.userName || 'مستخدم مجهول';
+            const views = this.dataset.views || '0';
+            const createdAt = this.dataset.createdAt || '-';
+            const liveUrl = this.dataset.liveUrl || ('https://lelbai.com/listings/' + id + '/details');
 
-            const modalTitleSpan = document.getElementById('modalListingIdDisplay');
-            if (modalTitleSpan) modalTitleSpan.textContent = id;
+            // 1. تعبئة حقول نموذج التعديل
+            const idDisplay = document.getElementById('modalListingIdDisplay');
+            if (idDisplay) idDisplay.textContent = id;
 
             const titleInput = document.getElementById('editListingTitle');
             if (titleInput) titleInput.value = title;
 
-            // Set Category
-            const catInp = document.getElementById('editListingCategory');
-            if (catInp) catInp.value = categoryId;
+            const catInput = document.getElementById('editListingCategory');
+            if (catInput) catInput.value = categoryId;
 
-            const catDisplay = document.getElementById('editCategoryDisplayText');
-            if (catDisplay) {
-                if (categoryId && catMap[categoryId]) {
-                    const fullPath = getCategoryPathText(categoryId);
-                    catDisplay.innerHTML = '<span class="badge bg-primary bg-opacity-10 text-primary fs-7 px-2 py-1"><i class="fa-solid fa-folder-tree me-1"></i> ' + escapeHtml(fullPath) + '</span>';
+            const catText = document.getElementById('editCategoryDisplayText');
+            if (catText) {
+                if (catMap[categoryId]) {
+                    catText.innerHTML = getCategoryBreadcrumb(categoryId);
+                } else if (categoryName && categoryName !== 'بدون تصنيف') {
+                    catText.textContent = categoryName;
                 } else {
-                    catDisplay.innerHTML = '<span class="text-muted">اضغط لاختيار القسم...</span>';
+                    catText.innerHTML = '<span class="text-muted">اضغط لاختيار القسم...</span>';
                 }
             }
 
-            // Set City
             const citySelect = document.getElementById('editListingCity');
-            if (citySelect) {
-                citySelect.value = String(cityId || '');
-            }
+            if (citySelect) citySelect.value = cityId;
 
             const priceInput = document.getElementById('editListingPrice');
             if (priceInput) priceInput.value = price;
@@ -1193,6 +1530,59 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const descText = document.getElementById('editListingDescription');
             if (descText) descText.value = description;
+
+            // 2. تعبئة كرت المرجع الأصلي (Reference Card) للمقارنة والاستعلام
+            const refCardId = document.getElementById('refCardIdBadge');
+            if (refCardId) refCardId.textContent = '#' + id;
+
+            const refImg = document.getElementById('refCardImage');
+            const cleanFormattedPrice = (price ? Number(price).toLocaleString() : '0') + ' ' + (currency === 'USD' ? '$' : 'ل.س');
+            if (refImg) {
+                refImg.src = image || 'https://lelbai.com/icons/cars.svg';
+                refImg.dataset.title = title;
+                refImg.dataset.price = cleanFormattedPrice;
+                refImg.dataset.id = id;
+                refImg.dataset.liveUrl = liveUrl;
+            }
+
+            const refViewsBadge = document.getElementById('refCardViewsBadge');
+            if (refViewsBadge) refViewsBadge.textContent = '👁️ ' + views;
+
+            const refTitle = document.getElementById('refCardTitle');
+            if (refTitle) refTitle.textContent = title;
+
+            const refPrice = document.getElementById('refCardPrice');
+            if (refPrice) refPrice.textContent = cleanFormattedPrice;
+
+            const refCategory = document.getElementById('refCardCategory');
+            if (refCategory) refCategory.textContent = categoryName;
+
+            const refCity = document.getElementById('refCardCity');
+            if (refCity) refCity.textContent = cityName;
+
+            const refUser = document.getElementById('refCardUser');
+            if (refUser) refUser.textContent = userName;
+
+            const refPhone = document.getElementById('refCardPhone');
+            if (refPhone) refPhone.textContent = phone || '-';
+
+            const refCreatedAt = document.getElementById('refCardCreatedAt');
+            if (refCreatedAt) refCreatedAt.textContent = createdAt;
+
+            const refDesc = document.getElementById('refCardDescription');
+            if (refDesc) refDesc.textContent = description || '(لا يوجد نص وصف مسجل)';
+
+            const refLive = document.getElementById('refCardLiveUrl');
+            if (refLive) refLive.href = liveUrl;
+
+            const refStatus = document.getElementById('refCardStatus');
+            if (refStatus) {
+                let badgeHtml = '<span class="badge bg-secondary">موقوف ⏸️</span>';
+                if (status === 'active') badgeHtml = '<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25">نشط ✅</span>';
+                else if (status === 'pending') badgeHtml = '<span class="badge bg-warning bg-opacity-20 text-dark border border-warning">بانتظار المراجعة ⏳</span>';
+                else if (status === 'rejected') badgeHtml = '<span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-25">مرفوض ❌</span>';
+                refStatus.innerHTML = badgeHtml;
+            }
 
             const form = document.getElementById('editListingForm');
             if (form) form.action = '{{ url("listings") }}/' + id + '/update';
@@ -1286,13 +1676,13 @@ document.addEventListener('DOMContentLoaded', function() {
     const currentUrlParams = new URLSearchParams(window.location.search);
     const activeTabStatus = currentUrlParams.get('status') || '';
 
-    // Quick Status Update (Accept / Suspend) with Optimistic UI
+    // Quick Status Update (Accept / Suspend) with Optimistic UI & Sync Indicator
     window.quickUpdateListingStatus = function(id, newStatus, event) {
         if (event) event.preventDefault();
         const row = document.getElementById('listing-row-' + id);
         const oldStatus = row ? row.dataset.status : '';
 
-        // Immediate Optimistic Visual Feedback
+        // Immediate Optimistic Visual Feedback (0ms)
         if (row) {
             row.dataset.status = newStatus;
             if (activeTabStatus === 'pending' && newStatus === 'active') {
@@ -1300,12 +1690,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 updateKpi('pending', -1);
                 updateKpi('active', +1);
                 fadeOutRow(row);
-                showFloatingToast('تم قبول وتفعيل الإعلان #' + id + ' فورياً ✅', 'success');
             } else if (activeTabStatus === 'active' && newStatus === 'suspended') {
                 row.style.backgroundColor = '#f1f5f9';
                 updateKpi('active', -1);
                 fadeOutRow(row);
-                showFloatingToast('تم إيقاف الإعلان #' + id + ' مؤقتاً ⏸️', 'info');
             } else {
                 const statusCell = document.getElementById('status-cell-' + id);
                 if (statusCell) {
@@ -1318,9 +1706,14 @@ document.addEventListener('DOMContentLoaded', function() {
                         updateKpi('active', -1);
                     }
                 }
-                showFloatingToast('تم تحديث حالة الإعلان #' + id + ' بنجاح ✅', 'success');
+                row.classList.remove('row-optimistic-flash');
+                void row.offsetWidth; // trigger reflow
+                row.classList.add('row-optimistic-flash');
             }
         }
+
+        const actionText = newStatus === 'active' ? 'قبول وتفعيل' : 'إيقاف';
+        SyncStatusManager.start(`جاري ${actionText} الإعلان #${id} بالسيرفر... ⏳`);
 
         const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
@@ -1336,16 +1729,20 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .then(r => r.json())
         .then(data => {
-            if (!data.success) {
+            if (data.success) {
+                SyncStatusManager.success(`تم ${actionText} الإعلان #${id} على السيرفر بنجاح ✅`);
+            } else {
+                SyncStatusManager.error(`فشل ${actionText} للإعلان #${id}: ` + (data.message || ''));
                 showFloatingToast(data.message || 'تعذر حفظ الحالة على السيرفر', 'danger');
             }
         })
         .catch(err => {
+            SyncStatusManager.error(`فشل الاتصال أثناء ${actionText} للإعلان #${id}`);
             showFloatingToast('تنبيه: تم الإجراء محلياً ولكن تعذر الاتصال بالسيرفر: ' + err.message, 'warning');
         });
     };
 
-    // Reject Form Ajax Submission
+    // Reject Form Ajax Submission with Optimistic UI & Sync Indicator
     const rejectForm = document.getElementById('rejectListingForm');
     if (rejectForm) {
         rejectForm.addEventListener('submit', function(e) {
@@ -1355,12 +1752,14 @@ document.addEventListener('DOMContentLoaded', function() {
             const id = parts[parts.indexOf('listings') + 1];
             const reason = document.getElementById('rejectionReasonInput').value;
 
+            // 1. إغلاق المودال فورياً في 0ms
             const modalEl = document.getElementById('rejectListingModal');
             if (modalEl) {
                 const modal = bootstrap.Modal.getInstance(modalEl);
                 if (modal) modal.hide();
             }
 
+            // 2. تطبيق التغيير محلياً فورياً (0ms)
             const row = document.getElementById('listing-row-' + id);
             if (row) {
                 if (activeTabStatus === 'pending') {
@@ -1376,7 +1775,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
 
-            showFloatingToast('تم رفض وحجب الإعلان #' + id + ' فورياً ❌', 'danger');
+            // 3. تشغيل مؤشر المزامنة في أعلى اليسار
+            SyncStatusManager.start(`جاري رفض وحجب الإعلان #${id} بالسيرفر... ⏳`);
 
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
@@ -1392,17 +1792,21 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(r => r.json())
             .then(data => {
-                if (!data.success) {
+                if (data.success) {
+                    SyncStatusManager.success(`تم رفض وحجب الإعلان #${id} على السيرفر بنجاح ✅`);
+                } else {
+                    SyncStatusManager.error(`فشل الرفض بالسيرفر للإعلان #${id}: ` + (data.message || ''));
                     showFloatingToast(data.message || 'تعذر تأكيد الرفض بالسيرفر', 'danger');
                 }
             })
             .catch(err => {
+                SyncStatusManager.error(`فشل الاتصال أثناء رفض الإعلان #${id}`);
                 showFloatingToast('خطأ في الاتصال: ' + err.message, 'warning');
             });
         });
     }
 
-    // Delete Form Ajax Submission
+    // Delete Form Ajax Submission with Optimistic UI & Sync Indicator
     const deleteForm = document.getElementById('deleteListingForm');
     if (deleteForm) {
         deleteForm.addEventListener('submit', function(e) {
@@ -1411,19 +1815,22 @@ document.addEventListener('DOMContentLoaded', function() {
             const parts = actionUrl.split('/');
             const id = parts[parts.indexOf('listings') + 1];
 
+            // 1. إغلاق المودال فورياً في 0ms
             const modalEl = document.getElementById('deleteListingModal');
             if (modalEl) {
                 const modal = bootstrap.Modal.getInstance(modalEl);
                 if (modal) modal.hide();
             }
 
+            // 2. حذف السطر محلياً فورياً (0ms)
             const row = document.getElementById('listing-row-' + id);
             if (row) {
                 updateKpi('all', -1);
                 fadeOutRow(row);
             }
 
-            showFloatingToast('تم حذف الإعلان #' + id + ' نهائياً 🗑️', 'info');
+            // 3. تشغيل مؤشر المزامنة في أعلى اليسار
+            SyncStatusManager.start(`جاري حذف الإعلان #${id} نهائياً بالسيرفر... ⏳`);
 
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
@@ -1437,17 +1844,21 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(r => r.json())
             .then(data => {
-                if (!data.success) {
+                if (data.success) {
+                    SyncStatusManager.success(`تم حذف الإعلان #${id} نهائياً من السيرفر ✅`);
+                } else {
+                    SyncStatusManager.error(`فشل حذف الإعلان #${id} بالسيرفر: ` + (data.message || ''));
                     showFloatingToast(data.message || 'تعذر الحذف بالسيرفر', 'danger');
                 }
             })
             .catch(err => {
+                SyncStatusManager.error(`فشل الاتصال أثناء حذف الإعلان #${id}`);
                 showFloatingToast('خطأ في الاتصال: ' + err.message, 'warning');
             });
         });
     }
 
-    // Edit Form Ajax Submission
+    // Edit Form Full Optimistic Ajax Submission (استجابة فورية 0ms مع مزامنة خلفية)
     const editForm = document.getElementById('editListingForm');
     if (editForm) {
         editForm.addEventListener('submit', function(e) {
@@ -1456,13 +1867,99 @@ document.addEventListener('DOMContentLoaded', function() {
             const parts = actionUrl.split('/');
             const id = parts[parts.indexOf('listings') + 1];
 
-            const submitBtn = this.querySelector('button[type="submit"]');
-            const originalBtnText = submitBtn ? submitBtn.innerHTML : '';
-            if (submitBtn) {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i> جاري الحفظ...';
+            // قراءة القيم الجديدة من الفورم فورياً
+            const newTitle = document.getElementById('editListingTitle')?.value || '';
+            const newPrice = document.getElementById('editListingPrice')?.value || '';
+            const newCurrency = document.getElementById('editListingCurrency')?.value || 'SYP';
+            const newCatId = document.getElementById('editListingCategory')?.value || '';
+            const newCatText = document.getElementById('editCategoryDisplayText')?.textContent?.trim() || '';
+            const citySelect = document.getElementById('editListingCity');
+            const newCityName = citySelect?.options[citySelect.selectedIndex]?.text || '';
+            const newPhone = document.getElementById('editListingPhone')?.value || '';
+            const newStatus = document.getElementById('editListingStatus')?.value || 'active';
+            const isFeatured = document.getElementById('editListingFeatured')?.checked;
+            const newDesc = document.getElementById('editListingDescription')?.value || '';
+
+            // 1. إغلاق نافذة التعديل فورياً في 0ms (بدون أي انتظار لرد السيرفر!)
+            const modalEl = document.getElementById('editListingModal');
+            if (modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if (modal) modal.hide();
             }
 
+            // 2. تحديث بيانات السطر في الجدول محلياً فورياً (0ms Perceived Latency)
+            const row = document.getElementById('listing-row-' + id);
+            if (row) {
+                // تحديث العنوان
+                const titleEl = row.querySelector('.col-cell-1 .fw-bold');
+                if (titleEl) {
+                    titleEl.textContent = newTitle.length > 40 ? newTitle.substring(0, 40) + '...' : newTitle;
+                    titleEl.setAttribute('title', newTitle);
+                }
+
+                // تحديث التصنيف
+                const catEl = row.querySelector('.col-cell-1 .text-secondary');
+                if (catEl && newCatText && !newCatText.includes('اختر')) {
+                    catEl.textContent = newCatText;
+                }
+
+                // تحديث السعر والمدينة
+                const priceCell = row.querySelector('.col-cell-3');
+                if (priceCell) {
+                    const priceFormatted = newPrice ? Number(newPrice).toLocaleString() : '0';
+                    const currSymbol = newCurrency === 'USD' ? '$' : 'ل.س';
+                    priceCell.innerHTML = `
+                        <div class="fw-bold text-success fs-7">
+                            ${priceFormatted} ${currSymbol}
+                        </div>
+                        <div class="fs-8 text-muted d-flex align-items-center gap-1">
+                            <i class="fa-solid fa-location-dot text-danger fs-9"></i>
+                            <span>${escapeHtml(newCityName)}</span>
+                        </div>
+                    `;
+                }
+
+                // تحديث رقم الهاتف
+                const phoneEl = row.querySelector('.col-cell-2 span[dir="ltr"]');
+                if (phoneEl) {
+                    phoneEl.textContent = newPhone || '-';
+                }
+
+                // تحديث شارة الحالة
+                const statusCell = document.getElementById('status-cell-' + id);
+                if (statusCell) {
+                    if (newStatus === 'active') statusCell.innerHTML = '<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill">نشط ✅</span>';
+                    else if (newStatus === 'pending') statusCell.innerHTML = '<span class="badge bg-warning bg-opacity-20 text-dark border border-warning px-2 py-1 rounded-pill">بانتظار المراجعة ⏳</span>';
+                    else if (newStatus === 'rejected') statusCell.innerHTML = '<span class="badge bg-danger bg-opacity-15 text-danger border border-danger border-opacity-25 px-2 py-1 rounded-pill">مرفوض ❌</span>';
+                    else if (newStatus === 'suspended') statusCell.innerHTML = '<span class="badge bg-secondary px-2 py-1 rounded-pill">موقوف ⏸️</span>';
+                }
+
+                // تحديث خصائص زر التعديل ليبقى متزامناً مع الفتح القادم
+                const editBtn = row.querySelector('.btn-edit-listing');
+                if (editBtn) {
+                    editBtn.dataset.title = newTitle;
+                    editBtn.dataset.price = newPrice;
+                    editBtn.dataset.currency = newCurrency;
+                    editBtn.dataset.categoryId = newCatId;
+                    if (newCatText && !newCatText.includes('اختر')) editBtn.dataset.categoryName = newCatText;
+                    editBtn.dataset.cityId = citySelect?.value || '';
+                    editBtn.dataset.cityName = newCityName;
+                    editBtn.dataset.phone = newPhone;
+                    editBtn.dataset.status = newStatus;
+                    editBtn.dataset.featured = isFeatured ? '1' : '0';
+                    editBtn.dataset.description = newDesc;
+                }
+
+                // وميض أخضر فوري لطيف للسطر لتأكيد التعديل
+                row.classList.remove('row-optimistic-flash');
+                void row.offsetWidth;
+                row.classList.add('row-optimistic-flash');
+            }
+
+            // 3. تشغيل مؤشر المزامنة في أعلى اليسار
+            SyncStatusManager.start(`جاري حفظ تعديلات الإعلان #${id} بالسيرفر... ⏳`);
+
+            // 4. إرسال الطلب في الخلفية بدون تعطيل المستخدم
             const formData = new FormData(this);
             const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
 
@@ -1477,226 +1974,138 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .then(r => r.json())
             .then(data => {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnText;
-                }
-
                 if (data.success) {
-                    const modalEl = document.getElementById('editListingModal');
-                    if (modalEl) {
-                        const modal = bootstrap.Modal.getInstance(modalEl);
-                        if (modal) modal.hide();
-                    }
-
-                    showFloatingToast(data.message || 'تم حفظ التعديلات بنجاح!', 'success');
-
-                    const row = document.getElementById('listing-row-' + id);
-                    if (row && data.data) {
-                        const titleEl = row.querySelector('.col-cell-1 .fw-bold');
-                        if (titleEl) titleEl.textContent = data.data.title;
-                        const statusCell = document.getElementById('status-cell-' + id);
-                        if (statusCell) {
-                            if (data.data.status === 'active') statusCell.innerHTML = '<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill">نشط ✅</span>';
-                            else if (data.data.status === 'pending') statusCell.innerHTML = '<span class="badge bg-warning bg-opacity-20 text-dark border border-warning px-2 py-1 rounded-pill">بانتظار المراجعة ⏳</span>';
-                            else if (data.data.status === 'rejected') statusCell.innerHTML = '<span class="badge bg-danger bg-opacity-15 text-danger border border-danger border-opacity-25 px-2 py-1 rounded-pill">مرفوض ❌</span>';
-                            else if (data.data.status === 'suspended') statusCell.innerHTML = '<span class="badge bg-secondary px-2 py-1 rounded-pill">موقوف ⏸️</span>';
-                        }
-                    }
+                    // تم الحفظ بالسيرفر بنجاح! يبقى 2 ثانية ثم يختفي تلقائياً
+                    SyncStatusManager.success(`تم حفظ تعديلات الإعلان #${id} على السيرفر بنجاح ✅`);
                 } else {
-                    showFloatingToast(data.message || 'تعذر حفظ التعديلات', 'danger');
+                    SyncStatusManager.error(`فشل حفظ تعديلات #${id}: ` + (data.message || 'خطأ غير معروف'));
+                    showFloatingToast(data.message || 'تعذر حفظ التعديلات بالسيرفر', 'danger');
                 }
             })
             .catch(err => {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnText;
-                }
-                showFloatingToast('خطأ: ' + err.message, 'danger');
+                SyncStatusManager.error(`فشل حفظ تعديلات #${id}: خطأ في الاتصال بالسيرفر`);
+                showFloatingToast('خطأ بالاتصال أثناء حفظ الإعلان #' + id + ': ' + err.message, 'danger');
             });
         });
     }
 
     // تفعيل التنقل الفوري الذكي (SPA Dynamic Navigation) لجميع التبويبات والصفحات
-    initDynamicListingHandlers();
-});
+    function setupSmartNavigation() {
+        const links = document.querySelectorAll('a[href*="admin/listings"]');
+        links.forEach(link => {
+            if (link.dataset.spaBound) return;
+            const href = link.getAttribute('href');
+            if (!href || href.startsWith('javascript:') || href.startsWith('#') || link.target === '_blank') return;
+            if (link.closest('#editListingModal') || link.closest('#imageLightboxModal')) return;
 
-// نظام التنقل الفوري وتحديث الجدول بدون إعادة تحميل الصفحة (0ms SPA Mode)
-function loadListingsAsync(url, updateHistory = true) {
-    const tableCard = document.getElementById('listingsTableCard');
-    const catCard = document.getElementById('categoryHierarchyCard');
-    const filterCard = document.getElementById('filterStatusCard');
-
-    if (tableCard) {
-        tableCard.style.transition = 'opacity 0.15s ease';
-        tableCard.style.opacity = '0.35';
-        tableCard.style.pointerEvents = 'none';
-    }
-
-    fetch(url, {
-        headers: {
-            'X-Requested-With': 'XMLHttpRequest'
-        }
-    })
-    .then(res => res.text())
-    .then(html => {
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(html, 'text/html');
-
-        const newTable = doc.getElementById('listingsTableCard');
-        if (newTable && tableCard) {
-            tableCard.innerHTML = newTable.innerHTML;
-        }
-
-        const newCat = doc.getElementById('categoryHierarchyCard');
-        if (newCat && catCard) {
-            catCard.innerHTML = newCat.innerHTML;
-        }
-
-        const newFilter = doc.getElementById('filterStatusCard');
-        if (newFilter && filterCard) {
-            filterCard.innerHTML = newFilter.innerHTML;
-        }
-
-        const newKpi = doc.querySelector('.row.g-3.mb-4');
-        const oldKpi = document.querySelector('.row.g-3.mb-4');
-        if (newKpi && oldKpi) {
-            oldKpi.innerHTML = newKpi.innerHTML;
-        }
-
-        if (updateHistory) {
-            window.history.pushState(null, '', url);
-        }
-
-        initDynamicListingHandlers();
-    })
-    .catch(err => {
-        window.location.href = url;
-    })
-    .finally(() => {
-        if (tableCard) {
-            tableCard.style.opacity = '1';
-            tableCard.style.pointerEvents = 'auto';
-        }
-    });
-}
-
-function initDynamicListingHandlers() {
-    // 1. اعتراض النقر على تبويبات الحالة والأقسام والترقيم
-    const filterLinks = document.querySelectorAll('#filterStatusCard a, #categoryHierarchyCard a, #listingsTableCard .pagination a');
-    filterLinks.forEach(link => {
-        if (link.href && !link.href.includes('javascript:') && !link.getAttribute('target') && !link.classList.contains('no-ajax')) {
-            link.onclick = function(e) {
+            link.dataset.spaBound = '1';
+            link.addEventListener('click', function(e) {
                 e.preventDefault();
-                loadListingsAsync(this.href);
-            };
-        }
-    });
-
-    // 2. اعتراض إرسال نموذج البحث والفلترة
-    const filterForm = document.querySelector('#filterStatusCard form');
-    if (filterForm) {
-        filterForm.onsubmit = function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            const params = new URLSearchParams(formData);
-            const actionUrl = this.action.split('?')[0] + '?' + params.toString();
-            loadListingsAsync(actionUrl);
-        };
-    }
-
-    // 3. إعادة ربط صندوق التحديد للكل
-    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
-    if (selectAllCheckbox) {
-        selectAllCheckbox.addEventListener('change', function() {
-            document.querySelectorAll('.listing-checkbox').forEach(cb => {
-                cb.checked = selectAllCheckbox.checked;
+                loadListingsAsync(href, true);
             });
-            updateBulkToolbar();
         });
     }
 
-    document.querySelectorAll('.listing-checkbox').forEach(cb => {
-        cb.addEventListener('change', updateBulkToolbar);
+    function loadListingsAsync(url, pushState = true) {
+        const tableContainer = document.querySelector('.card.border-0.shadow-sm');
+        if (tableContainer) {
+            tableContainer.style.opacity = '0.5';
+            tableContainer.style.pointerEvents = 'none';
+        }
+
+        fetch(url, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(r => r.text())
+        .then(html => {
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            const newContent = doc.querySelector('.card.border-0.shadow-sm');
+            if (newContent && tableContainer) {
+                tableContainer.innerHTML = newContent.innerHTML;
+                tableContainer.style.opacity = '1';
+                tableContainer.style.pointerEvents = 'auto';
+            }
+
+            const newHeader = doc.querySelector('.d-flex.flex-wrap.justify-content-between');
+            const oldHeader = document.querySelector('.d-flex.flex-wrap.justify-content-between');
+            if (newHeader && oldHeader) {
+                oldHeader.innerHTML = newHeader.innerHTML;
+            }
+
+            if (pushState) {
+                window.history.pushState({}, '', url);
+            }
+
+            setupSmartNavigation();
+        })
+        .catch(err => {
+            window.location.href = url;
+        });
+    }
+
+    setupSmartNavigation();
+
+    window.addEventListener('popstate', () => {
+        loadListingsAsync(location.href, false);
     });
 
-    // 4. إعادة ربط أزرار مودال الحذف
-    document.querySelectorAll('.btn-open-delete-modal').forEach(btn => {
-        btn.onclick = function() {
-            const id = this.getAttribute('data-id');
-            const title = this.getAttribute('data-title');
-            const form = document.getElementById('deleteListingForm');
-            if (form) form.action = '{{ url("listings") }}/' + id;
-            const tEl = document.getElementById('deleteModalListingTitle');
-            if (tEl) tEl.textContent = title;
-            const modalEl = document.getElementById('deleteListingModal');
-            if (modalEl) new bootstrap.Modal(modalEl).show();
-        };
-    });
+    function submitBulkAction(action) {
+        if (action === 'delete') {
+            if (!confirm('هل أنت متأكد من حذف كافة الإعلانات المحددة نهائياً؟')) {
+                return;
+            }
+        }
+        document.getElementById('bulkActionInput').value = action;
+        const form = document.getElementById('bulkActionForm');
+        const checked = document.querySelectorAll('.listing-checkbox:checked');
+        const ids = Array.from(checked).map(c => c.value);
 
-    // 5. إعادة ربط أزرار مودال الرفض
-    document.querySelectorAll('.btn-open-reject-modal').forEach(btn => {
-        btn.onclick = function() {
-            const id = this.getAttribute('data-id');
-            const title = this.getAttribute('data-title');
-            const form = document.getElementById('rejectListingForm');
-            if (form) form.action = '{{ url("listings") }}/' + id + '/status';
-            const tEl = document.getElementById('modalListingTitle');
-            if (tEl) tEl.textContent = title;
-            const modalEl = document.getElementById('rejectListingModal');
-            if (modalEl) new bootstrap.Modal(modalEl).show();
-        };
-    });
-}
-
-window.addEventListener('popstate', () => {
-    loadListingsAsync(location.href, false);
-});
-
-function submitBulkAction(action) {
-    if (action === 'delete') {
-        if (!confirm('هل أنت متأكد من حذف كافة الإعلانات المحددة نهائياً؟')) {
+        if (ids.length === 0) {
+            showFloatingToast('يرجى تحديد إعلان واحد على الأقل', 'warning');
             return;
         }
+
+        // Optimistic UI for bulk action
+        checked.forEach(c => {
+            const row = document.getElementById('listing-row-' + c.value);
+            if (row) {
+                row.style.opacity = '0.4';
+                if (action === 'delete') row.style.display = 'none';
+            }
+        });
+
+        SyncStatusManager.start(`جاري تطبيق الإجراء الجماعي (${action}) على ${ids.length} إعلانات... ⏳`);
+
+        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+        fetch(form.action, {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': csrf,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ action: action, listing_ids: ids })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                SyncStatusManager.success(`تم تنفيذ الإجراء الجماعي بنجاح على السيرفر ✅`);
+                showFloatingToast(data.message || 'تم تنفيذ الإجراء بنجاح', 'success');
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                SyncStatusManager.error(`فشل الإجراء الجماعي: ` + (data.message || ''));
+                showFloatingToast(data.message || 'تعذر تطبيق الإجراء', 'danger');
+            }
+        })
+        .catch(err => {
+            form.submit();
+        });
     }
-    document.getElementById('bulkActionInput').value = action;
-    const form = document.getElementById('bulkActionForm');
-    const checked = document.querySelectorAll('.listing-checkbox:checked');
-    const ids = Array.from(checked).map(c => c.value);
-
-    // Optimistic UI for bulk action
-    checked.forEach(c => {
-        const row = document.getElementById('listing-row-' + c.value);
-        if (row) {
-            row.style.opacity = '0.4';
-            if (action === 'delete') row.style.display = 'none';
-        }
-    });
-
-    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
-
-    fetch(form.action, {
-        method: 'POST',
-        headers: {
-            'X-CSRF-TOKEN': csrf,
-            'X-Requested-With': 'XMLHttpRequest',
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ action: action, listing_ids: ids })
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showFloatingToast(data.message || 'تم تنفيذ الإجراء بنجاح', 'success');
-            setTimeout(() => location.reload(), 1200);
-        } else {
-            showFloatingToast(data.message || 'تعذر تطبيق الإجراء', 'danger');
-        }
-    })
-    .catch(err => {
-        form.submit();
-    });
-}
 </script>
 @endsection
