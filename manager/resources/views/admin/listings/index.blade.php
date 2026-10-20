@@ -1045,7 +1045,124 @@
 </div>
 
 <script>
-// Categories Data and Hierarchical Maps
+// 1. Top-Left Floating Sync Status Manager (متاح فورياً على مستوى النافذة)
+const SyncStatusManager = {
+    pendingCount: 0,
+    successTimer: null,
+
+    start: function(text) {
+        text = text || 'جاري الحفظ والمزامنة مع السيرفر... ⏳';
+        this.pendingCount++;
+        if (this.successTimer) {
+            clearTimeout(this.successTimer);
+            this.successTimer = null;
+        }
+        this.render('syncing', text);
+    },
+
+    success: function(text) {
+        text = text || 'تم الحفظ بنجاح على السيرفر ✅';
+        this.pendingCount = Math.max(0, this.pendingCount - 1);
+        if (this.pendingCount === 0) {
+            this.render('success', text);
+            if (this.successTimer) clearTimeout(this.successTimer);
+            this.successTimer = setTimeout(() => {
+                this.hide();
+            }, 2000); // ثانيتان بالضبط
+        }
+    },
+
+    error: function(text) {
+        text = text || 'حدث خطأ أثناء المزامنة مع السيرفر';
+        this.pendingCount = Math.max(0, this.pendingCount - 1);
+        if (this.successTimer) clearTimeout(this.successTimer);
+        this.render('error', text);
+    },
+
+    render: function(type, text) {
+        const indicator = document.getElementById('syncStatusIndicator');
+        const badge = document.getElementById('syncStatusBadge');
+        const icon = document.getElementById('syncStatusIcon');
+        const textEl = document.getElementById('syncStatusText');
+        const closeBtn = document.getElementById('syncStatusCloseBtn');
+
+        if (!indicator || !badge) return;
+
+        if (textEl) textEl.textContent = text;
+        indicator.style.display = 'block';
+        indicator.style.opacity = '1';
+        indicator.style.transform = 'translateY(0)';
+
+        if (type === 'syncing') {
+            badge.style.backgroundColor = '#0f172a';
+            badge.style.borderColor = '#f59e0b';
+            badge.style.color = '#ffffff';
+            if (icon) icon.className = 'fa-solid fa-arrows-rotate fa-spin text-warning fs-6';
+            if (closeBtn) closeBtn.style.display = 'none';
+        } else if (type === 'success') {
+            badge.style.backgroundColor = '#15803d';
+            badge.style.borderColor = '#22c55e';
+            badge.style.color = '#ffffff';
+            if (icon) icon.className = 'fa-solid fa-circle-check text-white fs-6';
+            if (closeBtn) closeBtn.style.display = 'none';
+        } else if (type === 'error') {
+            badge.style.backgroundColor = '#991b1b';
+            badge.style.borderColor = '#ef4444';
+            badge.style.color = '#ffffff';
+            if (icon) icon.className = 'fa-solid fa-triangle-exclamation text-white fs-6';
+            if (closeBtn) closeBtn.style.display = 'inline-block';
+        }
+    },
+
+    hide: function() {
+        const indicator = document.getElementById('syncStatusIndicator');
+        if (!indicator) return;
+        indicator.style.transition = 'all 0.3s ease';
+        indicator.style.opacity = '0';
+        indicator.style.transform = 'translateY(-10px)';
+        setTimeout(() => {
+            indicator.style.display = 'none';
+        }, 320);
+    }
+};
+window.SyncStatusManager = SyncStatusManager;
+
+// 2. Lightbox Popup Functions (متاحة فورياً لجميع عناصر HTML onclick)
+function openImageLightbox(imgUrl, title, price, id, liveUrl) {
+    const modalEl = document.getElementById('imageLightboxModal');
+    if (!modalEl) return;
+    const imgEl = document.getElementById('lightboxImg');
+    const titleEl = document.getElementById('lightboxAdTitle');
+    const priceEl = document.getElementById('lightboxAdPrice');
+    const idEl = document.getElementById('lightboxAdId');
+    const urlEl = document.getElementById('lightboxAdUrl');
+
+    if (imgEl) imgEl.src = imgUrl || '';
+    if (titleEl) titleEl.textContent = title || 'معاينة صورة الإعلان';
+    if (priceEl) priceEl.textContent = price || 'غير محدد';
+    if (idEl) idEl.textContent = '#' + (id || '');
+    if (urlEl) urlEl.href = liveUrl || '#';
+
+    const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+    modal.show();
+}
+window.openImageLightbox = openImageLightbox;
+
+function openImageLightboxFromRef() {
+    const refImg = document.getElementById('refCardImage');
+    if (refImg && refImg.src) {
+        openImageLightbox(
+            refImg.src,
+            refImg.dataset.title || '',
+            refImg.dataset.price || '',
+            refImg.dataset.id || '',
+            refImg.dataset.liveUrl || ''
+        );
+    }
+}
+window.openImageLightboxFromRef = openImageLightboxFromRef;
+
+// 3. Categories Data and Hierarchical Maps
 const allCategoriesData = {!! $categoriesJson ?? '[]' !!};
 const catMap = {};
 const childrenMap = {};
@@ -1079,7 +1196,25 @@ function openCategoryPicker() {
     const searchInp = document.getElementById('categoryPickerSearch');
     if (searchInp) searchInp.value = '';
 
-    renderPickerLevel('root', []);
+    const currentSelectedId = document.getElementById('editListingCategory')?.value;
+    if (currentSelectedId && catMap[currentSelectedId]) {
+        pickerTrail = [];
+        let cur = catMap[currentSelectedId];
+        let visited = new Set();
+        while (cur && !visited.has(cur.id)) {
+            visited.add(cur.id);
+            if (cur.parent_id && catMap[cur.parent_id]) {
+                pickerTrail.unshift(catMap[cur.parent_id]);
+                cur = catMap[cur.parent_id];
+            } else {
+                break;
+            }
+        }
+        const lastParent = pickerTrail.length > 0 ? pickerTrail[pickerTrail.length - 1].id : 'root';
+        renderPickerLevel(lastParent, pickerTrail);
+    } else {
+        renderPickerLevel('root', []);
+    }
 
     const modalEl = document.getElementById('categoryPickerModal');
     if (modalEl) {
@@ -1089,200 +1224,174 @@ function openCategoryPicker() {
 }
 
 function renderPickerLevel(parentId, trail) {
-    pickerCurrentPid = parentId;
+    pickerCurrentPid = String(parentId);
     pickerTrail = trail || [];
 
-    const searchInp = document.getElementById('categoryPickerSearch');
-    if (searchInp) searchInp.value = '';
+    const breadcrumbsOl = document.getElementById('categoryPickerBreadcrumbs');
+    if (breadcrumbsOl) {
+        let bHtml = `<li class="breadcrumb-item"><a href="javascript:void(0)" onclick="goToPickerBreadcrumb(-1)" class="text-decoration-none text-primary"><i class="fa-solid fa-house me-1"></i> الرئيسية</a></li>`;
+        pickerTrail.forEach((item, idx) => {
+            if (idx === pickerTrail.length - 1) {
+                bHtml += `<li class="breadcrumb-item active text-dark fw-bold" aria-current="page">${escapeHtml(item.name_ar)}</li>`;
+            } else {
+                bHtml += `<li class="breadcrumb-item"><a href="javascript:void(0)" onclick="goToPickerBreadcrumb(${idx})" class="text-decoration-none text-primary">${escapeHtml(item.name_ar)}</a></li>`;
+            }
+        });
+        breadcrumbsOl.innerHTML = bHtml;
+    }
 
     const backBtn = document.getElementById('btnPickerBack');
     if (backBtn) {
-        backBtn.style.display = (parentId !== 'root' && pickerTrail.length > 0) ? 'inline-block' : 'none';
+        backBtn.style.display = pickerTrail.length > 0 ? 'inline-flex' : 'none';
     }
 
-    const bcEl = document.getElementById('categoryPickerBreadcrumbs');
-    if (bcEl) {
-        let html = '<li class="breadcrumb-item cursor-pointer text-primary" onclick="renderPickerLevel(\'root\', [])"><i class="fa-solid fa-house me-1"></i> الرئيسية</li>';
-        pickerTrail.forEach((item, idx) => {
-            if (idx === pickerTrail.length - 1) {
-                html += '<li class="breadcrumb-item active text-dark fw-bold" aria-current="page">' + escapeHtml(item.name_ar) + '</li>';
-            } else {
-                html += '<li class="breadcrumb-item cursor-pointer text-primary" onclick="goToPickerBreadcrumb(' + idx + ')">' + escapeHtml(item.name_ar) + '</li>';
-            }
-        });
-        bcEl.innerHTML = html;
-    }
-
-    const parentActionEl = document.getElementById('pickerCurrentParentAction');
-    if (parentActionEl) {
-        if (parentId !== 'root' && catMap[parentId]) {
-            const curObj = catMap[parentId];
-            parentActionEl.innerHTML = `
-                <div class="alert alert-info py-2 px-3 d-flex align-items-center justify-content-between mb-0 border-0 rounded-3 shadow-xs">
-                    <span class="fs-7 fw-semibold"><i class="fa-solid fa-circle-info me-1"></i> هل تريد اعتماد هذا القسم (${escapeHtml(curObj.name_ar)}) مباشرة؟</span>
-                    <button type="button" class="btn btn-sm btn-success fw-bold px-3 rounded-pill" onclick="selectCategoryFinal(${curObj.id})">
-                        <i class="fa-solid fa-check me-1"></i> اعتماد: ${escapeHtml(curObj.name_ar)}
+    const parentActionBox = document.getElementById('pickerCurrentParentAction');
+    if (parentActionBox) {
+        if (pickerCurrentPid !== 'root' && catMap[pickerCurrentPid]) {
+            const currentCat = catMap[pickerCurrentPid];
+            parentActionBox.innerHTML = `
+                <div class="alert alert-primary d-flex align-items-center justify-content-between p-3 border-0 shadow-xs rounded-3 mb-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <i class="fa-solid fa-folder-open text-primary fs-5"></i>
+                        <div>
+                            <span class="fs-8 text-muted d-block">أنت تتصفح الآن قسم:</span>
+                            <strong class="text-dark fs-7">${escapeHtml(currentCat.name_ar)}</strong>
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-sm btn-success fw-bold px-3 py-2 rounded-pill shadow-xs" onclick="selectCategoryFinal('${currentCat.id}')">
+                        <i class="fa-solid fa-check-double me-1"></i> اعتماد هذا القسم واختياره
                     </button>
                 </div>
             `;
-            parentActionEl.style.display = 'block';
+            parentActionBox.style.display = 'block';
         } else {
-            parentActionEl.style.display = 'none';
+            parentActionBox.innerHTML = '';
+            parentActionBox.style.display = 'none';
         }
     }
 
-    const items = childrenMap[parentId] || [];
+    const items = childrenMap[pickerCurrentPid] || [];
     renderCategoryGrid(items, false);
 }
 
 function goToPickerBreadcrumb(index) {
-    if (index < 0 || index >= pickerTrail.length) {
+    if (index === -1) {
         renderPickerLevel('root', []);
-        return;
+    } else if (index < pickerTrail.length) {
+        const target = pickerTrail[index];
+        const newTrail = pickerTrail.slice(0, index + 1);
+        renderPickerLevel(target.id, newTrail);
     }
-    const targetItem = pickerTrail[index];
-    const newTrail = pickerTrail.slice(0, index + 1);
-    renderPickerLevel(targetItem.id, newTrail);
 }
 
 function navigatePickerBack() {
-    if (pickerTrail.length <= 1) {
-        renderPickerLevel('root', []);
+    if (pickerTrail.length > 1) {
+        pickerTrail.pop();
+        const prev = pickerTrail[pickerTrail.length - 1];
+        renderPickerLevel(prev.id, pickerTrail);
     } else {
-        const newTrail = pickerTrail.slice(0, -1);
-        const prevItem = newTrail[newTrail.length - 1];
-        renderPickerLevel(prevItem.id, newTrail);
+        renderPickerLevel('root', []);
     }
 }
 
 function renderCategoryGrid(items, isSearchResult) {
-    const gridEl = document.getElementById('categoryPickerGrid');
-    const emptyEl = document.getElementById('categoryPickerEmpty');
+    const grid = document.getElementById('categoryPickerGrid');
+    const emptyBox = document.getElementById('categoryPickerEmpty');
+    if (!grid) return;
 
     if (!items || items.length === 0) {
-        gridEl.innerHTML = '';
-        if (emptyEl) emptyEl.style.display = 'block';
+        grid.innerHTML = '';
+        if (emptyBox) emptyBox.style.display = 'block';
         return;
     }
 
-    if (emptyEl) emptyEl.style.display = 'none';
+    if (emptyBox) emptyBox.style.display = 'none';
 
     let html = '';
-    items.forEach(cat => {
-        const hasChildren = (childrenMap[cat.id] || []).length > 0;
-        const iconSrc = cat.icon || '';
-        let iconHtml = '';
-        if (iconSrc) {
-            iconHtml = '<img src="' + escapeHtml(iconSrc) + '" style="width: 24px; height: 24px; object-fit: contain; flex-shrink: 0;" alt="" onerror="this.onerror=null; this.src=\'https://lelbai.com/icons/cars.svg\';">';
-        } else {
-            iconHtml = hasChildren 
-                ? '<i class="fa-solid fa-folder-tree text-primary fs-5"></i>' 
-                : '<i class="fa-solid fa-tag text-success fs-5"></i>';
+    items.forEach(c => {
+        const hasChildren = (childrenMap[String(c.id)] || []).length > 0;
+        let iconUrl = 'https://lelbai.com/icons/cars.svg';
+        if (c.icon) {
+            iconUrl = c.icon.startsWith('http') ? c.icon : 'https://lelbai.com/' + c.icon.replace(/^\/+/, '');
         }
 
-        if (isSearchResult) {
-            const pathText = getCategoryPathText(cat.id);
-            html += `
-                <div class="col-12">
-                    <div class="card p-2.5 border rounded-3 hover-shadow-sm cursor-pointer d-flex flex-row align-items-center justify-content-between" 
-                         onclick="selectCategoryFinal(${cat.id})" style="cursor: pointer; transition: all 0.15s ease;">
-                        <div class="d-flex align-items-center gap-2">
-                            ${iconHtml}
-                            <div>
-                                <span class="fw-bold text-dark fs-7 d-block">${escapeHtml(cat.name_ar)}</span>
-                                <small class="text-muted fs-8">${escapeHtml(pathText)}</small>
-                            </div>
+        const isDirect = !hasChildren;
+        const actionFn = hasChildren ? `drillDownCategory('${c.id}')` : `selectCategoryFinal('${c.id}')`;
+        const pathBreadcrumb = isSearchResult ? `<div class="fs-9 text-muted mt-1 text-truncate">${escapeHtml(getCategoryPathText(c.id))}</div>` : '';
+
+        html += `
+            <div class="col-6 col-md-4 col-lg-3">
+                <div class="card h-100 border rounded-3 p-2 text-center cursor-pointer category-picker-item shadow-2xs hover-shadow transition-all ${isDirect ? 'border-success border-opacity-50' : 'border-light'}" 
+                     onclick="${actionFn}" 
+                     style="cursor: pointer; transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);">
+                    <div class="d-flex flex-column align-items-center justify-content-center p-2">
+                        <div class="mb-2 position-relative">
+                            <img src="${iconUrl}" alt="" class="rounded-circle border p-1" style="width: 44px; height: 44px; object-fit: cover;" onerror="this.onerror=null; this.src='https://lelbai.com/icons/cars.svg';">
+                            ${hasChildren ? '<span class="position-absolute bottom-0 end-0 badge bg-primary rounded-circle p-1" style="transform: translate(20%, 20%);"><i class="fa-solid fa-arrow-left fs-9"></i></span>' : '<span class="position-absolute bottom-0 end-0 badge bg-success rounded-circle p-1" style="transform: translate(20%, 20%);"><i class="fa-solid fa-check fs-9"></i></span>'}
                         </div>
-                        <span class="badge bg-success-subtle text-success fs-8 px-2 py-1 rounded-pill">
-                            اختيار <i class="fa-solid fa-check ms-1"></i>
-                        </span>
-                    </div>
-                </div>
-            `;
-        } else if (hasChildren) {
-            const childCount = (childrenMap[cat.id] || []).length;
-            html += `
-                <div class="col-md-6 col-lg-4">
-                    <div class="card p-3 border rounded-3 hover-bg-light cursor-pointer h-100 d-flex flex-column justify-content-between" 
-                         onclick="drillDownCategory(${cat.id})" style="cursor: pointer; transition: all 0.15s ease; border-color: #E2E8F0;">
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            ${iconHtml}
-                            <span class="fw-bold text-dark fs-6">${escapeHtml(cat.name_ar)}</span>
-                        </div>
-                        <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top">
-                            <span class="badge bg-light text-secondary border fs-9">${childCount} قسم فرعي</span>
-                            <span class="text-primary fs-8 fw-bold">تفرع <i class="fa-solid fa-chevron-left ms-1"></i></span>
+                        <h6 class="fw-bold text-dark fs-8 mb-1 text-truncate w-100" title="${escapeHtml(c.name_ar)}">${escapeHtml(c.name_ar)}</h6>
+                        ${pathBreadcrumb}
+                        <div class="mt-2">
+                            ${hasChildren ? '<span class="badge bg-light text-primary border fs-9 fw-semibold"><i class="fa-solid fa-folder-tree me-1"></i> تفرعات</span>' : '<span class="badge bg-success bg-opacity-10 text-success fs-9 fw-bold">قسم نهائي ✓</span>'}
                         </div>
                     </div>
                 </div>
-            `;
-        } else {
-            html += `
-                <div class="col-md-6 col-lg-4">
-                    <div class="card p-3 border border-success-subtle rounded-3 bg-success bg-opacity-10 cursor-pointer h-100 d-flex flex-column justify-content-between" 
-                         onclick="selectCategoryFinal(${cat.id})" style="cursor: pointer; transition: all 0.15s ease;">
-                        <div class="d-flex align-items-center gap-2 mb-2">
-                            ${iconHtml}
-                            <span class="fw-bold text-dark fs-6">${escapeHtml(cat.name_ar)}</span>
-                        </div>
-                        <div class="d-flex align-items-center justify-content-between mt-auto pt-2 border-top border-success-subtle">
-                            <span class="badge bg-success text-white fs-9 rounded-pill">أصغر قسم (نهائي)</span>
-                            <span class="text-success fs-8 fw-bold">اختر هذا <i class="fa-solid fa-check ms-1"></i></span>
-                        </div>
-                    </div>
-                </div>
-            `;
-        }
+            </div>
+        `;
     });
 
-    gridEl.innerHTML = html;
+    grid.innerHTML = html;
 }
 
 function drillDownCategory(catId) {
-    if (!catMap[catId]) return;
     const cat = catMap[catId];
-    renderPickerLevel(cat.id, [...pickerTrail, cat]);
+    if (cat) {
+        const newTrail = [...pickerTrail, cat];
+        renderPickerLevel(cat.id, newTrail);
+    }
 }
 
 function selectCategoryFinal(catId) {
-    if (!catMap[catId]) return;
-    
-    const catInp = document.getElementById('editListingCategory');
-    if (catInp) catInp.value = catId;
+    const cat = catMap[catId];
+    if (!cat) return;
 
-    const displayEl = document.getElementById('editCategoryDisplayText');
-    if (displayEl) {
-        const fullPath = getCategoryPathText(catId);
-        displayEl.innerHTML = '<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle fs-7 px-2 py-1"><i class="fa-solid fa-check-circle me-1"></i> ' + escapeHtml(fullPath) + '</span>';
+    const catInput = document.getElementById('editListingCategory');
+    if (catInput) catInput.value = cat.id;
+
+    const catDisplay = document.getElementById('editCategoryDisplayText');
+    if (catDisplay) {
+        const fullPath = getCategoryPathText(cat.id);
+        catDisplay.innerHTML = `<span class="badge bg-primary bg-opacity-10 text-primary fs-7 px-2 py-1"><i class="fa-solid fa-folder-tree me-1"></i> ${escapeHtml(fullPath)}</span>`;
     }
 
-    const pickerEl = document.getElementById('categoryPickerModal');
-    if (pickerEl) {
-        const pickerModal = bootstrap.Modal.getInstance(pickerEl);
-        if (pickerModal) pickerModal.hide();
+    const modalEl = document.getElementById('categoryPickerModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if (modal) modal.hide();
     }
 }
 
 function filterCategoryPicker(query) {
     query = (query || '').trim().toLowerCase();
+    const parentActionBox = document.getElementById('pickerCurrentParentAction');
+    const backBtn = document.getElementById('btnPickerBack');
+
     if (!query) {
         renderPickerLevel(pickerCurrentPid, pickerTrail);
         return;
     }
 
-    const backBtn = document.getElementById('btnPickerBack');
+    if (parentActionBox) parentActionBox.style.display = 'none';
     if (backBtn) backBtn.style.display = 'none';
 
-    const parentActionEl = document.getElementById('pickerCurrentParentAction');
-    if (parentActionEl) parentActionEl.style.display = 'none';
+    const matched = allCategoriesData.filter(c => {
+        const nameAr = (c.name_ar || '').toLowerCase();
+        const nameEn = (c.name_en || '').toLowerCase();
+        const slug = (c.slug || '').toLowerCase();
+        return nameAr.includes(query) || nameEn.includes(query) || slug.includes(query);
+    });
 
-    const bcEl = document.getElementById('categoryPickerBreadcrumbs');
-    if (bcEl) {
-        bcEl.innerHTML = '<li class="breadcrumb-item text-secondary"><i class="fa-solid fa-magnifying-glass me-1"></i> نتائج البحث عن: <strong>' + escapeHtml(query) + '</strong></li>';
-    }
-
-    const results = allCategoriesData.filter(c => c.name_ar.toLowerCase().includes(query));
-    renderCategoryGrid(results, true);
+    renderCategoryGrid(matched, true);
 }
 
 function escapeHtml(str) {
@@ -1295,6 +1404,310 @@ function escapeHtml(str) {
         .replace(/'/g, '&#039;');
 }
 
+// 4. دالة تعبئة وفتح مودال تعديل الإعلان وكرت المرجع الأصلي
+function openEditModalForListing(btn) {
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const title = btn.dataset.title || '';
+    const price = btn.dataset.price || '';
+    const currency = btn.dataset.currency || 'SYP';
+    const categoryId = btn.dataset.categoryId || '';
+    const categoryName = btn.dataset.categoryName || 'بدون تصنيف';
+    const cityId = btn.dataset.cityId || '';
+    const cityName = btn.dataset.cityName || 'غير محدد';
+    const phone = btn.dataset.phone || '';
+    const description = btn.dataset.description || '';
+    const status = btn.dataset.status || 'active';
+    const featured = btn.dataset.featured === '1' || btn.dataset.featured === 1;
+    const image = btn.dataset.image || '';
+    const userName = btn.dataset.userName || 'مستخدم مجهول';
+    const views = btn.dataset.views || '0';
+    const createdAt = btn.dataset.createdAt || '-';
+    const liveUrl = btn.dataset.liveUrl || ('https://lelbai.com/listings/' + id + '/details');
+
+    // 1. تعبئة حقول نموذج التعديل
+    const idDisplay = document.getElementById('modalListingIdDisplay');
+    if (idDisplay) idDisplay.textContent = id;
+
+    const titleInput = document.getElementById('editListingTitle');
+    if (titleInput) titleInput.value = title;
+
+    const catInput = document.getElementById('editListingCategory');
+    if (catInput) catInput.value = categoryId;
+
+    const catDisplay = document.getElementById('editCategoryDisplayText');
+    if (catDisplay) {
+        if (categoryId && typeof catMap !== 'undefined' && catMap[categoryId]) {
+            const fullPath = getCategoryPathText(categoryId);
+            catDisplay.innerHTML = `<span class="badge bg-primary bg-opacity-10 text-primary fs-7 px-2 py-1"><i class="fa-solid fa-folder-tree me-1"></i> ${escapeHtml(fullPath)}</span>`;
+        } else if (categoryName && categoryName !== 'بدون تصنيف') {
+            catDisplay.textContent = categoryName;
+        } else {
+            catDisplay.innerHTML = '<span class="text-muted">اضغط لاختيار القسم...</span>';
+        }
+    }
+
+    const citySelect = document.getElementById('editListingCity');
+    if (citySelect) citySelect.value = String(cityId || '');
+
+    const priceInput = document.getElementById('editListingPrice');
+    if (priceInput) priceInput.value = price;
+
+    const currSelect = document.getElementById('editListingCurrency');
+    if (currSelect) currSelect.value = currency;
+
+    const phoneInput = document.getElementById('editListingPhone');
+    if (phoneInput) phoneInput.value = phone;
+
+    const statusSelect = document.getElementById('editListingStatus');
+    if (statusSelect) statusSelect.value = status;
+
+    const featCheck = document.getElementById('editListingFeatured');
+    if (featCheck) featCheck.checked = featured;
+
+    const descText = document.getElementById('editListingDescription');
+    if (descText) descText.value = description;
+
+    // 2. تعبئة كرت المرجع الأصلي (Reference Card)
+    const refCardId = document.getElementById('refCardIdBadge');
+    if (refCardId) refCardId.textContent = '#' + id;
+
+    const cleanFormattedPrice = (price ? Number(price).toLocaleString() : '0') + ' ' + (currency === 'USD' ? '$' : 'ل.س');
+
+    const refImg = document.getElementById('refCardImage');
+    if (refImg) {
+        refImg.src = image || 'https://lelbai.com/icons/cars.svg';
+        refImg.dataset.title = title;
+        refImg.dataset.price = cleanFormattedPrice;
+        refImg.dataset.id = id;
+        refImg.dataset.liveUrl = liveUrl;
+    }
+
+    const refViewsBadge = document.getElementById('refCardViewsBadge');
+    if (refViewsBadge) refViewsBadge.textContent = '👁️ ' + views;
+
+    const refTitle = document.getElementById('refCardTitle');
+    if (refTitle) refTitle.textContent = title;
+
+    const refPrice = document.getElementById('refCardPrice');
+    if (refPrice) refPrice.textContent = cleanFormattedPrice;
+
+    const refCategory = document.getElementById('refCardCategory');
+    if (refCategory) {
+        if (categoryId && typeof catMap !== 'undefined' && catMap[categoryId]) {
+            refCategory.textContent = getCategoryPathText(categoryId);
+        } else {
+            refCategory.textContent = categoryName;
+        }
+    }
+
+    const refCity = document.getElementById('refCardCity');
+    if (refCity) refCity.textContent = cityName;
+
+    const refUser = document.getElementById('refCardUser');
+    if (refUser) refUser.textContent = userName;
+
+    const refPhone = document.getElementById('refCardPhone');
+    if (refPhone) refPhone.textContent = phone || '-';
+
+    const refCreatedAt = document.getElementById('refCardCreatedAt');
+    if (refCreatedAt) refCreatedAt.textContent = createdAt;
+
+    const refDesc = document.getElementById('refCardDescription');
+    if (refDesc) refDesc.textContent = description || '(لا يوجد نص وصف مسجل)';
+
+    const refLive = document.getElementById('refCardLiveUrl');
+    if (refLive) refLive.href = liveUrl;
+
+    const refStatus = document.getElementById('refCardStatus');
+    if (refStatus) {
+        let badgeHtml = '<span class="badge bg-secondary">موقوف ⏸️</span>';
+        if (status === 'active') badgeHtml = '<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25">نشط ✅</span>';
+        else if (status === 'pending') badgeHtml = '<span class="badge bg-warning bg-opacity-20 text-dark border border-warning">بانتظار المراجعة ⏳</span>';
+        else if (status === 'rejected') badgeHtml = '<span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-25">مرفوض ❌</span>';
+        refStatus.innerHTML = badgeHtml;
+    }
+
+    const form = document.getElementById('editListingForm');
+    if (form) form.action = '{{ url("listings") }}/' + id + '/update';
+
+    const modalEl = document.getElementById('editListingModal');
+    if (modalEl) {
+        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
+        modal.show();
+    }
+}
+window.openEditModalForListing = openEditModalForListing;
+
+// 5. Toast Notifications & Helpers
+function showFloatingToast(message, type) {
+    type = type || 'success';
+    let container = document.getElementById('floatingToastContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'floatingToastContainer';
+        container.style.cssText = 'position:fixed;bottom:25px;left:25px;z-index:99999;display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:380px;';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type} shadow-lg rounded-4 p-3 mb-0 d-flex align-items-center gap-2 border-0 text-white`;
+    toast.style.cssText = `pointer-events:auto;transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1);transform:translateY(20px);opacity:0;font-size:0.875rem;font-weight:700;background-color:${type === 'success' ? '#15803D' : (type === 'danger' ? '#DC2626' : '#2563EB')};box-shadow:0 10px 25px rgba(0,0,0,0.2) !important;`;
+    
+    const icon = type === 'success' ? 'fa-circle-check' : (type === 'danger' ? 'fa-circle-xmark' : 'fa-circle-info');
+    toast.innerHTML = `<i class="fa-solid ${icon} fs-5"></i> <span>${escapeHtml(message)}</span>`;
+    
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.transform = 'translateY(0)';
+        toast.style.opacity = '1';
+    }, 10);
+
+    setTimeout(() => {
+        toast.style.transform = 'translateY(20px)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 350);
+    }, 3500);
+}
+window.showFloatingToast = showFloatingToast;
+
+function updateKpi(id, delta) {
+    const el = document.getElementById('kpi-count-' + id);
+    if (el) {
+        let current = parseInt(el.textContent.replace(/[^0-9]/g, ''), 10) || 0;
+        current = Math.max(0, current + delta);
+        el.textContent = current.toLocaleString();
+    }
+}
+window.updateKpi = updateKpi;
+
+function fadeOutRow(row, callback) {
+    if (!row) return;
+    row.style.transition = 'all 0.35s ease';
+    row.style.opacity = '0';
+    row.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+        row.style.display = 'none';
+        if (callback) callback();
+    }, 360);
+}
+window.fadeOutRow = fadeOutRow;
+
+// 6. Quick Status Update (Accept / Suspend) with Optimistic UI & Sync Indicator
+window.quickUpdateListingStatus = function(id, newStatus, event) {
+    if (event) event.preventDefault();
+    const currentUrlParams = new URLSearchParams(window.location.search);
+    const activeTabStatus = currentUrlParams.get('status') || '';
+    const row = document.getElementById('listing-row-' + id);
+    const oldStatus = row ? row.dataset.status : '';
+
+    // Immediate Optimistic Visual Feedback (0ms)
+    if (row) {
+        row.dataset.status = newStatus;
+        if (activeTabStatus === 'pending' && newStatus === 'active') {
+            row.style.backgroundColor = '#dcfce7';
+            updateKpi('pending', -1);
+            updateKpi('active', +1);
+            fadeOutRow(row);
+        } else if (activeTabStatus === 'active' && newStatus === 'suspended') {
+            row.style.backgroundColor = '#f1f5f9';
+            updateKpi('active', -1);
+            fadeOutRow(row);
+        } else {
+            const statusCell = document.getElementById('status-cell-' + id);
+            if (statusCell) {
+                if (newStatus === 'active') {
+                    statusCell.innerHTML = '<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill">نشط ✅</span>';
+                    updateKpi('active', +1);
+                    if (oldStatus === 'pending') updateKpi('pending', -1);
+                } else if (newStatus === 'suspended') {
+                    statusCell.innerHTML = '<span class="badge bg-secondary px-2 py-1 rounded-pill">موقوف ⏸️</span>';
+                    updateKpi('active', -1);
+                }
+            }
+            row.classList.remove('row-optimistic-flash');
+            void row.offsetWidth; // trigger reflow
+            row.classList.add('row-optimistic-flash');
+        }
+    }
+
+    const actionText = newStatus === 'active' ? 'قبول وتفعيل' : 'إيقاف';
+    SyncStatusManager.start(`جاري ${actionText} الإعلان #${id} بالسيرفر... ⏳`);
+
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+    fetch('{{ url("listings") }}/' + id + '/status', {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ status: newStatus })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            SyncStatusManager.success(`تم ${actionText} الإعلان #${id} على السيرفر بنجاح ✅`);
+        } else {
+            SyncStatusManager.error(`فشل ${actionText} للإعلان #${id}: ` + (data.message || ''));
+            showFloatingToast(data.message || 'تعذر حفظ الحالة على السيرفر', 'danger');
+        }
+    })
+    .catch(err => {
+        SyncStatusManager.error(`فشل الاتصال أثناء ${actionText} للإعلان #${id}`);
+        showFloatingToast('تنبيه: تم الإجراء محلياً ولكن تعذر الاتصال بالسيرفر: ' + err.message, 'warning');
+    });
+};
+
+// 7. Event Delegation for Clicks (Always works on all buttons, initial and dynamic SPA!)
+document.addEventListener('click', function(e) {
+    // زر التعديل
+    const editBtn = e.target.closest('.btn-edit-listing');
+    if (editBtn) {
+        e.preventDefault();
+        openEditModalForListing(editBtn);
+        return;
+    }
+
+    // زر الحذف
+    const deleteBtn = e.target.closest('.btn-open-delete-modal');
+    if (deleteBtn) {
+        e.preventDefault();
+        const id = deleteBtn.getAttribute('data-id');
+        const title = deleteBtn.getAttribute('data-title');
+        const form = document.getElementById('deleteListingForm');
+        if (form) form.action = '{{ url("listings") }}/' + id;
+        const tEl = document.getElementById('deleteModalListingTitle');
+        if (tEl) tEl.textContent = title;
+        const modalEl = document.getElementById('deleteListingModal');
+        if (modalEl) new bootstrap.Modal(modalEl).show();
+        return;
+    }
+
+    // زر الرفض
+    const rejectBtn = e.target.closest('.btn-open-reject-modal');
+    if (rejectBtn) {
+        e.preventDefault();
+        const id = rejectBtn.getAttribute('data-id');
+        const title = rejectBtn.getAttribute('data-title');
+        const reason = rejectBtn.getAttribute('data-reason') || '';
+        const aiSuggestion = rejectBtn.getAttribute('data-ai-suggestion') || '';
+
+        const form = document.getElementById('rejectListingForm');
+        if (form) form.action = '{{ url("listings") }}/' + id + '/status';
+        const tEl = document.getElementById('modalListingTitle');
+        if (tEl) tEl.textContent = title;
+        const reasonInput = document.getElementById('rejectionReasonInput');
+        if (reasonInput) reasonInput.value = reason || aiSuggestion;
+        const modalEl = document.getElementById('rejectListingModal');
+        if (modalEl) new bootstrap.Modal(modalEl).show();
+        return;
+    }
+});
+
+// 8. DOMContentLoaded Initializations
 document.addEventListener('DOMContentLoaded', function() {
     // Column Visibility Toggles
     const checkboxes = document.querySelectorAll('.col-toggle');
@@ -1308,439 +1721,18 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
-    // Multi-select Checkboxes & Bulk Actions
-    const selectAll = document.getElementById('selectAllCheckbox');
-    const itemCheckboxes = document.querySelectorAll('.listing-checkbox');
-    const bulkToolbar = document.getElementById('bulkActionsToolbar');
-    const selectedCountSpan = document.getElementById('selectedCount');
-
+    // Bulk toolbar helper
     function updateBulkToolbar() {
         const checked = document.querySelectorAll('.listing-checkbox:checked');
         const count = checked.length;
+        const selectedCountSpan = document.getElementById('selectedCount');
+        const bulkToolbar = document.getElementById('bulkActionsToolbar');
         if (selectedCountSpan) selectedCountSpan.textContent = count;
         if (bulkToolbar) {
             bulkToolbar.style.setProperty('display', count > 0 ? 'flex' : 'none', 'important');
         }
     }
-
-    if (selectAll) {
-        selectAll.addEventListener('change', function() {
-            itemCheckboxes.forEach(cb => cb.checked = this.checked);
-            updateBulkToolbar();
-        });
-    }
-
-    itemCheckboxes.forEach(cb => {
-        cb.addEventListener('change', function() {
-            updateBulkToolbar();
-            if (!this.checked && selectAll) selectAll.checked = false;
-        });
-    });
-
-    // Reject Modal trigger
-    const rejectBtns = document.querySelectorAll('.btn-open-reject-modal');
-    rejectBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const id = this.dataset.id;
-            const title = this.dataset.title;
-            const reason = this.dataset.reason || '';
-            const aiSuggestion = this.dataset.aiSuggestion || '';
-
-            document.getElementById('modalListingTitle').textContent = title;
-            document.getElementById('rejectionReasonInput').value = reason || aiSuggestion;
-            document.getElementById('rejectListingForm').action = '{{ url("listings") }}/' + id + '/status';
-
-            const modal = new bootstrap.Modal(document.getElementById('rejectListingModal'));
-            modal.show();
-        });
-    });
-
-    // Top-Left Floating Sync Status Manager (مؤشر المزامنة الحية)
-    const SyncStatusManager = {
-        pendingCount: 0,
-        successTimer: null,
-
-        start: function(text = 'جاري الحفظ والمزامنة مع السيرفر... ⏳') {
-            this.pendingCount++;
-            if (this.successTimer) {
-                clearTimeout(this.successTimer);
-                this.successTimer = null;
-            }
-            this.render('syncing', text);
-        },
-
-        success: function(text = 'تم الحفظ بنجاح على السيرفر ✅') {
-            this.pendingCount = Math.max(0, this.pendingCount - 1);
-            if (this.pendingCount === 0) {
-                this.render('success', text);
-                if (this.successTimer) clearTimeout(this.successTimer);
-                this.successTimer = setTimeout(() => {
-                    this.hide();
-                }, 2000); // تختفي تماماً بعد ثانيتين بالضبط كما طلب المستخدم
-            }
-        },
-
-        error: function(text = 'حدث خطأ أثناء المزامنة مع السيرفر') {
-            this.pendingCount = Math.max(0, this.pendingCount - 1);
-            if (this.successTimer) clearTimeout(this.successTimer);
-            this.render('error', text);
-        },
-
-        render: function(type, text) {
-            const indicator = document.getElementById('syncStatusIndicator');
-            const badge = document.getElementById('syncStatusBadge');
-            const icon = document.getElementById('syncStatusIcon');
-            const textEl = document.getElementById('syncStatusText');
-            const closeBtn = document.getElementById('syncStatusCloseBtn');
-
-            if (!indicator || !badge) return;
-
-            textEl.textContent = text;
-            indicator.style.display = 'block';
-            indicator.style.opacity = '1';
-            indicator.style.transform = 'translateY(0)';
-
-            if (type === 'syncing') {
-                badge.style.backgroundColor = '#0f172a';
-                badge.style.borderColor = '#f59e0b';
-                badge.style.color = '#ffffff';
-                icon.className = 'fa-solid fa-arrows-rotate fa-spin text-warning fs-6';
-                if (closeBtn) closeBtn.style.display = 'none';
-            } else if (type === 'success') {
-                badge.style.backgroundColor = '#15803d';
-                badge.style.borderColor = '#22c55e';
-                badge.style.color = '#ffffff';
-                icon.className = 'fa-solid fa-circle-check text-white fs-6';
-                if (closeBtn) closeBtn.style.display = 'none';
-            } else if (type === 'error') {
-                badge.style.backgroundColor = '#991b1b';
-                badge.style.borderColor = '#ef4444';
-                badge.style.color = '#ffffff';
-                icon.className = 'fa-solid fa-triangle-exclamation text-white fs-6';
-                if (closeBtn) closeBtn.style.display = 'inline-block';
-            }
-        },
-
-        hide: function() {
-            const indicator = document.getElementById('syncStatusIndicator');
-            if (!indicator) return;
-            indicator.style.transition = 'all 0.3s ease';
-            indicator.style.opacity = '0';
-            indicator.style.transform = 'translateY(-10px)';
-            setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 320);
-        }
-    };
-    window.SyncStatusManager = SyncStatusManager;
-
-    // دالة فتح بوب اب تكبير الصورة Lightbox Popup
-    window.openImageLightbox = function(imgUrl, title, price, id, liveUrl) {
-        const modalEl = document.getElementById('imageLightboxModal');
-        if (!modalEl) return;
-        const imgEl = document.getElementById('lightboxImg');
-        const titleEl = document.getElementById('lightboxAdTitle');
-        const priceEl = document.getElementById('lightboxAdPrice');
-        const idEl = document.getElementById('lightboxAdId');
-        const urlEl = document.getElementById('lightboxAdUrl');
-
-        if (imgEl) imgEl.src = imgUrl;
-        if (titleEl) titleEl.textContent = title || 'معاينة صورة الإعلان';
-        if (priceEl) priceEl.textContent = price || 'غير محدد';
-        if (idEl) idEl.textContent = '#' + (id || '');
-        if (urlEl) urlEl.href = liveUrl || '#';
-
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-        modal.show();
-    };
-
-    window.openImageLightboxFromRef = function() {
-        const refImg = document.getElementById('refCardImage');
-        if (refImg && refImg.src) {
-            openImageLightbox(
-                refImg.src,
-                refImg.dataset.title || '',
-                refImg.dataset.price || '',
-                refImg.dataset.id || '',
-                refImg.dataset.liveUrl || ''
-            );
-        }
-    };
-
-    // Edit Modal trigger مع تعبئة كرت المرجع الأصلي
-    const editBtns = document.querySelectorAll('.btn-edit-listing');
-    editBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const id = this.dataset.id;
-            const title = this.dataset.title;
-            const price = this.dataset.price;
-            const currency = this.dataset.currency;
-            const categoryId = this.dataset.categoryId;
-            const categoryName = this.dataset.categoryName || 'بدون تصنيف';
-            const cityId = this.dataset.cityId;
-            const cityName = this.dataset.cityName || 'غير محدد';
-            const phone = this.dataset.phone;
-            const description = this.dataset.description;
-            const status = this.dataset.status;
-            const featured = this.dataset.featured === '1';
-            const image = this.dataset.image || '';
-            const userName = this.dataset.userName || 'مستخدم مجهول';
-            const views = this.dataset.views || '0';
-            const createdAt = this.dataset.createdAt || '-';
-            const liveUrl = this.dataset.liveUrl || ('https://lelbai.com/listings/' + id + '/details');
-
-            // 1. تعبئة حقول نموذج التعديل
-            const idDisplay = document.getElementById('modalListingIdDisplay');
-            if (idDisplay) idDisplay.textContent = id;
-
-            const titleInput = document.getElementById('editListingTitle');
-            if (titleInput) titleInput.value = title;
-
-            const catInput = document.getElementById('editListingCategory');
-            if (catInput) catInput.value = categoryId;
-
-            const catText = document.getElementById('editCategoryDisplayText');
-            if (catText) {
-                if (catMap[categoryId]) {
-                    catText.innerHTML = getCategoryBreadcrumb(categoryId);
-                } else if (categoryName && categoryName !== 'بدون تصنيف') {
-                    catText.textContent = categoryName;
-                } else {
-                    catText.innerHTML = '<span class="text-muted">اضغط لاختيار القسم...</span>';
-                }
-            }
-
-            const citySelect = document.getElementById('editListingCity');
-            if (citySelect) citySelect.value = cityId;
-
-            const priceInput = document.getElementById('editListingPrice');
-            if (priceInput) priceInput.value = price;
-
-            const currSelect = document.getElementById('editListingCurrency');
-            if (currSelect) currSelect.value = currency;
-
-            const phoneInput = document.getElementById('editListingPhone');
-            if (phoneInput) phoneInput.value = phone;
-
-            const statusSelect = document.getElementById('editListingStatus');
-            if (statusSelect) statusSelect.value = status;
-
-            const featCheck = document.getElementById('editListingFeatured');
-            if (featCheck) featCheck.checked = featured;
-
-            const descText = document.getElementById('editListingDescription');
-            if (descText) descText.value = description;
-
-            // 2. تعبئة كرت المرجع الأصلي (Reference Card) للمقارنة والاستعلام
-            const refCardId = document.getElementById('refCardIdBadge');
-            if (refCardId) refCardId.textContent = '#' + id;
-
-            const refImg = document.getElementById('refCardImage');
-            const cleanFormattedPrice = (price ? Number(price).toLocaleString() : '0') + ' ' + (currency === 'USD' ? '$' : 'ل.س');
-            if (refImg) {
-                refImg.src = image || 'https://lelbai.com/icons/cars.svg';
-                refImg.dataset.title = title;
-                refImg.dataset.price = cleanFormattedPrice;
-                refImg.dataset.id = id;
-                refImg.dataset.liveUrl = liveUrl;
-            }
-
-            const refViewsBadge = document.getElementById('refCardViewsBadge');
-            if (refViewsBadge) refViewsBadge.textContent = '👁️ ' + views;
-
-            const refTitle = document.getElementById('refCardTitle');
-            if (refTitle) refTitle.textContent = title;
-
-            const refPrice = document.getElementById('refCardPrice');
-            if (refPrice) refPrice.textContent = cleanFormattedPrice;
-
-            const refCategory = document.getElementById('refCardCategory');
-            if (refCategory) refCategory.textContent = categoryName;
-
-            const refCity = document.getElementById('refCardCity');
-            if (refCity) refCity.textContent = cityName;
-
-            const refUser = document.getElementById('refCardUser');
-            if (refUser) refUser.textContent = userName;
-
-            const refPhone = document.getElementById('refCardPhone');
-            if (refPhone) refPhone.textContent = phone || '-';
-
-            const refCreatedAt = document.getElementById('refCardCreatedAt');
-            if (refCreatedAt) refCreatedAt.textContent = createdAt;
-
-            const refDesc = document.getElementById('refCardDescription');
-            if (refDesc) refDesc.textContent = description || '(لا يوجد نص وصف مسجل)';
-
-            const refLive = document.getElementById('refCardLiveUrl');
-            if (refLive) refLive.href = liveUrl;
-
-            const refStatus = document.getElementById('refCardStatus');
-            if (refStatus) {
-                let badgeHtml = '<span class="badge bg-secondary">موقوف ⏸️</span>';
-                if (status === 'active') badgeHtml = '<span class="badge bg-success bg-opacity-20 text-success border border-success border-opacity-25">نشط ✅</span>';
-                else if (status === 'pending') badgeHtml = '<span class="badge bg-warning bg-opacity-20 text-dark border border-warning">بانتظار المراجعة ⏳</span>';
-                else if (status === 'rejected') badgeHtml = '<span class="badge bg-danger bg-opacity-20 text-danger border border-danger border-opacity-25">مرفوض ❌</span>';
-                refStatus.innerHTML = badgeHtml;
-            }
-
-            const form = document.getElementById('editListingForm');
-            if (form) form.action = '{{ url("listings") }}/' + id + '/update';
-
-            const modalEl = document.getElementById('editListingModal');
-            if (modalEl) {
-                const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-                modal.show();
-            }
-        });
-    });
-
-    // Ensure scrolling works properly when closing the category picker over edit modal
-    const pickerModalEl = document.getElementById('categoryPickerModal');
-    if (pickerModalEl) {
-        pickerModalEl.addEventListener('hidden.bs.modal', function () {
-            const editModalEl = document.getElementById('editListingModal');
-            if (editModalEl && editModalEl.classList.contains('show')) {
-                document.body.classList.add('modal-open');
-            }
-        });
-    }
-
-    // Delete Modal trigger
-    const deleteBtns = document.querySelectorAll('.btn-open-delete-modal');
-    deleteBtns.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const id = this.dataset.id;
-            const title = this.dataset.title;
-
-            document.getElementById('deleteModalListingTitle').textContent = title;
-            document.getElementById('deleteListingForm').action = '{{ url("listings") }}/' + id;
-
-            const modal = new bootstrap.Modal(document.getElementById('deleteListingModal'));
-            modal.show();
-        });
-    });
-
-    // Toast Notification System
-    function showFloatingToast(message, type = 'success') {
-        let container = document.getElementById('floatingToastContainer');
-        if (!container) {
-            container = document.createElement('div');
-            container.id = 'floatingToastContainer';
-            container.style.cssText = 'position:fixed;bottom:25px;left:25px;z-index:99999;display:flex;flex-direction:column;gap:10px;pointer-events:none;max-width:380px;';
-            document.body.appendChild(container);
-        }
-
-        const toast = document.createElement('div');
-        toast.className = `alert alert-${type} shadow-lg rounded-4 p-3 mb-0 d-flex align-items-center gap-2 border-0 text-white`;
-        toast.style.cssText = `pointer-events:auto;transition:all 0.3s cubic-bezier(0.16, 1, 0.3, 1);transform:translateY(20px);opacity:0;font-size:0.875rem;font-weight:700;background-color:${type === 'success' ? '#15803D' : (type === 'danger' ? '#DC2626' : '#2563EB')};box-shadow:0 10px 25px rgba(0,0,0,0.2) !important;`;
-        
-        const icon = type === 'success' ? 'fa-circle-check' : (type === 'danger' ? 'fa-circle-xmark' : 'fa-circle-info');
-        toast.innerHTML = `<i class="fa-solid ${icon} fs-5"></i> <span>${escapeHtml(message)}</span>`;
-        
-        container.appendChild(toast);
-        setTimeout(() => {
-            toast.style.transform = 'translateY(0)';
-            toast.style.opacity = '1';
-        }, 10);
-
-        setTimeout(() => {
-            toast.style.transform = 'translateY(20px)';
-            toast.style.opacity = '0';
-            setTimeout(() => toast.remove(), 350);
-        }, 3500);
-    }
-    window.showFloatingToast = showFloatingToast;
-
-    function updateKpi(id, delta) {
-        const el = document.getElementById('kpi-count-' + id);
-        if (el) {
-            let current = parseInt(el.textContent.replace(/[^0-9]/g, ''), 10) || 0;
-            current = Math.max(0, current + delta);
-            el.textContent = current.toLocaleString();
-        }
-    }
-    window.updateKpi = updateKpi;
-
-    function fadeOutRow(row, callback) {
-        if (!row) return;
-        row.style.transition = 'all 0.35s ease';
-        row.style.opacity = '0';
-        row.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-            row.style.display = 'none';
-            if (callback) callback();
-        }, 360);
-    }
-
-    const currentUrlParams = new URLSearchParams(window.location.search);
-    const activeTabStatus = currentUrlParams.get('status') || '';
-
-    // Quick Status Update (Accept / Suspend) with Optimistic UI & Sync Indicator
-    window.quickUpdateListingStatus = function(id, newStatus, event) {
-        if (event) event.preventDefault();
-        const row = document.getElementById('listing-row-' + id);
-        const oldStatus = row ? row.dataset.status : '';
-
-        // Immediate Optimistic Visual Feedback (0ms)
-        if (row) {
-            row.dataset.status = newStatus;
-            if (activeTabStatus === 'pending' && newStatus === 'active') {
-                row.style.backgroundColor = '#dcfce7';
-                updateKpi('pending', -1);
-                updateKpi('active', +1);
-                fadeOutRow(row);
-            } else if (activeTabStatus === 'active' && newStatus === 'suspended') {
-                row.style.backgroundColor = '#f1f5f9';
-                updateKpi('active', -1);
-                fadeOutRow(row);
-            } else {
-                const statusCell = document.getElementById('status-cell-' + id);
-                if (statusCell) {
-                    if (newStatus === 'active') {
-                        statusCell.innerHTML = '<span class="badge bg-success bg-opacity-15 text-success border border-success border-opacity-25 px-2 py-1 rounded-pill">نشط ✅</span>';
-                        updateKpi('active', +1);
-                        if (oldStatus === 'pending') updateKpi('pending', -1);
-                    } else if (newStatus === 'suspended') {
-                        statusCell.innerHTML = '<span class="badge bg-secondary px-2 py-1 rounded-pill">موقوف ⏸️</span>';
-                        updateKpi('active', -1);
-                    }
-                }
-                row.classList.remove('row-optimistic-flash');
-                void row.offsetWidth; // trigger reflow
-                row.classList.add('row-optimistic-flash');
-            }
-        }
-
-        const actionText = newStatus === 'active' ? 'قبول وتفعيل' : 'إيقاف';
-        SyncStatusManager.start(`جاري ${actionText} الإعلان #${id} بالسيرفر... ⏳`);
-
-        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
-
-        fetch('{{ url("listings") }}/' + id + '/status', {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': csrf,
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ status: newStatus })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                SyncStatusManager.success(`تم ${actionText} الإعلان #${id} على السيرفر بنجاح ✅`);
-            } else {
-                SyncStatusManager.error(`فشل ${actionText} للإعلان #${id}: ` + (data.message || ''));
-                showFloatingToast(data.message || 'تعذر حفظ الحالة على السيرفر', 'danger');
-            }
-        })
-        .catch(err => {
-            SyncStatusManager.error(`فشل الاتصال أثناء ${actionText} للإعلان #${id}`);
-            showFloatingToast('تنبيه: تم الإجراء محلياً ولكن تعذر الاتصال بالسيرفر: ' + err.message, 'warning');
-        });
-    };
+    window.updateBulkToolbar = updateBulkToolbar;
 
     // Reject Form Ajax Submission with Optimistic UI & Sync Indicator
     const rejectForm = document.getElementById('rejectListingForm');
@@ -1751,6 +1743,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const parts = actionUrl.split('/');
             const id = parts[parts.indexOf('listings') + 1];
             const reason = document.getElementById('rejectionReasonInput').value;
+            const currentUrlParams = new URLSearchParams(window.location.search);
+            const activeTabStatus = currentUrlParams.get('status') || '';
 
             // 1. إغلاق المودال فورياً في 0ms
             const modalEl = document.getElementById('rejectListingModal');
@@ -1872,7 +1866,8 @@ document.addEventListener('DOMContentLoaded', function() {
             const newPrice = document.getElementById('editListingPrice')?.value || '';
             const newCurrency = document.getElementById('editListingCurrency')?.value || 'SYP';
             const newCatId = document.getElementById('editListingCategory')?.value || '';
-            const newCatText = document.getElementById('editCategoryDisplayText')?.textContent?.trim() || '';
+            const catDisplay = document.getElementById('editCategoryDisplayText');
+            const newCatText = catDisplay?.textContent?.trim() || '';
             const citySelect = document.getElementById('editListingCity');
             const newCityName = citySelect?.options[citySelect.selectedIndex]?.text || '';
             const newPhone = document.getElementById('editListingPhone')?.value || '';
@@ -1989,123 +1984,182 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // تفعيل التنقل الفوري الذكي (SPA Dynamic Navigation) لجميع التبويبات والصفحات
-    function setupSmartNavigation() {
-        const links = document.querySelectorAll('a[href*="admin/listings"]');
-        links.forEach(link => {
-            if (link.dataset.spaBound) return;
-            const href = link.getAttribute('href');
-            if (!href || href.startsWith('javascript:') || href.startsWith('#') || link.target === '_blank') return;
-            if (link.closest('#editListingModal') || link.closest('#imageLightboxModal')) return;
-
-            link.dataset.spaBound = '1';
-            link.addEventListener('click', function(e) {
-                e.preventDefault();
-                loadListingsAsync(href, true);
-            });
+    // Modal scroll fix for category picker
+    const pickerModalEl = document.getElementById('categoryPickerModal');
+    if (pickerModalEl) {
+        pickerModalEl.addEventListener('hidden.bs.modal', function () {
+            const editModalEl = document.getElementById('editListingModal');
+            if (editModalEl && editModalEl.classList.contains('show')) {
+                document.body.classList.add('modal-open');
+            }
         });
     }
 
-    function loadListingsAsync(url, pushState = true) {
-        const tableContainer = document.querySelector('.card.border-0.shadow-sm');
-        if (tableContainer) {
-            tableContainer.style.opacity = '0.5';
-            tableContainer.style.pointerEvents = 'none';
+    initDynamicListingHandlers();
+});
+
+// 9. Dynamic SPA & Table Handlers
+function loadListingsAsync(url, updateHistory) {
+    if (updateHistory === undefined) updateHistory = true;
+    const tableCard = document.getElementById('listingsTableCard');
+    const catCard = document.getElementById('categoryHierarchyCard');
+    const filterCard = document.getElementById('filterStatusCard');
+
+    if (tableCard) {
+        tableCard.style.transition = 'opacity 0.15s ease';
+        tableCard.style.opacity = '0.35';
+        tableCard.style.pointerEvents = 'none';
+    }
+
+    fetch(url, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(res => res.text())
+    .then(html => {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+
+        const newTable = doc.getElementById('listingsTableCard');
+        if (newTable && tableCard) {
+            tableCard.innerHTML = newTable.innerHTML;
         }
 
-        fetch(url, {
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest'
-            }
-        })
-        .then(r => r.text())
-        .then(html => {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
+        const newCat = doc.getElementById('categoryHierarchyCard');
+        if (newCat && catCard) {
+            catCard.innerHTML = newCat.innerHTML;
+        }
 
-            const newContent = doc.querySelector('.card.border-0.shadow-sm');
-            if (newContent && tableContainer) {
-                tableContainer.innerHTML = newContent.innerHTML;
-                tableContainer.style.opacity = '1';
-                tableContainer.style.pointerEvents = 'auto';
-            }
+        const newFilter = doc.getElementById('filterStatusCard');
+        if (newFilter && filterCard) {
+            filterCard.innerHTML = newFilter.innerHTML;
+        }
 
-            const newHeader = doc.querySelector('.d-flex.flex-wrap.justify-content-between');
-            const oldHeader = document.querySelector('.d-flex.flex-wrap.justify-content-between');
-            if (newHeader && oldHeader) {
-                oldHeader.innerHTML = newHeader.innerHTML;
-            }
+        const newKpi = doc.querySelector('.row.g-3.mb-4');
+        const oldKpi = document.querySelector('.row.g-3.mb-4');
+        if (newKpi && oldKpi) {
+            oldKpi.innerHTML = newKpi.innerHTML;
+        }
 
-            if (pushState) {
-                window.history.pushState({}, '', url);
-            }
+        if (updateHistory) {
+            window.history.pushState(null, '', url);
+        }
 
-            setupSmartNavigation();
-        })
-        .catch(err => {
-            window.location.href = url;
-        });
-    }
+        initDynamicListingHandlers();
+    })
+    .catch(err => {
+        window.location.href = url;
+    })
+    .finally(() => {
+        if (tableCard) {
+            tableCard.style.opacity = '1';
+            tableCard.style.pointerEvents = 'auto';
+        }
+    });
+}
 
-    setupSmartNavigation();
-
-    window.addEventListener('popstate', () => {
-        loadListingsAsync(location.href, false);
+function initDynamicListingHandlers() {
+    // 1. اعتراض النقر على تبويبات الحالة والأقسام والترقيم
+    const filterLinks = document.querySelectorAll('#filterStatusCard a, #categoryHierarchyCard a, #listingsTableCard .pagination a');
+    filterLinks.forEach(link => {
+        if (link.href && !link.href.includes('javascript:') && !link.getAttribute('target') && !link.classList.contains('no-ajax')) {
+            link.onclick = function(e) {
+                e.preventDefault();
+                loadListingsAsync(this.href);
+            };
+        }
     });
 
-    function submitBulkAction(action) {
-        if (action === 'delete') {
-            if (!confirm('هل أنت متأكد من حذف كافة الإعلانات المحددة نهائياً؟')) {
-                return;
-            }
-        }
-        document.getElementById('bulkActionInput').value = action;
-        const form = document.getElementById('bulkActionForm');
-        const checked = document.querySelectorAll('.listing-checkbox:checked');
-        const ids = Array.from(checked).map(c => c.value);
+    // 2. اعتراض إرسال نموذج البحث والفلترة
+    const filterForm = document.querySelector('#filterStatusCard form');
+    if (filterForm) {
+        filterForm.onsubmit = function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const params = new URLSearchParams(formData);
+            const actionUrl = this.action.split('?')[0] + '?' + params.toString();
+            loadListingsAsync(actionUrl);
+        };
+    }
 
-        if (ids.length === 0) {
-            showFloatingToast('يرجى تحديد إعلان واحد على الأقل', 'warning');
-            return;
-        }
-
-        // Optimistic UI for bulk action
-        checked.forEach(c => {
-            const row = document.getElementById('listing-row-' + c.value);
-            if (row) {
-                row.style.opacity = '0.4';
-                if (action === 'delete') row.style.display = 'none';
-            }
-        });
-
-        SyncStatusManager.start(`جاري تطبيق الإجراء الجماعي (${action}) على ${ids.length} إعلانات... ⏳`);
-
-        const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
-
-        fetch(form.action, {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': csrf,
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ action: action, listing_ids: ids })
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                SyncStatusManager.success(`تم تنفيذ الإجراء الجماعي بنجاح على السيرفر ✅`);
-                showFloatingToast(data.message || 'تم تنفيذ الإجراء بنجاح', 'success');
-                setTimeout(() => location.reload(), 1200);
-            } else {
-                SyncStatusManager.error(`فشل الإجراء الجماعي: ` + (data.message || ''));
-                showFloatingToast(data.message || 'تعذر تطبيق الإجراء', 'danger');
-            }
-        })
-        .catch(err => {
-            form.submit();
+    // 3. إعادة ربط صندوق التحديد للكل
+    const selectAllCheckbox = document.getElementById('selectAllCheckbox');
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            document.querySelectorAll('.listing-checkbox').forEach(cb => {
+                cb.checked = selectAllCheckbox.checked;
+            });
+            if (typeof updateBulkToolbar === 'function') updateBulkToolbar();
         });
     }
+
+    document.querySelectorAll('.listing-checkbox').forEach(cb => {
+        cb.addEventListener('change', function() {
+            if (typeof updateBulkToolbar === 'function') updateBulkToolbar();
+        });
+    });
+}
+
+window.addEventListener('popstate', () => {
+    loadListingsAsync(location.href, false);
+});
+
+function submitBulkAction(action) {
+    if (action === 'delete') {
+        if (!confirm('هل أنت متأكد من حذف كافة الإعلانات المحددة نهائياً؟')) {
+            return;
+        }
+    }
+    const input = document.getElementById('bulkActionInput');
+    if (input) input.value = action;
+    const form = document.getElementById('bulkActionForm');
+    const checked = document.querySelectorAll('.listing-checkbox:checked');
+    const ids = Array.from(checked).map(c => c.value);
+
+    if (ids.length === 0) {
+        showFloatingToast('يرجى تحديد إعلان واحد على الأقل', 'warning');
+        return;
+    }
+
+    // Optimistic UI for bulk action
+    checked.forEach(c => {
+        const row = document.getElementById('listing-row-' + c.value);
+        if (row) {
+            row.style.opacity = '0.4';
+            if (action === 'delete') row.style.display = 'none';
+        }
+    });
+
+    SyncStatusManager.start(`جاري تطبيق الإجراء الجماعي (${action}) على ${ids.length} إعلانات... ⏳`);
+
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '{{ csrf_token() }}';
+
+    fetch(form.action, {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': csrf,
+            'X-Requested-With': 'XMLHttpRequest',
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ action: action, listing_ids: ids })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            SyncStatusManager.success(`تم تنفيذ الإجراء الجماعي بنجاح على السيرفر ✅`);
+            showFloatingToast(data.message || 'تم تنفيذ الإجراء بنجاح', 'success');
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            SyncStatusManager.error(`فشل الإجراء الجماعي: ` + (data.message || ''));
+            showFloatingToast(data.message || 'تعذر تطبيق الإجراء', 'danger');
+        }
+    })
+    .catch(err => {
+        form.submit();
+    });
+}
+
 </script>
 @endsection
