@@ -49,6 +49,7 @@ from category_classifier import (
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+CATEGORIES_DB_FILE = os.path.join(BASE_DIR, "categories_db.json")
 PENDING_FILE = os.path.join(BASE_DIR, "pending_review.json")
 FLAGGED_FILE = os.path.join(BASE_DIR, "flagged_ads.json")
 ALL_ADS_FILE = os.path.join(BASE_DIR, "ads_syria.json")
@@ -1008,6 +1009,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>لوحة التحكم المركزية وسحب الإعلانات 🇸🇾 | للبيع - Lelbai</title>
   <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     :root {
       --primary: #2563eb;
@@ -1158,6 +1160,381 @@ HTML_PAGE = r"""<!DOCTYPE html>
       background: var(--card-bg); border-radius: 16px; border: 1px solid var(--border);
       padding: 24px; width: 100%; max-width: 550px; display: flex; flex-direction: column; gap: 14px;
     }
+
+    /* --- Ad Card Editable Inputs & Controls --- */
+    .ad-edit-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 9px;
+      background: rgba(15, 23, 42, 0.55);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 12px;
+      border-radius: 12px;
+      margin-top: 4px;
+    }
+    .ad-title-input {
+      background: var(--card-inner); border: 1px solid var(--border); color: #fff;
+      padding: 8px 12px; border-radius: 8px; font-size: 14px; font-weight: 800; width: 100%;
+      transition: border-color 0.2s;
+    }
+    .ad-title-input:focus, .ad-desc-textarea:focus {
+      border-color: #3b82f6; outline: none; box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+    }
+    .ad-desc-textarea {
+      background: var(--card-inner); border: 1px solid var(--border); border-radius: 8px;
+      padding: 8px 12px; font-size: 12px; color: #cbd5e1; resize: vertical; line-height: 1.55; width: 100%;
+      min-height: 80px; transition: border-color 0.2s; font-family: inherit;
+    }
+    .btn-category-select {
+      background: rgba(37, 99, 235, 0.12);
+      border: 1px solid rgba(59, 130, 246, 0.35);
+      border-radius: 10px;
+      padding: 8px 12px;
+      color: #93c5fd;
+      cursor: pointer;
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s;
+      text-align: right;
+    }
+    .btn-category-select:hover {
+      background: rgba(37, 99, 235, 0.25);
+      border-color: #60a5fa;
+      color: #fff;
+      transform: translateY(-1px);
+    }
+    .cat-pill-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      background: rgba(37, 99, 235, 0.3);
+      color: #60a5fa;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+    .cat-pill-text {
+      font-weight: 800;
+      font-size: 12px;
+      text-align: right;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .cat-pill-badge {
+      background: #2563eb;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* --- Category Picker Modal (2-Column Desktop Layout) --- */
+    .modal-content-xl {
+      max-width: 1250px;
+      width: 95vw;
+      max-height: 90vh;
+      display: flex;
+      flex-direction: column;
+      padding: 0;
+      border: 1px solid #3b82f6;
+      box-shadow: 0 12px 50px rgba(0, 0, 0, 0.8);
+      background: var(--card-bg);
+      overflow: hidden;
+    }
+    .modal-header-custom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 22px;
+      background: #0f172a;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-icon-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: rgba(245, 158, 11, 0.2);
+      color: #fbbf24;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .modal-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 20px;
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 8px;
+      transition: all 0.15s;
+    }
+    .modal-close-btn:hover {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+    .modal-body-split {
+      display: grid;
+      grid-template-columns: 1fr 380px;
+      gap: 16px;
+      padding: 16px;
+      overflow-y: auto;
+      flex: 1;
+      background: rgba(15, 23, 42, 0.4);
+    }
+    @media (max-width: 992px) {
+      .modal-body-split {
+        grid-template-columns: 1fr;
+      }
+    }
+    .picker-column-categories {
+      background: var(--card-inner);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-height: 480px;
+    }
+    .picker-column-reference {
+      position: sticky;
+      top: 0;
+      height: 100%;
+    }
+    .picker-ref-card {
+      background: var(--card-inner);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    }
+    .picker-ref-header {
+      background: #0f172a;
+      padding: 10px 14px;
+      font-weight: 800;
+      font-size: 12px;
+      color: #f59e0b;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .picker-ref-body {
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      overflow-y: auto;
+      max-height: calc(85vh - 120px);
+    }
+    .picker-ref-img-wrapper {
+      position: relative;
+      height: 150px;
+      background: #000;
+      border-radius: 10px;
+      overflow: hidden;
+      cursor: pointer;
+      border: 1px solid var(--border);
+    }
+    .picker-ref-img-wrapper img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .picker-ref-img-overlay {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      background: rgba(0, 0, 0, 0.7);
+      color: #38bdf8;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      text-align: center;
+    }
+    .picker-ref-item {
+      background: rgba(30, 41, 59, 0.7);
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .picker-ref-label {
+      font-size: 10px;
+      color: var(--text-muted);
+      font-weight: 700;
+      display: block;
+      margin-bottom: 2px;
+    }
+    .picker-ref-val {
+      font-size: 12px;
+      word-break: break-word;
+    }
+    .picker-ref-desc {
+      background: rgba(15, 23, 42, 0.9);
+      padding: 8px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 11px;
+      color: #cbd5e1;
+      max-height: 130px;
+      overflow-y: auto;
+      white-space: pre-line;
+      line-height: 1.5;
+    }
+    .picker-breadcrumbs-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .picker-breadcrumbs {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #0f172a;
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      font-size: 12px;
+      flex-wrap: wrap;
+    }
+    .crumb-link {
+      color: #60a5fa;
+      text-decoration: none;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .crumb-link:hover {
+      text-decoration: underline;
+    }
+    .crumb-sep {
+      color: var(--text-muted);
+      font-size: 10px;
+    }
+    .crumb-active {
+      color: #f8fafc;
+      font-weight: 800;
+    }
+    .picker-search-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 4px 12px;
+    }
+    .picker-search-bar input {
+      background: transparent;
+      border: none;
+      color: #fff;
+      font-size: 13px;
+      padding: 6px 0;
+      outline: none;
+      flex: 1;
+    }
+    .category-tiles-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+      overflow-y: auto;
+      max-height: 480px;
+      padding-right: 4px;
+    }
+    .category-tile {
+      background: #0f172a;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      position: relative;
+    }
+    .category-tile:hover {
+      border-color: #3b82f6;
+      background: rgba(37, 99, 235, 0.12);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);
+    }
+    .category-tile.leaf-tile {
+      border-color: rgba(16, 185, 129, 0.4);
+    }
+    .category-tile.leaf-tile:hover {
+      border-color: #10b981;
+      background: rgba(16, 185, 129, 0.15);
+      box-shadow: 0 4px 12px rgba(16, 185, 129, 0.25);
+    }
+    .cat-tile-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border);
+      padding: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    .cat-tile-icon img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+    .cat-tile-title {
+      font-size: 12px;
+      font-weight: 800;
+      color: #f8fafc;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+    .cat-tile-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 700;
+    }
+    .cat-tile-badge.badge-sub {
+      background: rgba(59, 130, 246, 0.2);
+      color: #60a5fa;
+    }
+    .cat-tile-badge.badge-leaf {
+      background: rgba(16, 185, 129, 0.2);
+      color: #34d399;
+    }
+    .modal-footer-custom {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 20px;
+      background: #0f172a;
+      border-top: 1px solid var(--border);
+    }
+
   </style>
 </head>
 <body>
@@ -1620,6 +1997,158 @@ HTML_PAGE = r"""<!DOCTYPE html>
     </div>
   </div>
 
+
+  <!-- Modal اختيار وتصفح القسم الهرمي التفاعلي مع كرت معلومات الإعلان (Category Picker with Reference Card) -->
+  <div class="modal" id="categoryPickerModal" style="display:none; z-index:1070;">
+    <div class="modal-content modal-content-xl">
+      <!-- رأس البوب اب -->
+      <div class="modal-header-custom">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <div class="modal-icon-circle"><i class="fa-solid fa-layer-group"></i></div>
+          <div>
+            <div style="display:flex; align-items:center; gap:8px;">
+              <h3 style="font-size:17px; font-weight:900; color:#fff; margin:0;">اختيار وتحديد تصنيف الإعلان</h3>
+              <span class="badge" style="background:#f59e0b; color:#000; font-weight:900;" id="pickerAdIdBadge">#</span>
+            </div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;" id="pickerAdTitleBadge">اختر وتصفح القسم المناسب لمواصفات وتفاصيل هذا الإعلان</div>
+          </div>
+        </div>
+        <button type="button" class="modal-close-btn" onclick="closeCategoryPickerModal()" title="إغلاق">✕</button>
+      </div>
+
+      <!-- جسم البوب اب: عمودين (النصف: متصفح الأصناف، اليسار: مواصفات الإعلان للمطابقة) -->
+      <div class="modal-body-split">
+        
+        <!-- العمود الأيمن / النصف: متصفح وشبكة الأقسام الهرمية (Category Explorer) -->
+        <div class="picker-column-categories">
+          
+          <!-- شريط المسار والرجوع Breadcrumbs -->
+          <div class="picker-breadcrumbs-bar">
+            <div class="picker-breadcrumbs" id="categoryPickerBreadcrumbs">
+              <span class="crumb-link" onclick="goToPickerBreadcrumb(-1)"><i class="fa-solid fa-house"></i> الرئيسية</span>
+            </div>
+            <button type="button" class="btn btn-sm btn-outline" id="btnPickerBack" style="display:none;" onclick="navigatePickerBack()">
+              <i class="fa-solid fa-arrow-right"></i> رجوع للخلف
+            </button>
+          </div>
+
+          <!-- شريط البحث السريع في الأقسام -->
+          <div class="picker-search-bar">
+            <span style="color:var(--text-muted);"><i class="fa-solid fa-magnifying-glass"></i></span>
+            <input type="text" id="categoryPickerSearch" placeholder="ابحث عن أي قسم بسرعة (مثال: سيراتو، كيا، شقق، كنبايات، طاقة...)" oninput="filterCategoryPicker(this.value)" />
+            <button type="button" class="btn btn-sm btn-outline" onclick="clearPickerSearch()" title="مسح البحث">✕</button>
+          </div>
+
+          <!-- زر اعتماد القسم الأب الحالي إذا أراد المستخدم التوقف عنده -->
+          <div id="pickerCurrentParentAction" style="display:none;"></div>
+
+          <!-- شبكة كروت الأقسام المعروضة -->
+          <div class="category-tiles-container" id="categoryPickerGrid">
+            <!-- تُولد بطاقات الأقسام هنا ديناميكياً -->
+          </div>
+
+          <div id="categoryPickerEmpty" style="display:none; text-align:center; padding:40px; color:var(--text-muted);">
+            <div style="font-size:32px; margin-bottom:8px;">📂</div>
+            <div style="font-weight:800; font-size:14px; color:#f8fafc;">لم يتم العثور على أي قسم مطابق لكلمة البحث</div>
+          </div>
+
+        </div>
+
+        <!-- العمود الأيسر: كرت معلومات ومواصفات الإعلان للمطابقة والتذكر (Ad Reference Card) -->
+        <div class="picker-column-reference">
+          <div class="picker-ref-card">
+            <div class="picker-ref-header">
+              <span>📋 بطاقة تفاصيل الإعلان (للمطابقة والتذكر)</span>
+            </div>
+            <div class="picker-ref-body">
+              
+              <!-- صورة الإعلان المرجعية (قابلة للنقر للتكبير) -->
+              <div class="picker-ref-img-wrapper" onclick="openLightboxFromPickerRef()" title="انقر لتكبير ومعاينة الصورة">
+                <img id="pickerRefImage" src="" alt="صورة الإعلان" onerror="this.src='https://placehold.co/400x250/1e293b/f8fafc?text=No+Image'" />
+                <div class="picker-ref-img-overlay">
+                  <span>🔍 انقر لتكبير ومعاينة الصورة</span>
+                </div>
+              </div>
+
+              <!-- العنوان -->
+              <div class="picker-ref-item">
+                <span class="picker-ref-label">العنوان المسجل:</span>
+                <div class="picker-ref-val" id="pickerRefTitle" style="color:#60a5fa; font-weight:800;"></div>
+              </div>
+
+              <!-- القسم المسجل حالياً -->
+              <div class="picker-ref-item">
+                <span class="picker-ref-label">القسم المسجل حالياً:</span>
+                <div class="picker-ref-val" id="pickerRefCategory" style="color:#a78bfa; font-weight:800;"></div>
+              </div>
+
+              <!-- السعر والمدينة -->
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+                <div class="picker-ref-item">
+                  <span class="picker-ref-label">السعر:</span>
+                  <div class="picker-ref-val" id="pickerRefPrice" style="color:#34d399; font-weight:800;"></div>
+                </div>
+                <div class="picker-ref-item">
+                  <span class="picker-ref-label">المدينة:</span>
+                  <div class="picker-ref-val" id="pickerRefCity" style="color:#fde047; font-weight:800;"></div>
+                </div>
+              </div>
+
+              <!-- المعلن والهاتف -->
+              <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px;">
+                <div class="picker-ref-item">
+                  <span class="picker-ref-label">المعلن:</span>
+                  <div class="picker-ref-val" id="pickerRefUser" style="color:#cbd5e1;"></div>
+                </div>
+                <div class="picker-ref-item">
+                  <span class="picker-ref-label">الهاتف:</span>
+                  <div class="picker-ref-val" id="pickerRefPhone" style="color:#38bdf8; font-weight:800;" dir="ltr"></div>
+                </div>
+              </div>
+
+              <!-- بادجات المواصفات المستخرجة إن وجدت -->
+              <div id="pickerRefSpecsBadges" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+
+              <!-- الوصف الأصلي الكامل (أهم جزء لتحديد القسم وتذكر الإعلان!) -->
+              <div class="picker-ref-item" style="flex:1; display:flex; flex-direction:column;">
+                <span class="picker-ref-label">وصف ومواصفات الإعلان (اقرأه لاختيار وتذكر القسم):</span>
+                <div class="picker-ref-desc" id="pickerRefDescription"></div>
+              </div>
+
+              <!-- رابط المعاينة في فيسبوك -->
+              <div style="margin-top:auto; padding-top:6px;">
+                <a id="pickerRefLiveUrl" href="#" target="_blank" class="btn btn-outline btn-sm" style="width:100%; justify-content:center; font-size:11px; text-decoration:none;">
+                  🔗 فتح رابط الإعلان الأصلي في فيسبوك
+                </a>
+              </div>
+
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- تذييل البوب اب -->
+      <div class="modal-footer-custom">
+        <div style="font-size:12px; color:var(--text-muted); display:flex; align-items:center; gap:6px;">
+          <span style="color:#38bdf8;">💡</span>
+          <span>النقر على أصغر قسم فرعي (أصغر ابن) يقوم باختياره وتثبيته فورياً في الإعلان.</span>
+        </div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="closeCategoryPickerModal()">إغلاق بدون تغيير</button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Lightbox Modal تكبير الصور -->
+  <div class="modal" id="imageLightboxModal" style="display:none; z-index:2000;" onclick="closeImageLightbox()">
+    <div style="max-width:90vw; max-height:90vh; display:flex; flex-direction:column; align-items:center; position:relative;" onclick="event.stopPropagation()">
+      <button type="button" onclick="closeImageLightbox()" style="position:absolute; top:-40px; right:0; background:#ef4444; color:#fff; border:none; border-radius:50%; width:32px; height:32px; font-weight:900; font-size:16px; cursor:pointer;" title="إغلاق">✕</button>
+      <img id="lightboxImg" src="" style="max-width:90vw; max-height:80vh; object-fit:contain; border-radius:12px; box-shadow:0 10px 40px rgba(0,0,0,0.8); border:1px solid var(--border);" />
+      <div id="lightboxTitle" style="color:#fff; font-weight:800; margin-top:10px; font-size:14px; text-align:center;"></div>
+    </div>
+  </div>
+
   <script>
     // تحديد مسار الـ API تلقائياً للعمل المباشر سواء فُتح من السيرفر أو كملف HTML محلي
     const API_BASE = (window.location.protocol === 'file:' || !window.location.port || window.location.port !== '5000') 
@@ -1632,6 +2161,599 @@ HTML_PAGE = r"""<!DOCTYPE html>
     let filteredPublished = [];
     let currentFilter = 'all';
     let isServerConnected = false;
+
+    // -------------------------------------------------------------------------
+    // مدن الجمهورية العربية السورية وخريطة المعرفات المعتمدة
+    // -------------------------------------------------------------------------
+    const SYRIAN_CITIES = [
+      { id: 1, name: 'دمشق' },
+      { id: 2, name: 'ريف دمشق' },
+      { id: 3, name: 'حلب' },
+      { id: 4, name: 'ريف حلب' },
+      { id: 5, name: 'إدلب' },
+      { id: 6, name: 'حمص' },
+      { id: 7, name: 'حماة' },
+      { id: 8, name: 'اللاذقية' },
+      { id: 9, name: 'دير الزور' },
+      { id: 10, name: 'الحسكة' },
+      { id: 11, name: 'درعا' },
+      { id: 12, name: 'طرطوس' },
+      { id: 13, name: 'الرقة' },
+      { id: 14, name: 'السويداء' },
+      { id: 15, name: 'القنيطرة' }
+    ];
+
+    // إشعار عائم فوري للحفظ والمزامنة
+    const SyncStatusManager = {
+      toastTimer: null,
+      success: function(msg) { this.show(msg, '#10b981'); },
+      error: function(msg) { this.show(msg, '#ef4444'); },
+      show: function(msg, color) {
+        let el = document.getElementById('dashFloatingToast');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'dashFloatingToast';
+          el.style.cssText = 'position:fixed; bottom:25px; left:25px; z-index:9999; padding:12px 22px; border-radius:12px; color:#fff; font-weight:800; font-size:13px; box-shadow:0 8px 30px rgba(0,0,0,0.6); display:flex; align-items:center; gap:8px; transition:all 0.3s ease; pointer-events:none;';
+          document.body.appendChild(el);
+        }
+        el.style.background = color || '#2563eb';
+        el.style.border = '1px solid ' + (color || '#3b82f6');
+        el.innerHTML = msg;
+        el.style.display = 'flex';
+        el.style.opacity = '1';
+        el.style.transform = 'translateY(0)';
+        if (this.toastTimer) clearTimeout(this.toastTimer);
+        this.toastTimer = setTimeout(() => {
+          el.style.opacity = '0';
+          el.style.transform = 'translateY(10px)';
+          setTimeout(() => { el.style.display = 'none'; }, 300);
+        }, 2500);
+      }
+    };
+    window.SyncStatusManager = SyncStatusManager;
+
+    // قاعدة بيانات الأقسام والتصنيفات الهرمية (326 فئة مع الأيقونات)
+    const EMBEDDED_CATEGORIES = [{"id": 1, "name_ar": "السيارات", "slug": "cars", "icon": "/icons/cars.svg", "parent_id": null}, {"id": 16, "name_ar": "الدراجات النارية", "slug": "motorcycles", "icon": "/icons/motorcycles.svg", "parent_id": null}, {"id": 29, "name_ar": "العقارات", "slug": "real-estate", "icon": "/icons/realestate.svg", "parent_id": null}, {"id": 44, "name_ar": "الطاقة البديلة والكهرباء", "slug": "solar-energy", "icon": "/icons/solar-energy.svg", "parent_id": null}, {"id": 69, "name_ar": "الإلكترونيات والشبكات", "slug": "devices", "icon": "/icons/devices.svg", "parent_id": null}, {"id": 88, "name_ar": "المنزل والأثاث", "slug": "furniture", "icon": "/icons/furniture.svg", "parent_id": null}, {"id": 101, "name_ar": "الأزياء والعناية الشخصية", "slug": "fashion", "icon": "/icons/fashion.svg", "parent_id": null}, {"id": 114, "name_ar": "بقالة ومواد غذائية", "slug": "food", "icon": "/icons/food.svg", "parent_id": null}, {"id": 127, "name_ar": "صحة ورياضة", "slug": "health-sports", "icon": "/icons/health-sports.svg", "parent_id": null}, {"id": 140, "name_ar": "الحيوان ومواشي", "slug": "animals", "icon": "/icons/animals.svg", "parent_id": null}, {"id": 155, "name_ar": "مناسبات وحفلات", "slug": "occasions", "icon": "/icons/occasions.svg", "parent_id": null}, {"id": 167, "name_ar": "وجهات سياحية ورحلات", "slug": "tourism", "icon": "/icons/tourism.svg", "parent_id": null}, {"id": 176, "name_ar": "مكتبة وقرطاسية", "slug": "library", "icon": "/icons/library.svg", "parent_id": null}, {"id": 189, "name_ar": "الوظائف والأعمال", "slug": "jobs", "icon": "/icons/jobs.svg", "parent_id": null}, {"id": 202, "name_ar": "الخدمات", "slug": "services", "icon": "/icons/services.svg", "parent_id": null}, {"id": 217, "name_ar": "مواد البناء والمعدات", "slug": "construction", "icon": "/icons/construction.svg", "parent_id": null}, {"id": 232, "name_ar": "الزراعة ومستلزمات الإنتاج", "slug": "agriculture", "icon": "/icons/agriculture.svg", "parent_id": null}, {"id": 245, "name_ar": "السكراب والستوكات والتصفيات", "slug": "scrap-stock", "icon": "/icons/scrap-stock.svg", "parent_id": null}, {"id": 259, "name_ar": "أخرى", "slug": "other", "icon": "/icons/more-horizontal.svg", "parent_id": null}, {"id": 1143, "name_ar": "سيارات للبيع", "slug": "cars-for-sale", "icon": null, "parent_id": 1}, {"id": 1144, "name_ar": "هيونداي", "slug": "hyundai-sale", "icon": "/icons/cars/hyundai.svg", "parent_id": 1143}, {"id": 1145, "name_ar": "أكسنت / فيرنا", "slug": "hyundai-aksnt-fyrna-sale", "icon": null, "parent_id": 1144}, {"id": 1146, "name_ar": "إلنترا / أفانتي", "slug": "hyundai-alntra-afanty-sale", "icon": null, "parent_id": 1144}, {"id": 1147, "name_ar": "توسان", "slug": "hyundai-tosan-sale", "icon": null, "parent_id": 1144}, {"id": 1148, "name_ar": "سنتافي", "slug": "hyundai-sntafy-sale", "icon": null, "parent_id": 1144}, {"id": 1149, "name_ar": "سوناتا", "slug": "hyundai-sonata-sale", "icon": null, "parent_id": 1144}, {"id": 1150, "name_ar": "جيتز / i10 / ماتريكس", "slug": "hyundai-gytz-i10-matryks-sale", "icon": null, "parent_id": 1144}, {"id": 1151, "name_ar": "أزيرا", "slug": "hyundai-azyra-sale", "icon": null, "parent_id": 1144}, {"id": 1152, "name_ar": "كريتا / فينيو", "slug": "hyundai-kryta-fynyo-sale", "icon": null, "parent_id": 1144}, {"id": 1153, "name_ar": "H1 / ستاريا", "slug": "hyundai-h1-starya-sale", "icon": null, "parent_id": 1144}, {"id": 1155, "name_ar": "كيا", "slug": "kia-sale", "icon": "/icons/cars/kia.svg", "parent_id": 1143}, {"id": 1156, "name_ar": "ريو", "slug": "kia-ryo-sale", "icon": null, "parent_id": 1155}, {"id": 1157, "name_ar": "سيراتو / فورتي", "slug": "kia-syrato-forty-sale", "icon": null, "parent_id": 1155}, {"id": 1158, "name_ar": "بيكانتو", "slug": "kia-bykanto-sale", "icon": null, "parent_id": 1155}, {"id": 1159, "name_ar": "سبورتاج", "slug": "kia-sbortag-sale", "icon": null, "parent_id": 1155}, {"id": 1160, "name_ar": "أوبتيما / K5", "slug": "kia-aobtyma-k5-sale", "icon": null, "parent_id": 1155}, {"id": 1161, "name_ar": "سورينتو", "slug": "kia-sorynto-sale", "icon": null, "parent_id": 1155}, {"id": 1162, "name_ar": "كارينز", "slug": "kia-karynz-sale", "icon": null, "parent_id": 1155}, {"id": 1163, "name_ar": "كارنيفال", "slug": "kia-karnyfal-sale", "icon": null, "parent_id": 1155}, {"id": 1164, "name_ar": "كادينزا / K7", "slug": "kia-kadynza-k7-sale", "icon": null, "parent_id": 1155}, {"id": 1166, "name_ar": "تويوتا", "slug": "toyota-sale", "icon": "/icons/cars/toyota.svg", "parent_id": 1143}, {"id": 1167, "name_ar": "كورولا", "slug": "toyota-korola-sale", "icon": null, "parent_id": 1166}, {"id": 1168, "name_ar": "يارس / إيكو", "slug": "toyota-yars-ayko-sale", "icon": null, "parent_id": 1166}, {"id": 1169, "name_ar": "هايلوكس", "slug": "toyota-hayloks-sale", "icon": null, "parent_id": 1166}, {"id": 1170, "name_ar": "لاند كروزر", "slug": "toyota-land-krozr-sale", "icon": null, "parent_id": 1166}, {"id": 1171, "name_ar": "كامري", "slug": "toyota-kamry-sale", "icon": null, "parent_id": 1166}, {"id": 1172, "name_ar": "برادو", "slug": "toyota-brado-sale", "icon": null, "parent_id": 1166}, {"id": 1173, "name_ar": "راف 4", "slug": "toyota-raf-4-sale", "icon": null, "parent_id": 1166}, {"id": 1174, "name_ar": "بريوس / هايبرد", "slug": "toyota-bryos-haybrd-sale", "icon": null, "parent_id": 1166}, {"id": 1176, "name_ar": "مازدا", "slug": "mazda-sale", "icon": "/icons/cars/mazda.svg", "parent_id": 1143}, {"id": 1177, "name_ar": "مازدا 3", "slug": "mazda-mazda-3-sale", "icon": null, "parent_id": 1176}, {"id": 1178, "name_ar": "مازدا 323", "slug": "mazda-mazda-323-sale", "icon": null, "parent_id": 1176}, {"id": 1179, "name_ar": "مازدا 6", "slug": "mazda-mazda-6-sale", "icon": null, "parent_id": 1176}, {"id": 1180, "name_ar": "CX-5 / CX-9", "slug": "mazda-cx-5-cx-9-sale", "icon": null, "parent_id": 1176}, {"id": 1181, "name_ar": "929 / 626 الكلاسيكية", "slug": "mazda-929-626-alklasyky-sale", "icon": null, "parent_id": 1176}, {"id": 1182, "name_ar": "مازدا 2", "slug": "mazda-mazda-2-sale", "icon": null, "parent_id": 1176}, {"id": 1184, "name_ar": "نيسان", "slug": "nissan-sale", "icon": "/icons/cars/nissan.svg", "parent_id": 1143}, {"id": 1185, "name_ar": "صني", "slug": "nissan-sny-sale", "icon": null, "parent_id": 1184}, {"id": 1186, "name_ar": "تيدا", "slug": "nissan-tyda-sale", "icon": null, "parent_id": 1184}, {"id": 1187, "name_ar": "باترول", "slug": "nissan-batrol-sale", "icon": null, "parent_id": 1184}, {"id": 1188, "name_ar": "قشقاي", "slug": "nissan-kshkay-sale", "icon": null, "parent_id": 1184}, {"id": 1189, "name_ar": "ألتيما / ماكسيما", "slug": "nissan-altyma-maksyma-sale", "icon": null, "parent_id": 1184}, {"id": 1190, "name_ar": "داتسون / نافارا بيك آب", "slug": "nissan-datson-nafara-byk-ab-sale", "icon": null, "parent_id": 1184}, {"id": 1191, "name_ar": "إكس تريل", "slug": "nissan-aks-tryl-sale", "icon": null, "parent_id": 1184}, {"id": 1193, "name_ar": "سايبا", "slug": "saipa-sale", "icon": "/icons/cars/saipa.svg", "parent_id": 1143}, {"id": 1194, "name_ar": "صبا / برايد", "slug": "saipa-sba-brayd-sale", "icon": null, "parent_id": 1193}, {"id": 1195, "name_ar": "تيبا", "slug": "saipa-tyba-sale", "icon": null, "parent_id": 1193}, {"id": 1196, "name_ar": "كويك", "slug": "saipa-koyk-sale", "icon": null, "parent_id": 1193}, {"id": 1197, "name_ar": "ساينا", "slug": "saipa-sayna-sale", "icon": null, "parent_id": 1193}, {"id": 1199, "name_ar": "سيامكو / شام", "slug": "siamco-sale", "icon": "/icons/cars/siamco.webp", "parent_id": 1143}, {"id": 1200, "name_ar": "شام (Sham)", "slug": "siamco-sham-sham-sale", "icon": null, "parent_id": 1199}, {"id": 1201, "name_ar": "شمرا (Shamra)", "slug": "siamco-shmra-shamra-sale", "icon": null, "parent_id": 1199}, {"id": 1202, "name_ar": "شهباء (Shahba)", "slug": "siamco-shhbaaa-shahba-sale", "icon": null, "parent_id": 1199}, {"id": 1203, "name_ar": "سيريا بالميرا (Palmyra)", "slug": "siamco-syrya-balmyra-palmyra-sale", "icon": null, "parent_id": 1199}, {"id": 1205, "name_ar": "دايو", "slug": "daewoo-sale", "icon": "/icons/cars/daewoo.webp", "parent_id": 1143}, {"id": 1206, "name_ar": "لاسيتي", "slug": "daewoo-lasyty-sale", "icon": null, "parent_id": 1205}, {"id": 1207, "name_ar": "لانوس", "slug": "daewoo-lanos-sale", "icon": null, "parent_id": 1205}, {"id": 1208, "name_ar": "نوبيرا", "slug": "daewoo-nobyra-sale", "icon": null, "parent_id": 1205}, {"id": 1209, "name_ar": "ماتيز", "slug": "daewoo-matyz-sale", "icon": null, "parent_id": 1205}, {"id": 1210, "name_ar": "سيلو / ريسر", "slug": "daewoo-sylo-rysr-sale", "icon": null, "parent_id": 1205}, {"id": 1212, "name_ar": "سوزوكي", "slug": "suzuki-sale", "icon": "/icons/cars/suzuki.svg", "parent_id": 1143}, {"id": 1213, "name_ar": "ماروتي / ألتو", "slug": "suzuki-maroty-alto-sale", "icon": null, "parent_id": 1212}, {"id": 1214, "name_ar": "سويفت", "slug": "suzuki-soyft-sale", "icon": null, "parent_id": 1212}, {"id": 1215, "name_ar": "جراند فيتارا", "slug": "suzuki-grand-fytara-sale", "icon": null, "parent_id": 1212}, {"id": 1216, "name_ar": "جيمني", "slug": "suzuki-gymny-sale", "icon": null, "parent_id": 1212}, {"id": 1217, "name_ar": "كاري / دبابات", "slug": "suzuki-kary-dbabat-sale", "icon": null, "parent_id": 1212}, {"id": 1219, "name_ar": "ميتسوبيشي", "slug": "mitsubishi-sale", "icon": "/icons/cars/mitsubishi.svg", "parent_id": 1143}, {"id": 1220, "name_ar": "لانسر", "slug": "mitsubishi-lansr-sale", "icon": null, "parent_id": 1219}, {"id": 1221, "name_ar": "باجيرو", "slug": "mitsubishi-bagyro-sale", "icon": null, "parent_id": 1219}, {"id": 1222, "name_ar": "L200 (بيك آب)", "slug": "mitsubishi-l200-byk-ab-sale", "icon": null, "parent_id": 1219}, {"id": 1223, "name_ar": "أوتلاندر", "slug": "mitsubishi-aotlandr-sale", "icon": null, "parent_id": 1219}, {"id": 1224, "name_ar": "كانتر (شاحنات)", "slug": "mitsubishi-kantr-shahnat-sale", "icon": null, "parent_id": 1219}, {"id": 1226, "name_ar": "مرسيدس-بنز", "slug": "mercedes-sale", "icon": "/icons/cars/mercedes.svg", "parent_id": 1143}, {"id": 1227, "name_ar": "الفئة E (E-Class)", "slug": "mercedes-alfy-e-e-class-sale", "icon": null, "parent_id": 1226}, {"id": 1228, "name_ar": "الفئة C (C-Class)", "slug": "mercedes-alfy-c-c-class-sale", "icon": null, "parent_id": 1226}, {"id": 1229, "name_ar": "الفئة S (S-Class)", "slug": "mercedes-alfy-s-s-class-sale", "icon": null, "parent_id": 1226}, {"id": 1230, "name_ar": "الكلاسيكية (W123 / لف)", "slug": "mercedes-alklasyky-w123-lf-sale", "icon": null, "parent_id": 1226}, {"id": 1231, "name_ar": "ML / GLE / GL", "slug": "mercedes-ml-gle-gl-sale", "icon": null, "parent_id": 1226}, {"id": 1232, "name_ar": "الفئة G (G-Class)", "slug": "mercedes-alfy-g-g-class-sale", "icon": null, "parent_id": 1226}, {"id": 1233, "name_ar": "شاحنات وباصات", "slug": "mercedes-shahnat-obasat-sale", "icon": null, "parent_id": 1226}, {"id": 1235, "name_ar": "بي إم دبليو", "slug": "bmw-sale", "icon": "/icons/cars/bmw.svg", "parent_id": 1143}, {"id": 1236, "name_ar": "الفئة الثالثة (3 Series)", "slug": "bmw-alfy-althalth-3-series-sale", "icon": null, "parent_id": 1235}, {"id": 1237, "name_ar": "الفئة الخامسة (5 Series)", "slug": "bmw-alfy-alkhams-5-series-sale", "icon": null, "parent_id": 1235}, {"id": 1238, "name_ar": "جيبات X5", "slug": "bmw-gybat-x5-sale", "icon": null, "parent_id": 1235}, {"id": 1239, "name_ar": "الفئة السابعة (7 Series)", "slug": "bmw-alfy-alsabaa-7-series-sale", "icon": null, "parent_id": 1235}, {"id": 1240, "name_ar": "جيبات X6 / X3", "slug": "bmw-gybat-x6-x3-sale", "icon": null, "parent_id": 1235}, {"id": 1242, "name_ar": "بيجو", "slug": "peugeot-sale", "icon": "/icons/cars/peugeot.svg", "parent_id": 1143}, {"id": 1243, "name_ar": "206", "slug": "peugeot-206-sale", "icon": null, "parent_id": 1242}, {"id": 1244, "name_ar": "207 / 208", "slug": "peugeot-207-208-sale", "icon": null, "parent_id": 1242}, {"id": 1245, "name_ar": "307 / 308", "slug": "peugeot-307-308-sale", "icon": null, "parent_id": 1242}, {"id": 1246, "name_ar": "405 / 406 / 407", "slug": "peugeot-405-406-407-sale", "icon": null, "parent_id": 1242}, {"id": 1247, "name_ar": "301", "slug": "peugeot-301-sale", "icon": null, "parent_id": 1242}, {"id": 1248, "name_ar": "3008 / 5008", "slug": "peugeot-3008-5008-sale", "icon": null, "parent_id": 1242}, {"id": 1249, "name_ar": "بارتنر (Partner)", "slug": "peugeot-bartnr-partner-sale", "icon": null, "parent_id": 1242}, {"id": 1251, "name_ar": "فولكس فاجن", "slug": "volkswagen-sale", "icon": "/icons/cars/volkswagen.svg", "parent_id": 1143}, {"id": 1252, "name_ar": "جولف (Golf)", "slug": "volkswagen-golf-golf-sale", "icon": null, "parent_id": 1251}, {"id": 1253, "name_ar": "باسات (Passat)", "slug": "volkswagen-basat-passat-sale", "icon": null, "parent_id": 1251}, {"id": 1254, "name_ar": "بولو (Polo)", "slug": "volkswagen-bolo-polo-sale", "icon": null, "parent_id": 1251}, {"id": 1255, "name_ar": "تيجوان (Tiguan)", "slug": "volkswagen-tygoan-tiguan-sale", "icon": null, "parent_id": 1251}, {"id": 1256, "name_ar": "طوارق (Touareg)", "slug": "volkswagen-toark-touareg-sale", "icon": null, "parent_id": 1251}, {"id": 1257, "name_ar": "جيتا / بيتل", "slug": "volkswagen-gyta-bytl-sale", "icon": null, "parent_id": 1251}, {"id": 1259, "name_ar": "رينو", "slug": "renault-sale", "icon": "/icons/cars/renault.svg", "parent_id": 1143}, {"id": 1260, "name_ar": "ميجان (Megane)", "slug": "renault-mygan-megane-sale", "icon": null, "parent_id": 1259}, {"id": 1261, "name_ar": "داستر (Duster)", "slug": "renault-dastr-duster-sale", "icon": null, "parent_id": 1259}, {"id": 1262, "name_ar": "كليو (Clio)", "slug": "renault-klyo-clio-sale", "icon": null, "parent_id": 1259}, {"id": 1263, "name_ar": "لوجان / سيمبول", "slug": "renault-logan-symbol-sale", "icon": null, "parent_id": 1259}, {"id": 1264, "name_ar": "فلوانس (Fluence)", "slug": "renault-floans-fluence-sale", "icon": null, "parent_id": 1259}, {"id": 1266, "name_ar": "بي واي دي", "slug": "byd-sale", "icon": "/icons/cars/byd.svg", "parent_id": 1143}, {"id": 1267, "name_ar": "F3", "slug": "byd-f3-sale", "icon": null, "parent_id": 1266}, {"id": 1268, "name_ar": "سونج بلس (Song Plus)", "slug": "byd-song-bls-song-plus-sale", "icon": null, "parent_id": 1266}, {"id": 1269, "name_ar": "هان (Han EV)", "slug": "byd-han-han-ev-sale", "icon": null, "parent_id": 1266}, {"id": 1270, "name_ar": "يوان بلس (Yuan Plus)", "slug": "byd-yoan-bls-yuan-plus-sale", "icon": null, "parent_id": 1266}, {"id": 1271, "name_ar": "تانغ (Tang)", "slug": "byd-tangh-tang-sale", "icon": null, "parent_id": 1266}, {"id": 1272, "name_ar": "تشين (Qin Plus)", "slug": "byd-tshyn-qin-plus-sale", "icon": null, "parent_id": 1266}, {"id": 1274, "name_ar": "جيلي", "slug": "geely-sale", "icon": "/icons/cars/geely.svg", "parent_id": 1143}, {"id": 1275, "name_ar": "إمجراند (Emgrand 7/EC7)", "slug": "geely-amgrand-emgrand-7ec7-sale", "icon": null, "parent_id": 1274}, {"id": 1276, "name_ar": "كولراي (Coolray)", "slug": "geely-kolray-coolray-sale", "icon": null, "parent_id": 1274}, {"id": 1277, "name_ar": "GC6 / CK / MK", "slug": "geely-gc6-ck-mk-sale", "icon": null, "parent_id": 1274}, {"id": 1278, "name_ar": "توجيلا / أزكارا", "slug": "geely-togyla-azkara-sale", "icon": null, "parent_id": 1274}, {"id": 1279, "name_ar": "مونجارو", "slug": "geely-mongaro-sale", "icon": null, "parent_id": 1274}, {"id": 1280, "name_ar": "باندا", "slug": "geely-banda-sale", "icon": null, "parent_id": 1274}, {"id": 1282, "name_ar": "شيري", "slug": "chery-sale", "icon": "/icons/cars/chery.svg", "parent_id": 1143}, {"id": 1283, "name_ar": "كيو كيو (QQ)", "slug": "chery-kyo-kyo-qq-sale", "icon": null, "parent_id": 1282}, {"id": 1284, "name_ar": "تيجو (Tiggo 7 / 8 / 4)", "slug": "chery-tygo-tiggo-7-8-4-sale", "icon": null, "parent_id": 1282}, {"id": 1285, "name_ar": "أريزو (Arrizo)", "slug": "chery-aryzo-arrizo-sale", "icon": null, "parent_id": 1282}, {"id": 1286, "name_ar": "A11 / A15 / كوين", "slug": "chery-a11-a15-koyn-sale", "icon": null, "parent_id": 1282}, {"id": 1288, "name_ar": "شانجان", "slug": "changan-sale", "icon": "/icons/cars/changan.svg", "parent_id": 1143}, {"id": 1289, "name_ar": "CS35 Plus", "slug": "changan-cs35-plus-sale", "icon": null, "parent_id": 1288}, {"id": 1290, "name_ar": "CS75 / CS85 / CS95", "slug": "changan-cs75-cs85-cs95-sale", "icon": null, "parent_id": 1288}, {"id": 1291, "name_ar": "السفن (Alsvin)", "slug": "changan-alsfn-alsvin-sale", "icon": null, "parent_id": 1288}, {"id": 1292, "name_ar": "إيدو (Eado)", "slug": "changan-aydo-eado-sale", "icon": null, "parent_id": 1288}, {"id": 1293, "name_ar": "يوني (UNI-T / UNI-K)", "slug": "changan-yony-uni-t-uni-k-sale", "icon": null, "parent_id": 1288}, {"id": 1295, "name_ar": "شيفروليه", "slug": "chevrolet-sale", "icon": "/icons/cars/chevrolet.svg", "parent_id": 1143}, {"id": 1296, "name_ar": "أوبترا (Optra)", "slug": "chevrolet-aobtra-optra-sale", "icon": null, "parent_id": 1295}, {"id": 1297, "name_ar": "أفيو (Aveo)", "slug": "chevrolet-afyo-aveo-sale", "icon": null, "parent_id": 1295}, {"id": 1298, "name_ar": "كروز (Cruze)", "slug": "chevrolet-kroz-cruze-sale", "icon": null, "parent_id": 1295}, {"id": 1299, "name_ar": "تاهو / سوبربان", "slug": "chevrolet-taho-sobrban-sale", "icon": null, "parent_id": 1295}, {"id": 1300, "name_ar": "كابتيفا (Captiva)", "slug": "chevrolet-kabtyfa-captiva-sale", "icon": null, "parent_id": 1295}, {"id": 1301, "name_ar": "ماليبو / سبارك", "slug": "chevrolet-malybo-sbark-sale", "icon": null, "parent_id": 1295}, {"id": 1303, "name_ar": "أوبل", "slug": "opel-sale", "icon": "/icons/cars/opel.svg", "parent_id": 1143}, {"id": 1304, "name_ar": "أسترا (Astra)", "slug": "opel-astra-astra-sale", "icon": null, "parent_id": 1303}, {"id": 1305, "name_ar": "فيكترا (Vectra)", "slug": "opel-fyktra-vectra-sale", "icon": null, "parent_id": 1303}, {"id": 1306, "name_ar": "كورسا (Corsa)", "slug": "opel-korsa-corsa-sale", "icon": null, "parent_id": 1303}, {"id": 1307, "name_ar": "إنسيجنيا (Insignia)", "slug": "opel-ansygnya-insignia-sale", "icon": null, "parent_id": 1303}, {"id": 1308, "name_ar": "زافيرا / أوميغا", "slug": "opel-zafyra-aomygha-sale", "icon": null, "parent_id": 1303}, {"id": 1310, "name_ar": "فورد", "slug": "ford-sale", "icon": "/icons/cars/ford.svg", "parent_id": 1143}, {"id": 1311, "name_ar": "فيوجن (Fusion)", "slug": "ford-fyogn-fusion-sale", "icon": null, "parent_id": 1310}, {"id": 1312, "name_ar": "فوكس (Focus)", "slug": "ford-foks-focus-sale", "icon": null, "parent_id": 1310}, {"id": 1313, "name_ar": "إكسبلورر (Explorer)", "slug": "ford-aksblorr-explorer-sale", "icon": null, "parent_id": 1310}, {"id": 1314, "name_ar": "F-150 / رينجر", "slug": "ford-f-150-ryngr-sale", "icon": null, "parent_id": 1310}, {"id": 1315, "name_ar": "إسكيب / إيدج", "slug": "ford-askyb-aydg-sale", "icon": null, "parent_id": 1310}, {"id": 1316, "name_ar": "موستنج", "slug": "ford-mostng-sale", "icon": null, "parent_id": 1310}, {"id": 1318, "name_ar": "هوندا", "slug": "honda-sale", "icon": "/icons/cars/honda.svg", "parent_id": 1143}, {"id": 1319, "name_ar": "سيفيك (Civic)", "slug": "honda-syfyk-civic-sale", "icon": null, "parent_id": 1318}, {"id": 1320, "name_ar": "أكورد (Accord)", "slug": "honda-akord-accord-sale", "icon": null, "parent_id": 1318}, {"id": 1321, "name_ar": "CR-V", "slug": "honda-cr-v-sale", "icon": null, "parent_id": 1318}, {"id": 1322, "name_ar": "سيتي / بايلوت", "slug": "honda-syty-baylot-sale", "icon": null, "parent_id": 1318}, {"id": 1324, "name_ar": "إم جي", "slug": "mg-sale", "icon": "/icons/cars/mg.svg", "parent_id": 1143}, {"id": 1325, "name_ar": "MG 5", "slug": "mg-mg-5-sale", "icon": null, "parent_id": 1324}, {"id": 1326, "name_ar": "MG ZS", "slug": "mg-mg-zs-sale", "icon": null, "parent_id": 1324}, {"id": 1327, "name_ar": "MG 6 / GT", "slug": "mg-mg-6-gt-sale", "icon": null, "parent_id": 1324}, {"id": 1328, "name_ar": "MG RX5 / HS", "slug": "mg-mg-rx5-hs-sale", "icon": null, "parent_id": 1324}, {"id": 1330, "name_ar": "لادا", "slug": "lada-sale", "icon": "/icons/cars/lada.svg", "parent_id": 1143}, {"id": 1331, "name_ar": "2107 / 2105 (ريفا)", "slug": "lada-2107-2105-ryfa-sale", "icon": null, "parent_id": 1330}, {"id": 1332, "name_ar": "نيفا (Niva 4x4)", "slug": "lada-nyfa-niva-4x4-sale", "icon": null, "parent_id": 1330}, {"id": 1333, "name_ar": "سمارا (Samara)", "slug": "lada-smara-samara-sale", "icon": null, "parent_id": 1330}, {"id": 1334, "name_ar": "كالينا / غرانتا", "slug": "lada-kalyna-ghranta-sale", "icon": null, "parent_id": 1330}, {"id": 1336, "name_ar": "أودي", "slug": "audi-sale", "icon": "/icons/cars/audi.svg", "parent_id": 1143}, {"id": 1337, "name_ar": "A4", "slug": "audi-a4-sale", "icon": null, "parent_id": 1336}, {"id": 1338, "name_ar": "A6", "slug": "audi-a6-sale", "icon": null, "parent_id": 1336}, {"id": 1339, "name_ar": "Q7", "slug": "audi-q7-sale", "icon": null, "parent_id": 1336}, {"id": 1340, "name_ar": "Q5 / Q3", "slug": "audi-q5-q3-sale", "icon": null, "parent_id": 1336}, {"id": 1341, "name_ar": "A8 / A3", "slug": "audi-a8-a3-sale", "icon": null, "parent_id": 1336}, {"id": 1343, "name_ar": "سكودا", "slug": "skoda-sale", "icon": "/icons/cars/skoda.svg", "parent_id": 1143}, {"id": 1344, "name_ar": "أوكتافيا (Octavia)", "slug": "skoda-aoktafya-octavia-sale", "icon": null, "parent_id": 1343}, {"id": 1345, "name_ar": "فابيا (Fabia)", "slug": "skoda-fabya-fabia-sale", "icon": null, "parent_id": 1343}, {"id": 1346, "name_ar": "سوبيرب (Superb)", "slug": "skoda-sobyrb-superb-sale", "icon": null, "parent_id": 1343}, {"id": 1347, "name_ar": "كودياك / كاروك", "slug": "skoda-kodyak-karok-sale", "icon": null, "parent_id": 1343}, {"id": 1349, "name_ar": "فيات", "slug": "fiat-sale", "icon": "/icons/cars/fiat.svg", "parent_id": 1143}, {"id": 1350, "name_ar": "بونتو (Punto)", "slug": "fiat-bonto-punto-sale", "icon": null, "parent_id": 1349}, {"id": 1351, "name_ar": "تيبو (Tipo)", "slug": "fiat-tybo-tipo-sale", "icon": null, "parent_id": 1349}, {"id": 1352, "name_ar": "أونو (Uno)", "slug": "fiat-aono-uno-sale", "icon": null, "parent_id": 1349}, {"id": 1353, "name_ar": "سيينا / لينيا", "slug": "fiat-syyna-lynya-sale", "icon": null, "parent_id": 1349}, {"id": 1354, "name_ar": "فيات 500", "slug": "fiat-fyat-500-sale", "icon": null, "parent_id": 1349}, {"id": 1356, "name_ar": "لاند روفر", "slug": "land-rover-sale", "icon": "/icons/cars/land-rover.png", "parent_id": 1143}, {"id": 1357, "name_ar": "رنج روفر فوغ", "slug": "land-rover-rng-rofr-fogh-sale", "icon": null, "parent_id": 1356}, {"id": 1358, "name_ar": "رنج روفر سبورت", "slug": "land-rover-rng-rofr-sbort-sale", "icon": null, "parent_id": 1356}, {"id": 1359, "name_ar": "ديفندر", "slug": "land-rover-dyfndr-sale", "icon": null, "parent_id": 1356}, {"id": 1360, "name_ar": "إيفوك / فيلار", "slug": "land-rover-ayfok-fylar-sale", "icon": null, "parent_id": 1356}, {"id": 1361, "name_ar": "ديسكفري", "slug": "land-rover-dyskfry-sale", "icon": null, "parent_id": 1356}, {"id": 1363, "name_ar": "هونشي ودونغ فينغ وفاو", "slug": "hongqi-dfm-faw-sale", "icon": "/icons/cars/hongqi.webp", "parent_id": 1143}, {"id": 1364, "name_ar": "هونشي (H5/HS5/H9)", "slug": "hongqi-dfm-faw-honshy-h5hs5h9-sale", "icon": "/icons/cars/hongqi.webp", "parent_id": 1363}, {"id": 1365, "name_ar": "دونغ فينغ (A30/T5)", "slug": "hongqi-dfm-faw-dongh-fyngh-a30t5-sale", "icon": "/icons/cars/dongfeng.svg", "parent_id": 1363}, {"id": 1366, "name_ar": "بيستون (Bestune)", "slug": "hongqi-dfm-faw-byston-bestune-sale", "icon": "/icons/cars/faw.webp", "parent_id": 1363}, {"id": 1367, "name_ar": "فانات وشاحنات صينية", "slug": "hongqi-dfm-faw-fanat-oshahnat-syny-sale", "icon": null, "parent_id": 1363}, {"id": 1369, "name_ar": "قطع غيار وإكسسوارات السيارات", "slug": "auto-spare-parts", "icon": null, "parent_id": 1}, {"id": 1395, "name_ar": "سيارات للإيجار", "slug": "cars-for-rent", "icon": null, "parent_id": 1}, {"id": 1802, "name_ar": "موديلات أخرى", "slug": "hyundai-sale-other-models", "icon": null, "parent_id": 1144}, {"id": 1803, "name_ar": "موديلات أخرى", "slug": "kia-sale-other-models", "icon": null, "parent_id": 1155}, {"id": 1804, "name_ar": "موديلات أخرى", "slug": "toyota-sale-other-models", "icon": null, "parent_id": 1166}, {"id": 1805, "name_ar": "موديلات أخرى", "slug": "mazda-sale-other-models", "icon": null, "parent_id": 1176}, {"id": 1806, "name_ar": "موديلات أخرى", "slug": "nissan-sale-other-models", "icon": null, "parent_id": 1184}, {"id": 1807, "name_ar": "موديلات أخرى", "slug": "saipa-sale-other-models", "icon": null, "parent_id": 1193}, {"id": 1808, "name_ar": "موديلات أخرى", "slug": "siamco-sale-other-models", "icon": null, "parent_id": 1199}, {"id": 1809, "name_ar": "موديلات أخرى", "slug": "daewoo-sale-other-models", "icon": null, "parent_id": 1205}, {"id": 1810, "name_ar": "موديلات أخرى", "slug": "suzuki-sale-other-models", "icon": null, "parent_id": 1212}, {"id": 1811, "name_ar": "موديلات أخرى", "slug": "mitsubishi-sale-other-models", "icon": null, "parent_id": 1219}, {"id": 1812, "name_ar": "موديلات أخرى", "slug": "mercedes-sale-other-models", "icon": null, "parent_id": 1226}, {"id": 1813, "name_ar": "موديلات أخرى", "slug": "bmw-sale-other-models", "icon": null, "parent_id": 1235}, {"id": 1814, "name_ar": "موديلات أخرى", "slug": "peugeot-sale-other-models", "icon": null, "parent_id": 1242}, {"id": 1815, "name_ar": "موديلات أخرى", "slug": "volkswagen-sale-other-models", "icon": null, "parent_id": 1251}, {"id": 1816, "name_ar": "موديلات أخرى", "slug": "renault-sale-other-models", "icon": null, "parent_id": 1259}, {"id": 1817, "name_ar": "موديلات أخرى", "slug": "byd-sale-other-models", "icon": null, "parent_id": 1266}, {"id": 1818, "name_ar": "موديلات أخرى", "slug": "geely-sale-other-models", "icon": null, "parent_id": 1274}, {"id": 1819, "name_ar": "موديلات أخرى", "slug": "chery-sale-other-models", "icon": null, "parent_id": 1282}, {"id": 1820, "name_ar": "موديلات أخرى", "slug": "changan-sale-other-models", "icon": null, "parent_id": 1288}, {"id": 1821, "name_ar": "موديلات أخرى", "slug": "chevrolet-sale-other-models", "icon": null, "parent_id": 1295}, {"id": 1822, "name_ar": "موديلات أخرى", "slug": "opel-sale-other-models", "icon": null, "parent_id": 1303}, {"id": 1823, "name_ar": "موديلات أخرى", "slug": "ford-sale-other-models", "icon": null, "parent_id": 1310}, {"id": 1824, "name_ar": "موديلات أخرى", "slug": "honda-sale-other-models", "icon": null, "parent_id": 1318}, {"id": 1825, "name_ar": "موديلات أخرى", "slug": "mg-sale-other-models", "icon": null, "parent_id": 1324}, {"id": 1826, "name_ar": "موديلات أخرى", "slug": "lada-sale-other-models", "icon": null, "parent_id": 1330}, {"id": 1827, "name_ar": "موديلات أخرى", "slug": "audi-sale-other-models", "icon": null, "parent_id": 1336}, {"id": 1828, "name_ar": "موديلات أخرى", "slug": "skoda-sale-other-models", "icon": null, "parent_id": 1343}, {"id": 1829, "name_ar": "موديلات أخرى", "slug": "fiat-sale-other-models", "icon": null, "parent_id": 1349}, {"id": 1830, "name_ar": "موديلات أخرى", "slug": "land-rover-sale-other-models", "icon": null, "parent_id": 1356}, {"id": 1831, "name_ar": "موديلات أخرى", "slug": "hongqi-dfm-faw-sale-other-models", "icon": null, "parent_id": 1363}, {"id": 1832, "name_ar": "ماركات أخرى", "slug": "other-car-brands-sale", "icon": null, "parent_id": 1143}, {"id": 3091, "name_ar": "دراجات نارية (ميتورات)", "slug": "motorcycles-gas-1787857971-557", "icon": null, "parent_id": 16}, {"id": 3117, "name_ar": "دراجات هوائية (بسكليتات)", "slug": "bicycles-1787857971-138", "icon": null, "parent_id": 16}, {"id": 3124, "name_ar": "قطع غيار وإكسسوارات الدراجات", "slug": "motorcycle-parts-accessories-1787857971-251", "icon": null, "parent_id": 16}, {"id": 3131, "name_ar": "شقق", "slug": "apartments-1787869957-600", "icon": null, "parent_id": 29}, {"id": 3132, "name_ar": "فلل وبيوت", "slug": "villas-houses-1787869957-362", "icon": null, "parent_id": 29}, {"id": 3133, "name_ar": "أراضي ومزارع", "slug": "lands-farms-1787869957-802", "icon": null, "parent_id": 29}, {"id": 3134, "name_ar": "محلات وعقارات تجارية", "slug": "commercial-shops-1787869957-710", "icon": null, "parent_id": 29}, {"id": 3135, "name_ar": "شاليهات واستراحات", "slug": "chalets-resorts-1787869957-992", "icon": null, "parent_id": 29}, {"id": 3136, "name_ar": "ألواح ومنظومات طاقة شمسية", "slug": "solar-panels-systems-1787870392-477", "icon": null, "parent_id": 44}, {"id": 3137, "name_ar": "إنفيرترات وبطاريات", "slug": "inverters-batteries-1787870392-848", "icon": null, "parent_id": 44}, {"id": 3138, "name_ar": "مولدات ومستلزمات كهرباء", "slug": "generators-electrical-supplies-1787870392-844", "icon": null, "parent_id": 44}, {"id": 3139, "name_ar": "جوالات وهواتف ذكية", "slug": "smartphones-1787870649-134", "icon": null, "parent_id": 69}, {"id": 3140, "name_ar": "أجهزة لوحية وآيباد", "slug": "tablets-ipad-1787870649-806", "icon": null, "parent_id": 69}, {"id": 3141, "name_ar": "كمبيوتر ولابتوب", "slug": "computers-laptops-1787870649-515", "icon": null, "parent_id": 69}, {"id": 3143, "name_ar": "شاشات وتلفزيونات", "slug": "tv-screens-1787870649-375", "icon": null, "parent_id": 69}, {"id": 3144, "name_ar": "ساعات ذكية وسماعات وإكسسوارات", "slug": "smartwatches-accessories-1787870649-752", "icon": null, "parent_id": 69}, {"id": 3146, "name_ar": "أخرى", "slug": "electronics-other-1787871022", "icon": null, "parent_id": 69}, {"id": 3147, "name_ar": "أخرى", "slug": "solar-other-1787871067", "icon": null, "parent_id": 44}, {"id": 3148, "name_ar": "أثاث منزلي وغرف", "slug": "home-furniture-rooms-1787871873-618", "icon": null, "parent_id": 88}, {"id": 3149, "name_ar": "أجهزة كهربائية ومنزلية", "slug": "home-electrical-appliances-1787871873-474", "icon": null, "parent_id": 88}, {"id": 3150, "name_ar": "مطابخ وأواني", "slug": "kitchens-cookware-1787871873-757", "icon": null, "parent_id": 88}, {"id": 3151, "name_ar": "سجاد ومفروشات وستائر", "slug": "carpets-curtains-textiles-1787871873-389", "icon": null, "parent_id": 88}, {"id": 3152, "name_ar": "أثاث مكتبي وجلسات خارجية", "slug": "office-outdoor-furniture-1787871873-113", "icon": null, "parent_id": 88}, {"id": 3153, "name_ar": "أخرى", "slug": "home-other-1787871873-400", "icon": null, "parent_id": 88}, {"id": 3154, "name_ar": "وظائف شاغرة", "slug": "job-vacancies-1787872151-772", "icon": null, "parent_id": 189}, {"id": 3155, "name_ar": "باحثون عن عمل", "slug": "job-seekers-1787872151-444", "icon": null, "parent_id": 189}, {"id": 3156, "name_ar": "فرص استثمار وشراكات", "slug": "investment-partnerships-1787872151-757", "icon": null, "parent_id": 189}, {"id": 3157, "name_ar": "أخرى", "slug": "jobs-other-1787872151-403", "icon": null, "parent_id": 189}, {"id": 3158, "name_ar": "خدمات مقاولات", "slug": "contracting-services-1787872334-690", "icon": null, "parent_id": 202}, {"id": 3159, "name_ar": "خدمات التوصيل", "slug": "delivery-services-1787872334-277", "icon": null, "parent_id": 202}, {"id": 3160, "name_ar": "خدمات تعقيب", "slug": "clearance-services-1787872334-910", "icon": null, "parent_id": 202}, {"id": 3161, "name_ar": "خدمات نقل العفش", "slug": "furniture-moving-services-1787872334-319", "icon": null, "parent_id": 202}, {"id": 3162, "name_ar": "خدمات نظافة", "slug": "cleaning-services-1787872334-215", "icon": null, "parent_id": 202}, {"id": 3163, "name_ar": "خدمات قانونية", "slug": "legal-services-1787872334-237", "icon": null, "parent_id": 202}, {"id": 3164, "name_ar": "خدمات محاسبية ومالية", "slug": "accounting-financial-services-1787872334-249", "icon": null, "parent_id": 202}, {"id": 3165, "name_ar": "خدمات أخرى", "slug": "other-services-1787872334-777", "icon": null, "parent_id": 202}, {"id": 3166, "name_ar": "ملابس رجالية", "slug": "mens-clothing-1787872599-341", "icon": null, "parent_id": 101}, {"id": 3167, "name_ar": "ملابس نسائية وفساتين", "slug": "womens-clothing-dresses-1787872599-873", "icon": null, "parent_id": 101}, {"id": 3168, "name_ar": "ملابس أطفال ومواليد", "slug": "kids-baby-clothing-1787872599-790", "icon": null, "parent_id": 101}, {"id": 3169, "name_ar": "ساعات ومجوهرات وإكسسوارات", "slug": "watches-jewelry-accessories-1787872599-529", "icon": null, "parent_id": 101}, {"id": 3170, "name_ar": "عطور ومستحضرات تجميل", "slug": "perfumes-cosmetics-1787872599-856", "icon": null, "parent_id": 101}, {"id": 3171, "name_ar": "أخرى", "slug": "fashion-other-1787872599-888", "icon": null, "parent_id": 101}, {"id": 3172, "name_ar": "مواد وأطعمة غذائية", "slug": "food-groceries-1787925468-517", "icon": null, "parent_id": 114}, {"id": 3173, "name_ar": "منظفات ومستلزمات", "slug": "detergents-grocery-supplies-1787925468-663", "icon": null, "parent_id": 114}, {"id": 3174, "name_ar": "أخرى", "slug": "groceries-other-1787925468-640", "icon": null, "parent_id": 114}, {"id": 3175, "name_ar": "أجهزة ومعدات رياضية", "slug": "sports-fitness-equipment-1787925614-646", "icon": null, "parent_id": 127}, {"id": 3176, "name_ar": "مستلزمات وأجهزة طبية", "slug": "medical-equipment-supplies-1787925614-774", "icon": null, "parent_id": 127}, {"id": 3177, "name_ar": "مكملات غذائية وفيتامينات", "slug": "supplements-vitamins-1787925614-230", "icon": null, "parent_id": 127}, {"id": 3178, "name_ar": "أخرى", "slug": "health-sports-other-1787925614-977", "icon": null, "parent_id": 127}, {"id": 3179, "name_ar": "غنم وماعز وإبل", "slug": "sheep-goats-camels-1787925814-406", "icon": null, "parent_id": 140}, {"id": 3180, "name_ar": "أبقار وعجول وخيول", "slug": "cattle-horses-1787925814-818", "icon": null, "parent_id": 140}, {"id": 3181, "name_ar": "طيور ودواجن وحمام", "slug": "birds-poultry-pigeons-1787925814-324", "icon": null, "parent_id": 140}, {"id": 3182, "name_ar": "قطط وحيوانات أليفة ومستلزماتها", "slug": "pets-cats-supplies-1787925814-583", "icon": null, "parent_id": 140}, {"id": 3183, "name_ar": "أعلاف ومستلزمات مزارع", "slug": "fodder-farm-supplies-1787925814-865", "icon": null, "parent_id": 140}, {"id": 3184, "name_ar": "أخرى", "slug": "animals-other-1787925814-334", "icon": null, "parent_id": 140}, {"id": 3185, "name_ar": "مواد بناء وأسمنت وحديد", "slug": "building-materials-cement-steel-1787925814-912", "icon": null, "parent_id": 217}, {"id": 3186, "name_ar": "عدد وأدوات مهنية وكهربائية", "slug": "tools-hardware-1787925814-709", "icon": null, "parent_id": 217}, {"id": 3187, "name_ar": "آليات ومعدات ثقيلة", "slug": "heavy-machinery-equipment-1787925814-135", "icon": null, "parent_id": 217}, {"id": 3188, "name_ar": "سيراميك وأدوات صحية وأبواب", "slug": "sanitary-ceramics-doors-1787925814-104", "icon": null, "parent_id": 217}, {"id": 3189, "name_ar": "أخرى", "slug": "construction-other-1787925814-238", "icon": null, "parent_id": 217}, {"id": 3190, "name_ar": "أشجار وأشتال وبذور", "slug": "trees-seedlings-seeds-1787925814-271", "icon": null, "parent_id": 232}, {"id": 3191, "name_ar": "أسمدة ومبيدات زراعية", "slug": "fertilizers-pesticides-1787925814-762", "icon": null, "parent_id": 232}, {"id": 3192, "name_ar": "مضخات وشبكات ري وآليات زراعية", "slug": "pumps-irrigation-tractors-1787925814-538", "icon": null, "parent_id": 232}, {"id": 3193, "name_ar": "أخرى", "slug": "agriculture-other-1787925814-265", "icon": null, "parent_id": 232}, {"id": 3194, "name_ar": "سكراب ومعادن وخردة", "slug": "scrap-metals-junk-1787925814-876", "icon": null, "parent_id": 245}, {"id": 3195, "name_ar": "ستوكات وتصفيات بضائع ومستودعات", "slug": "stock-clearance-wholesale-1787925814-524", "icon": null, "parent_id": 245}, {"id": 3196, "name_ar": "أخرى", "slug": "scrap-other-1787925814-786", "icon": null, "parent_id": 245}, {"id": 3197, "name_ar": "صالات وقاعات مناسبات", "slug": "event-halls-venues-1787925814-597", "icon": null, "parent_id": 155}, {"id": 3198, "name_ar": "كوش وتجهيزات حفلات وضيافة", "slug": "party-setup-hospitality-1787925814-923", "icon": null, "parent_id": 155}, {"id": 3199, "name_ar": "أخرى", "slug": "events-other-1787925814-445", "icon": null, "parent_id": 155}, {"id": 3200, "name_ar": "شاليهات ومزارع واستراحات سياحية", "slug": "chalets-tourist-farms-1787925814-339", "icon": null, "parent_id": 167}, {"id": 3201, "name_ar": "فنادق ورحلات وبرامج سياحية", "slug": "hotels-trips-tourism-1787925814-143", "icon": null, "parent_id": 167}, {"id": 3202, "name_ar": "أخرى", "slug": "tourism-other-1787925814-192", "icon": null, "parent_id": 167}, {"id": 3203, "name_ar": "كتب ومراجع ومطبوعات", "slug": "books-publications-1787925814-615", "icon": null, "parent_id": 176}, {"id": 3204, "name_ar": "قرطاسية ومستلزمات مدرسية ومكتبية", "slug": "stationery-school-supplies-1787925814-309", "icon": null, "parent_id": 176}, {"id": 3205, "name_ar": "أخرى", "slug": "stationery-other-1787925814-650", "icon": null, "parent_id": 176}, {"id": 3206, "name_ar": "نوادر ومقتنيات وتحف قديمة", "slug": "antiques-collectibles-1787925814-388", "icon": null, "parent_id": 259}, {"id": 3207, "name_ar": "أصناف عامة ومتنوعة", "slug": "general-misc-1787925814-280", "icon": null, "parent_id": 259}];
+    let allCategoriesData = [];
+    const catMap = {};
+    const childrenMap = {};
+    let activePickerAdIndex = null;
+    let pickerCurrentPid = 'root';
+    let pickerTrail = [];
+
+    function initCategories(data) {
+      if (!Array.isArray(data) || data.length === 0) return;
+      allCategoriesData = data;
+      for (const k in catMap) delete catMap[k];
+      for (const k in childrenMap) delete childrenMap[k];
+      allCategoriesData.forEach(c => {
+        catMap[c.id] = c;
+        const pid = (c.parent_id !== null && c.parent_id !== undefined && c.parent_id !== '') ? String(c.parent_id) : 'root';
+        if (!childrenMap[pid]) {
+          childrenMap[pid] = [];
+        }
+        childrenMap[pid].push(c);
+      });
+    }
+
+    function getCategoryPathText(catId) {
+      if (!catId || !catMap[catId]) return '';
+      const trail = [];
+      let cur = catMap[catId];
+      const visited = new Set();
+      while (cur && !visited.has(cur.id)) {
+        visited.add(cur.id);
+        trail.unshift(cur.name_ar);
+        if (cur.parent_id && catMap[cur.parent_id]) {
+          cur = catMap[cur.parent_id];
+        } else {
+          break;
+        }
+      }
+      return trail.join(' > ');
+    }
+
+    function getCategoryRootName(catId) {
+      if (!catId || !catMap[catId]) return 'عام';
+      let cur = catMap[catId];
+      const visited = new Set();
+      while (cur && !visited.has(cur.id)) {
+        visited.add(cur.id);
+        if (cur.parent_id && catMap[cur.parent_id]) {
+          cur = catMap[cur.parent_id];
+        } else {
+          return cur.name_ar;
+        }
+      }
+      return cur ? cur.name_ar : 'عام';
+    }
+
+    async function loadCategoriesData() {
+      try {
+        const res = await apiFetch('/api/categories');
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data) && data.length > 0) {
+            initCategories(data);
+            return;
+          }
+        }
+      } catch (e) {
+        console.warn("Could not fetch categories from server, using preloaded categories:", e);
+      }
+    }
+
+    // تهيئة الأقسام فورياً عند تحميل الصفحة
+    initCategories(EMBEDDED_CATEGORIES);
+
+    // -------------------------------------------------------------------------
+    // دوال بوب اب اختيار وتصفح القسم مع بطاقة تفاصيل الإعلان
+    // -------------------------------------------------------------------------
+    function openCategoryPickerForAd(idx) {
+      activePickerAdIndex = idx;
+      const ad = adsData[idx];
+      if (!ad) return;
+
+      const searchInp = document.getElementById('categoryPickerSearch');
+      if (searchInp) searchInp.value = '';
+
+      // قراءة أحدث القيم من حقول الإدخال الحالية إن كانت معدلة
+      const titleInp = document.getElementById(`titleInp-${idx}`);
+      const curTitle = titleInp ? titleInp.value.trim() : (ad.clean_title || ad.title || 'إعلان');
+
+      const priceInp = document.getElementById(`priceInp-${idx}`);
+      const currencySel = document.getElementById(`currencySel-${idx}`);
+      const curPriceNum = priceInp && priceInp.value !== '' ? Number(priceInp.value) : (ad.price_info?.amount);
+      const curCurr = currencySel ? currencySel.value : (ad.price_info?.currency || 'SYP');
+      const curCurrSym = curCurr === 'USD' ? '$' : 'ل.س';
+      const curPriceStr = (curPriceNum !== undefined && curPriceNum !== null && !isNaN(curPriceNum)) ? `${Number(curPriceNum).toLocaleString()} ${curCurrSym}` : 'على السوم';
+
+      const citySel = document.getElementById(`citySel-${idx}`);
+      const areaInp = document.getElementById(`areaInp-${idx}`);
+      const curCity = citySel ? (citySel.options[citySel.selectedIndex]?.dataset.name || citySel.options[citySel.selectedIndex]?.text) : (ad.city_name || 'دمشق');
+      const curArea = areaInp ? areaInp.value.trim() : (ad.sub_district_name || '');
+      const curCityStr = curArea ? `${curCity} (${curArea})` : curCity;
+
+      const phoneInp = document.getElementById(`phoneInp-${idx}`);
+      const curPhone = phoneInp ? phoneInp.value.trim() : (ad.phone_number || '-');
+
+      const publisherInp = document.getElementById(`publisherInp-${idx}`);
+      const curUser = publisherInp ? publisherInp.value.trim() : (ad.publisher_name || 'أبو محمد الشامي');
+
+      const descInp = document.getElementById(`descInp-${idx}`);
+      const curDesc = descInp ? descInp.value.trim() : (ad.clean_description || ad.description || '(لا يوجد نص وصف مسجل)');
+
+      const catDisplay = document.getElementById(`catDisplay-${idx}`);
+      const curCat = catDisplay ? catDisplay.textContent.trim() : (ad.category_hierarchy || `${ad.category || 'عام'}`);
+
+      const images = Array.isArray(ad.nimages) ? ad.nimages : [];
+      const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
+
+      // تعبئة بطاقة معلومات الإعلان المرجعية في العمود الأيسر (Reference Card)
+      const pIdBadge = document.getElementById('pickerAdIdBadge');
+      if (pIdBadge) pIdBadge.textContent = `#${idx + 1}`;
+
+      const pTitleBadge = document.getElementById('pickerAdTitleBadge');
+      if (pTitleBadge) pTitleBadge.textContent = `الإعلان: ${curTitle.length > 55 ? curTitle.substring(0, 55) + '...' : curTitle}`;
+
+      const pImg = document.getElementById('pickerRefImage');
+      if (pImg) {
+        pImg.src = firstImg || 'https://placehold.co/400x250/1e293b/f8fafc?text=No+Image';
+        pImg.dataset.title = curTitle;
+        pImg.dataset.price = curPriceStr;
+      }
+
+      const pTitle = document.getElementById('pickerRefTitle');
+      if (pTitle) pTitle.textContent = curTitle;
+
+      const pCat = document.getElementById('pickerRefCategory');
+      if (pCat) pCat.textContent = curCat;
+
+      const pPrice = document.getElementById('pickerRefPrice');
+      if (pPrice) pPrice.textContent = curPriceStr;
+
+      const pCity = document.getElementById('pickerRefCity');
+      if (pCity) pCity.textContent = curCityStr;
+
+      const pUser = document.getElementById('pickerRefUser');
+      if (pUser) pUser.textContent = curUser;
+
+      const pPhone = document.getElementById('pickerRefPhone');
+      if (pPhone) pPhone.textContent = curPhone;
+
+      const pDesc = document.getElementById('pickerRefDescription');
+      if (pDesc) pDesc.textContent = curDesc;
+
+      const pLive = document.getElementById('pickerRefLiveUrl');
+      if (pLive) {
+        pLive.href = ad.ad_url || '#';
+        pLive.style.display = ad.ad_url ? 'inline-flex' : 'none';
+      }
+
+      // بادجات المواصفات الفنية
+      const pSpecsBadges = document.getElementById('pickerRefSpecsBadges');
+      if (pSpecsBadges) {
+        const spObj = (typeof ad.specifications === 'object' && ad.specifications !== null) ? ad.specifications : {};
+        const items = [];
+        if (spObj.make) items.push(`🏢 ${spObj.make}`);
+        if (spObj.model) items.push(`🚗 ${spObj.model}`);
+        if (spObj.year) items.push(`📅 ${spObj.year}`);
+        if (spObj.transmission) items.push(`⚙️ ${spObj.transmission}`);
+        if (spObj.fuel_type) items.push(`⛽ ${spObj.fuel_type}`);
+        if (spObj.condition) items.push(`✨ ${spObj.condition}`);
+        if (spObj.mileage) items.push(`📟 ${spObj.mileage}`);
+        if (spObj.area) items.push(`📐 ${spObj.area}`);
+        if (spObj.rooms) items.push(`🚪 ${spObj.rooms}`);
+        pSpecsBadges.innerHTML = items.map(s => `<span style="background:rgba(56,189,248,0.15); color:#38bdf8; border:1px solid rgba(56,189,248,0.3); border-radius:6px; padding:2px 8px; font-size:10px; font-weight:700;">${escapeHtml(s)}</span>`).join('');
+      }
+
+      // فتح القسم المختار حالياً إن وجد أو المستوى الرئيسي
+      const currentCatId = ad.leaf_category_id;
+      if (currentCatId && catMap[currentCatId]) {
+        pickerTrail = [];
+        let cur = catMap[currentCatId];
+        const visited = new Set();
+        while (cur && !visited.has(cur.id)) {
+          visited.add(cur.id);
+          if (cur.parent_id && catMap[cur.parent_id]) {
+            pickerTrail.unshift(catMap[cur.parent_id]);
+            cur = catMap[cur.parent_id];
+          } else {
+            break;
+          }
+        }
+        const lastParent = pickerTrail.length > 0 ? pickerTrail[pickerTrail.length - 1].id : 'root';
+        renderPickerLevel(lastParent, pickerTrail);
+      } else {
+        renderPickerLevel('root', []);
+      }
+
+      const modal = document.getElementById('categoryPickerModal');
+      if (modal) modal.style.display = 'flex';
+    }
+
+    function closeCategoryPickerModal() {
+      const modal = document.getElementById('categoryPickerModal');
+      if (modal) modal.style.display = 'none';
+      activePickerAdIndex = null;
+    }
+
+    function renderPickerLevel(parentId, trail) {
+      pickerCurrentPid = String(parentId);
+      pickerTrail = trail || [];
+
+      const breadcrumbsOl = document.getElementById('categoryPickerBreadcrumbs');
+      if (breadcrumbsOl) {
+        let bHtml = `<span class="crumb-link" onclick="goToPickerBreadcrumb(-1)"><i class="fa-solid fa-house"></i> الرئيسية</span>`;
+        pickerTrail.forEach((item, idx) => {
+          bHtml += ` <span class="crumb-sep">›</span> `;
+          if (idx === pickerTrail.length - 1) {
+            bHtml += `<span class="crumb-active">${escapeHtml(item.name_ar)}</span>`;
+          } else {
+            bHtml += `<span class="crumb-link" onclick="goToPickerBreadcrumb(${idx})">${escapeHtml(item.name_ar)}</span>`;
+          }
+        });
+        breadcrumbsOl.innerHTML = bHtml;
+      }
+
+      const backBtn = document.getElementById('btnPickerBack');
+      if (backBtn) {
+        backBtn.style.display = pickerTrail.length > 0 ? 'inline-flex' : 'none';
+      }
+
+      const parentActionBox = document.getElementById('pickerCurrentParentAction');
+      if (parentActionBox) {
+        if (pickerCurrentPid !== 'root' && catMap[pickerCurrentPid]) {
+          const currentCat = catMap[pickerCurrentPid];
+          parentActionBox.innerHTML = `
+            <div style="background:rgba(37,99,235,0.15); border:1px solid rgba(59,130,246,0.3); border-radius:10px; padding:10px 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px;">
+              <div style="display:flex; align-items:center; gap:8px;">
+                <span style="font-size:18px;">📂</span>
+                <div>
+                  <span style="font-size:11px; color:var(--text-muted); display:block;">أنت تتصفح الآن قسم:</span>
+                  <strong style="color:#60a5fa; font-size:13px;">${escapeHtml(currentCat.name_ar)}</strong>
+                </div>
+              </div>
+              <button type="button" class="btn btn-sm btn-success" style="font-weight:800; border-radius:8px;" onclick="selectCategoryFinal('${currentCat.id}')">
+                <i class="fa-solid fa-check-double"></i> اعتماد هذا القسم واختياره
+              </button>
+            </div>
+          `;
+          parentActionBox.style.display = 'block';
+        } else {
+          parentActionBox.innerHTML = '';
+          parentActionBox.style.display = 'none';
+        }
+      }
+
+      const items = childrenMap[pickerCurrentPid] || [];
+      renderCategoryGrid(items, false);
+    }
+
+    function goToPickerBreadcrumb(index) {
+      if (index === -1) {
+        renderPickerLevel('root', []);
+      } else if (index < pickerTrail.length) {
+        const target = pickerTrail[index];
+        const newTrail = pickerTrail.slice(0, index + 1);
+        renderPickerLevel(target.id, newTrail);
+      }
+    }
+
+    function navigatePickerBack() {
+      if (pickerTrail.length > 1) {
+        pickerTrail.pop();
+        const prev = pickerTrail[pickerTrail.length - 1];
+        renderPickerLevel(prev.id, pickerTrail);
+      } else {
+        renderPickerLevel('root', []);
+      }
+    }
+
+    function drillDownCategory(catId) {
+      const cat = catMap[catId];
+      if (!cat) return;
+      pickerTrail.push(cat);
+      renderPickerLevel(cat.id, pickerTrail);
+    }
+
+    function renderCategoryGrid(items, isSearchResult) {
+      const grid = document.getElementById('categoryPickerGrid');
+      const emptyBox = document.getElementById('categoryPickerEmpty');
+      if (!grid) return;
+
+      if (!items || items.length === 0) {
+        grid.innerHTML = '';
+        if (emptyBox) emptyBox.style.display = 'block';
+        return;
+      }
+
+      if (emptyBox) emptyBox.style.display = 'none';
+
+      let html = '';
+      items.forEach(c => {
+        const hasChildren = (childrenMap[String(c.id)] || []).length > 0;
+        let iconUrl = 'https://lelbai.com/icons/cars.svg';
+        if (c.icon) {
+          iconUrl = c.icon.startsWith('http') ? c.icon : 'https://lelbai.com/' + c.icon.replace(/^\/+/, '');
+        }
+
+        const isDirect = !hasChildren;
+        const actionFn = hasChildren ? `drillDownCategory('${c.id}')` : `selectCategoryFinal('${c.id}')`;
+        const pathBreadcrumb = isSearchResult ? `<div style="font-size:10px; color:var(--text-muted); margin-top:3px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:130px;">${escapeHtml(getCategoryPathText(c.id))}</div>` : '';
+
+        html += `
+          <div class="category-tile ${isDirect ? 'leaf-tile' : ''}" onclick="${actionFn}" title="${escapeHtml(c.name_ar)}">
+            <div class="cat-tile-icon">
+              <img src="${iconUrl}" alt="" onerror="this.onerror=null; this.src='https://lelbai.com/icons/cars.svg';" />
+            </div>
+            <div class="cat-tile-title">${escapeHtml(c.name_ar)}</div>
+            ${pathBreadcrumb}
+            ${hasChildren ? `
+              <span class="cat-tile-badge badge-sub"><i class="fa-solid fa-arrow-left"></i> تفريع</span>
+            ` : `
+              <span class="cat-tile-badge badge-leaf"><i class="fa-solid fa-check"></i> أصغر فئة</span>
+            `}
+          </div>
+        `;
+      });
+
+      grid.innerHTML = html;
+    }
+
+    function filterCategoryPicker(query) {
+      query = (query || '').trim().toLowerCase();
+      const parentActionBox = document.getElementById('pickerCurrentParentAction');
+      const backBtn = document.getElementById('btnPickerBack');
+
+      if (!query) {
+        if (backBtn) backBtn.style.display = pickerTrail.length > 0 ? 'inline-flex' : 'none';
+        renderPickerLevel(pickerCurrentPid, pickerTrail);
+        return;
+      }
+
+      if (parentActionBox) parentActionBox.style.display = 'none';
+      if (backBtn) backBtn.style.display = 'none';
+
+      const breadcrumbsOl = document.getElementById('categoryPickerBreadcrumbs');
+      if (breadcrumbsOl) {
+        breadcrumbsOl.innerHTML = `<span class="crumb-link" onclick="clearPickerSearch()"><i class="fa-solid fa-house"></i> الرئيسية</span> <span class="crumb-sep">›</span> <span class="crumb-active">نتائج البحث عن: "${escapeHtml(query)}"</span>`;
+      }
+
+      const matched = allCategoriesData.filter(c => {
+        const nameAr = (c.name_ar || '').toLowerCase();
+        const slug = (c.slug || '').toLowerCase();
+        return nameAr.includes(query) || slug.includes(query);
+      });
+
+      renderCategoryGrid(matched, true);
+    }
+
+    function clearPickerSearch() {
+      const searchInp = document.getElementById('categoryPickerSearch');
+      if (searchInp) searchInp.value = '';
+      renderPickerLevel(pickerCurrentPid, pickerTrail);
+    }
+
+    function selectCategoryFinal(catId) {
+      if (activePickerAdIndex === null || !adsData[activePickerAdIndex]) {
+        closeCategoryPickerModal();
+        return;
+      }
+      const ad = adsData[activePickerAdIndex];
+      const cat = catMap[catId];
+      if (!cat) return;
+
+      const hierarchy = getCategoryPathText(cat.id);
+      const rootCatName = getCategoryRootName(cat.id);
+
+      ad.leaf_category_id = Number(cat.id);
+      ad.leaf_category_name = cat.name_ar;
+      ad.category_hierarchy = hierarchy;
+      ad.category = rootCatName;
+
+      // تحديث الزر المعروض في كرت الإعلان فورياً
+      const catDisplayEl = document.getElementById(`catDisplay-${activePickerAdIndex}`);
+      if (catDisplayEl) {
+        catDisplayEl.textContent = hierarchy;
+        const parentBtn = catDisplayEl.closest('.btn-category-select');
+        if (parentBtn) {
+          parentBtn.style.borderColor = '#10b981';
+          parentBtn.style.background = 'rgba(16, 185, 129, 0.2)';
+          setTimeout(() => {
+            if (parentBtn) {
+              parentBtn.style.borderColor = 'rgba(59, 130, 246, 0.35)';
+              parentBtn.style.background = 'rgba(37, 99, 235, 0.12)';
+            }
+          }, 2000);
+        }
+      }
+
+      markAdDirty(activePickerAdIndex);
+      closeCategoryPickerModal();
+      SyncStatusManager.success(`تم اختيار القسم: ${cat.name_ar} ✅`);
+    }
+
+    // -------------------------------------------------------------------------
+    // دوال حفظ وتعديل الإعلان Lightbox & Saving
+    // -------------------------------------------------------------------------
+    function markAdDirty(idx) {
+      const saveBtn = document.getElementById(`saveBtn-${idx}`);
+      if (saveBtn) {
+        saveBtn.style.boxShadow = '0 0 10px rgba(59, 130, 246, 0.7)';
+      }
+    }
+
+    function openImageLightbox(src, title, price, id) {
+      const modal = document.getElementById('imageLightboxModal');
+      const img = document.getElementById('lightboxImg');
+      const caption = document.getElementById('lightboxTitle');
+      if (!modal || !img) return;
+
+      img.src = src;
+      if (caption) {
+        caption.textContent = `${title || 'معاينة الصورة'} ${price ? ' - ' + price : ''} ${id ? ' (' + id + ')' : ''}`;
+      }
+      modal.style.display = 'flex';
+    }
+
+    function closeImageLightbox() {
+      const modal = document.getElementById('imageLightboxModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function openLightboxFromPickerRef() {
+      const refImg = document.getElementById('pickerRefImage');
+      if (refImg && refImg.src) {
+        openImageLightbox(refImg.src, refImg.dataset.title || 'معاينة صورة الإعلان', refImg.dataset.price || '');
+      }
+    }
+
+    async function saveAdChanges(idx) {
+      const ad = adsData[idx];
+      if (!ad) return;
+
+      const saveBtn = document.getElementById(`saveBtn-${idx}`);
+      const saveBtnText = document.getElementById(`saveBtnText-${idx}`);
+      const origText = 'حفظ التعديلات';
+
+      // 1. قراءة العنوان
+      const titleInp = document.getElementById(`titleInp-${idx}`);
+      if (titleInp && titleInp.value.trim()) {
+        ad.clean_title = titleInp.value.trim();
+        ad.title = ad.clean_title;
+      }
+
+      // 2. قراءة السعر والعملة
+      const priceInp = document.getElementById(`priceInp-${idx}`);
+      const currencySel = document.getElementById(`currencySel-${idx}`);
+      const amt = (priceInp && priceInp.value !== '') ? Number(priceInp.value) : null;
+      const curr = currencySel ? currencySel.value : 'SYP';
+      ad.price_info = {
+        amount: amt,
+        currency: curr
+      };
+
+      // 3. قراءة المدينة والمنطقة
+      const citySel = document.getElementById(`citySel-${idx}`);
+      const areaInp = document.getElementById(`areaInp-${idx}`);
+      if (citySel) {
+        const cityId = Number(citySel.value);
+        const cityName = citySel.options[citySel.selectedIndex]?.dataset.name || citySel.options[citySel.selectedIndex]?.text || 'دمشق';
+        ad['id-citie'] = cityId;
+        ad.city_name = cityName;
+        ad.location_detected = cityName;
+      }
+      if (areaInp) {
+        ad.sub_district_name = areaInp.value.trim();
+      }
+
+      // 4. قراءة الهاتف واسم المعلن
+      const phoneInp = document.getElementById(`phoneInp-${idx}`);
+      if (phoneInp) {
+        ad.phone_number = phoneInp.value.trim();
+      }
+      const publisherInp = document.getElementById(`publisherInp-${idx}`);
+      if (publisherInp) {
+        ad.publisher_name = publisherInp.value.trim();
+      }
+
+      // 5. قراءة نص الوصف
+      const descInp = document.getElementById(`descInp-${idx}`);
+      if (descInp) {
+        ad.clean_description = descInp.value.trim();
+        ad.description = ad.clean_description;
+      }
+
+      if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.style.opacity = '0.7';
+        if (saveBtnText) saveBtnText.textContent = 'جاري الحفظ... ⏳';
+      }
+
+      try {
+        const res = await apiFetch('/api/save_ad', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ index: idx, ad: ad })
+        });
+        const data = await res.json();
+        if (data.success) {
+          if (saveBtn) {
+            saveBtn.style.background = 'linear-gradient(135deg, #059669, #10b981)';
+            saveBtn.style.borderColor = '#10b981';
+            saveBtn.style.boxShadow = 'none';
+            if (saveBtnText) saveBtnText.textContent = 'تم الحفظ بنجاح! ✅';
+          }
+          setTimeout(() => {
+            if (saveBtn) {
+              saveBtn.disabled = false;
+              saveBtn.style.opacity = '1';
+              saveBtn.style.background = 'linear-gradient(135deg, #1d4ed8, #2563eb)';
+              saveBtn.style.borderColor = '#3b82f6';
+              if (saveBtnText) saveBtnText.textContent = origText;
+            }
+          }, 2000);
+          SyncStatusManager.success('تم حفظ وتثبيت تعديلات الإعلان بنجاح ✅');
+        } else {
+          alert(data.message || 'فشل حفظ التعديلات');
+          if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.style.opacity = '1';
+            if (saveBtnText) saveBtnText.textContent = origText;
+          }
+        }
+      } catch (err) {
+        console.error("Save ad error:", err);
+        alert("تعذر الاتصال بالسيرفر لحفظ التعديلات: " + err);
+        if (saveBtn) {
+          saveBtn.disabled = false;
+          saveBtn.style.opacity = '1';
+          if (saveBtnText) saveBtnText.textContent = origText;
+        }
+      }
+    }
+
 
     function escapeHtml(str) {
       if (str === null || str === undefined) return '';
@@ -2030,14 +3152,16 @@ HTML_PAGE = r"""<!DOCTYPE html>
             const rawTitle = ad.clean_title || ad.title || (ad.description || '').substring(0, 60) || 'إعلان بدون عنوان';
             const title = String(rawTitle);
             const city = sp.city_name || ad.city_name || ad.location_detected || 'دمشق';
-            const subDist = sp.sub_district_name && sp.sub_district_name !== 'عام' ? ` (${sp.sub_district_name})` : (ad.sub_district_name ? ` (${ad.sub_district_name})` : '');
+            const subDistClean = ad.sub_district_name || sp.sub_district_name || '';
             const cat = ad.category || 'عام';
             const catHierarchy = ad.category_hierarchy || `${cat} (ID: ${ad.leaf_category_id || 1143})`;
             const accountName = ad.publisher_name || 'أبو محمد الشامي';
             
             const priceInfo = (typeof ad.price_info === 'object' && ad.price_info !== null) ? ad.price_info : {};
-            const currSymbol = (priceInfo.currency === 'USD') ? '$' : 'ل.س';
-            const price = (priceInfo.amount !== undefined && priceInfo.amount !== null && !isNaN(Number(priceInfo.amount))) ? `${Number(priceInfo.amount).toLocaleString()} ${currSymbol}` : 'السعر: على السوم';
+            const priceNum = (priceInfo.amount !== undefined && priceInfo.amount !== null && !isNaN(Number(priceInfo.amount))) ? Number(priceInfo.amount) : '';
+            const currCode = (priceInfo.currency === 'USD') ? 'USD' : 'SYP';
+            const currSymbol = currCode === 'USD' ? '$' : 'ل.س';
+            const priceDisplay = priceNum !== '' ? `${Number(priceNum).toLocaleString()} ${currSymbol}` : 'على السوم';
             
             const images = Array.isArray(ad.nimages) ? ad.nimages : [];
             const firstImg = images.length > 0 ? `${API_BASE}/imgs/${encodeURIComponent(images[0])}` : '';
@@ -2098,26 +3222,42 @@ HTML_PAGE = r"""<!DOCTYPE html>
               </div>
             ` : '';
 
-            // رد وتقرير الذكاء الاصطناعي
+            // تقرير الذكاء الاصطناعي
             const aiReviewText = (ad.ai_review && ad.ai_review.full_text) ? 
               ad.ai_review.full_text : 
               (ad.moderation_summary || 'تم فحص وتدقيق الإعلان ومطابقته للضوابط الشرعية والشكلية.');
 
             const descText = ad.clean_description || ad.description || 'لا يوجد وصف متاح';
 
+            // خيارات المدن السورية
+            const activeCityId = Number(ad['id-citie'] || 1);
+            const cityOptionsHtml = SYRIAN_CITIES.map(c => {
+              const isSel = (c.id === activeCityId || (!ad['id-citie'] && (city.includes(c.name) || c.name.includes(city)))) ? 'selected' : '';
+              return `<option value="${c.id}" data-name="${c.name}" ${isSel}>${c.name}</option>`;
+            }).join('');
+
             return `
               <div class="ad-card" id="adCard-${idx}">
                 <div class="ad-gallery">
-                  <img id="adMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" />
+                  <img id="adMainImg-${idx}" src="${firstImg}" onerror="this.src='https://placehold.co/600x400/1e293b/f8fafc?text=No+Image'" onclick="openImageLightbox('${firstImg}', '${escapeHtml(title)}', '${priceDisplay}', '#${idx+1}')" style="cursor:zoom-in;" title="انقر لتكبير الصورة" />
                   <div class="ad-thumbs">${thumbsHtml}</div>
                 </div>
 
                 <div class="ad-body">
                   
-                  <!-- التصنيف بأصغر ابن واسم الحساب -->
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:12px; font-weight:800; margin-bottom:6px; flex-wrap:wrap; gap:4px;">
-                    <span style="background:rgba(37,99,235,0.2); color:#60a5fa; padding:3px 8px; border-radius:6px; border:1px solid rgba(59,130,246,0.3);">🏷️ ${escapeHtml(catHierarchy)}</span>
-                    <span style="color:#c084fc; background:rgba(168,85,247,0.15); padding:3px 8px; border-radius:6px; border:1px solid rgba(168,85,247,0.3);">👤 المعلن: ${escapeHtml(accountName)}</span>
+                  <!-- زر اختيار وتعديل التصنيف التفاعلي الهرمي -->
+                  <div style="margin-bottom:4px;">
+                    <label style="font-size:11px; color:var(--text-muted); font-weight:700; display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                      <span>🏷️ تصنيف الإعلان (القسم الهرمي):</span>
+                      <span style="color:#38bdf8; font-size:10px; cursor:pointer;" onclick="openCategoryPickerForAd(${idx})">انقر للتغيير ▾</span>
+                    </label>
+                    <button type="button" class="btn-category-select" onclick="openCategoryPickerForAd(${idx})" title="انقر لاختيار وتصفح القسم الهرمي المناسب لمواصفات هذا الإعلان">
+                      <div style="display:flex; align-items:center; gap:8px; overflow:hidden;">
+                        <span class="cat-pill-icon"><i class="fa-solid fa-layer-group"></i></span>
+                        <span class="cat-pill-text" id="catDisplay-${idx}">${escapeHtml(catHierarchy)}</span>
+                      </div>
+                      <span class="cat-pill-badge"><i class="fa-solid fa-pen-to-square"></i> تغيير القسم ▾</span>
+                    </button>
                   </div>
 
                   <!-- صندوق المراحل التفصيلي -->
@@ -2143,34 +3283,82 @@ HTML_PAGE = r"""<!DOCTYPE html>
                   <!-- بادجات المواصفات المستخرجة -->
                   ${specsBadgesHtml}
 
-                  <!-- رد وتقرير الذكاء الاصطناعي الشامل -->
-                  <div style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:10px; padding:10px; margin:8px 0;">
-                    <div style="font-size:11px; font-weight:800; color:#a5b4fc; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between;">
-                      <span>🤖 رد وتقرير فحص الذكاء الاصطناعي:</span>
-                      <span style="color:#34d399; font-size:10px;">✔️ فحص دقيق</span>
+                  <!-- رد وتقرير الذكاء الاصطناعي الشامل قابل للطي -->
+                  <details style="background:rgba(99,102,241,0.08); border:1px solid rgba(99,102,241,0.3); border-radius:10px; padding:8px 12px; margin:4px 0;">
+                    <summary style="font-size:11px; font-weight:800; color:#a5b4fc; cursor:pointer; display:flex; align-items:center; justify-content:space-between;">
+                      <span>🤖 رد وتقرير فحص الذكاء الاصطناعي (Gemini)</span>
+                      <span style="color:#34d399; font-size:10px;">عرض/طي ▾</span>
+                    </summary>
+                    <div style="font-size:11px; color:#cbd5e1; line-height:1.55; white-space:pre-line; background:rgba(15,23,42,0.65); padding:8px 10px; border-radius:6px; font-family:monospace; border:1px solid rgba(255,255,255,0.05); margin-top:8px;">${escapeHtml(aiReviewText)}</div>
+                  </details>
+
+                  <!-- حقول التعديل المباشرة (Inputs) لكافة بيانات الإعلان -->
+                  <div class="ad-edit-fields">
+                    
+                    <!-- حقل 1: العنوان المهيكل -->
+                    <div class="form-group" style="margin:0;">
+                      <label style="font-size:11px; color:#93c5fd; font-weight:700; margin-bottom:3px; display:block;">📝 العنوان المهيكل:</label>
+                      <input type="text" class="ad-title-input" id="titleInp-${idx}" value="${escapeHtml(title)}" placeholder="عنوان الإعلان..." oninput="markAdDirty(${idx})" />
                     </div>
-                    <div style="font-size:11px; color:#cbd5e1; line-height:1.55; white-space:pre-line; background:rgba(15,23,42,0.65); padding:8px 10px; border-radius:6px; font-family:monospace; border:1px solid rgba(255,255,255,0.05);">${escapeHtml(aiReviewText)}</div>
+
+                    <!-- حقل 2: السعر والعملة -->
+                    <div style="display:grid; grid-template-columns: 2fr 1fr; gap:8px;">
+                      <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; color:#fde047; font-weight:700; margin-bottom:3px; display:block;">💰 السعر:</label>
+                        <input type="number" class="form-control" id="priceInp-${idx}" value="${priceNum}" placeholder="السعر رقماً..." oninput="markAdDirty(${idx})" />
+                      </div>
+                      <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:3px; display:block;">العملة:</label>
+                        <select class="form-control" id="currencySel-${idx}" onchange="markAdDirty(${idx})">
+                          <option value="SYP" ${currCode === 'SYP' ? 'selected' : ''}>ل.س (سوري)</option>
+                          <option value="USD" ${currCode === 'USD' ? 'selected' : ''}>$ (دولار)</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <!-- حقل 3: المدينة والمنطقة -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                      <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; color:#60a5fa; font-weight:700; margin-bottom:3px; display:block;">📍 المدينة:</label>
+                        <select class="form-control" id="citySel-${idx}" onchange="markAdDirty(${idx})">
+                          ${cityOptionsHtml}
+                        </select>
+                      </div>
+                      <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; color:var(--text-muted); font-weight:700; margin-bottom:3px; display:block;">المنطقة / الحي:</label>
+                        <input type="text" class="form-control" id="areaInp-${idx}" value="${escapeHtml(subDistClean)}" placeholder="مثال: المزة، الصالحية..." oninput="markAdDirty(${idx})" />
+                      </div>
+                    </div>
+
+                    <!-- حقل 4: رقم الهاتف والمعلن -->
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                      <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; color:#38bdf8; font-weight:700; margin-bottom:3px; display:block;">📞 رقم الهاتف:</label>
+                        <input type="text" class="form-control" id="phoneInp-${idx}" value="${escapeHtml(ad.phone_number || '')}" placeholder="09xxxxxxxx" dir="ltr" oninput="markAdDirty(${idx})" />
+                      </div>
+                      <div class="form-group" style="margin:0;">
+                        <label style="font-size:11px; color:#c084fc; font-weight:700; margin-bottom:3px; display:block;">👤 اسم المعلن:</label>
+                        <input type="text" class="form-control" id="publisherInp-${idx}" value="${escapeHtml(accountName)}" placeholder="اسم المعلن..." oninput="markAdDirty(${idx})" />
+                      </div>
+                    </div>
+
+                    <!-- حقل 5: الوصف الكامل -->
+                    <div class="form-group" style="margin:0;">
+                      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:3px;">
+                        <label style="font-size:11px; color:var(--text-muted); font-weight:700;">📄 نص الوصف والمواصفات:</label>
+                        <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:10px; color:#60a5fa; text-decoration:none;">🔗 فتح فيسبوك الأصل</a>
+                      </div>
+                      <textarea class="ad-desc-textarea" id="descInp-${idx}" rows="3" placeholder="اكتب أو عدل نص الوصف..." oninput="markAdDirty(${idx})">${escapeHtml(descText)}</textarea>
+                    </div>
+
                   </div>
 
-                  <div>
-                    <label style="font-size:11px; color:var(--text-muted); font-weight:700;">العنوان المهيكل:</label>
-                    <input type="text" class="ad-title-input" id="titleInp-${idx}" value="${escapeHtml(title)}" />
-                  </div>
-
-                  <div style="display:flex; justify-content:space-between; font-size:12px; font-weight:700;">
-                    <span style="color:#60a5fa;">📍 ${escapeHtml(city)}${escapeHtml(subDist)}</span>
-                    <span style="color:#fde047;">💰 ${escapeHtml(price)}</span>
-                  </div>
-
-                  <div class="ad-desc-box">${escapeHtml(descText)}</div>
-
-                  <div style="display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; color:#38bdf8;">
-                    <span>📞 ${escapeHtml(ad.phone_number || 'لا يوجد')}</span>
-                    <a href="${escapeHtml(ad.ad_url || '#')}" target="_blank" style="font-size:11px; color:var(--text-muted); text-decoration:none;">🔗 رابط فيسبوك</a>
-                  </div>
-
+                  <!-- شريط أزرار الإجراءات مع زر الحفظ البارز -->
                   <div style="display:flex; gap:6px; margin-top:auto; padding-top:10px; border-top:1px solid var(--border); flex-wrap:wrap;">
-                    <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1; min-width:140px;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
+                    <button id="saveBtn-${idx}" class="btn btn-primary" style="flex:1; min-width:130px; font-weight:800; background:linear-gradient(135deg, #1d4ed8, #2563eb); border:1px solid #3b82f6; display:flex; align-items:center; justify-content:center; gap:6px;" onclick="saveAdChanges(${idx})" title="حفظ وتثبيت التعديلات المدخلة فورياً">
+                      <span>💾</span> <span id="saveBtnText-${idx}">حفظ التعديلات</span>
+                    </button>
+                    <button id="pubBtn-${idx}" class="btn btn-success" style="flex:1.2; min-width:140px; font-weight:800;" onclick="publishSingleAd(${idx})">✅ نشر للموقع ومجلد الاستيراد</button>
                     <button id="aiBtn-${idx}" class="btn btn-outline btn-sm" style="border-color:#38bdf8; color:#38bdf8; font-weight:700;" onclick="reclassifySingleAd(${idx})" title="إعادة فحص وتصنيف الإعلان بالذكاء الاصطناعي (Gemini)">🤖 فحص AI</button>
                     <button id="rejBtn-${idx}" class="btn btn-warning btn-sm" onclick="rejectSingleAd(${idx})" title="استبعاد الإعلان ونقله للمخالفات">⚠️ استبعاد</button>
                     <button id="delBtn-${idx}" class="btn btn-danger btn-sm" onclick="deleteSingleAd(${idx})" title="حذف نهائي للإعلان وصوره من الجهاز">🗑️ حذف نهائي</button>
@@ -2251,9 +3439,42 @@ HTML_PAGE = r"""<!DOCTYPE html>
         rejBtn.disabled = true;
       }
 
+      // قراءة وتطبيق كافة الحقول المعدلة على ad فوراً قبل النشر
       const titleInp = document.getElementById(`titleInp-${idx}`);
-      if (titleInp) {
-        ad.clean_title = titleInp.value;
+      if (titleInp && titleInp.value.trim()) {
+        ad.clean_title = titleInp.value.trim();
+        ad.title = ad.clean_title;
+      }
+      const priceInp = document.getElementById(`priceInp-${idx}`);
+      const currencySel = document.getElementById(`currencySel-${idx}`);
+      if (priceInp || currencySel) {
+        ad.price_info = {
+          amount: (priceInp && priceInp.value !== '') ? Number(priceInp.value) : null,
+          currency: currencySel ? currencySel.value : 'SYP'
+        };
+      }
+      const citySel = document.getElementById(`citySel-${idx}`);
+      const areaInp = document.getElementById(`areaInp-${idx}`);
+      if (citySel) {
+        ad['id-citie'] = Number(citySel.value);
+        ad.city_name = citySel.options[citySel.selectedIndex]?.dataset.name || citySel.options[citySel.selectedIndex]?.text || 'دمشق';
+        ad.location_detected = ad.city_name;
+      }
+      if (areaInp) {
+        ad.sub_district_name = areaInp.value.trim();
+      }
+      const phoneInp = document.getElementById(`phoneInp-${idx}`);
+      if (phoneInp) {
+        ad.phone_number = phoneInp.value.trim();
+      }
+      const publisherInp = document.getElementById(`publisherInp-${idx}`);
+      if (publisherInp) {
+        ad.publisher_name = publisherInp.value.trim();
+      }
+      const descInp = document.getElementById(`descInp-${idx}`);
+      if (descInp) {
+        ad.clean_description = descInp.value.trim();
+        ad.description = ad.clean_description;
       }
 
       try {
@@ -3816,13 +5037,15 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", "text/html; charset=utf-8")
             self.send_cors_headers()
             self.end_headers()
-            self.wfile.write(HTML_PAGE.encode("utf-8"))
+            dash_file = os.path.join(BASE_DIR, "control_dashboard.html")
+            page_content = HTML_PAGE
             try:
-                dash_file = os.path.join(BASE_DIR, "control_dashboard.html")
-                with open(dash_file, "w", encoding="utf-8") as f:
-                    f.write(HTML_PAGE)
+                if os.path.exists(dash_file):
+                    with open(dash_file, "r", encoding="utf-8") as f:
+                        page_content = f.read()
             except Exception:
-                pass
+                page_content = HTML_PAGE
+            self.wfile.write(page_content.encode("utf-8"))
             return
 
         elif path == "/api/groups":
@@ -3883,6 +5106,11 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                 "published": enriched_published,
                 "count": len(enriched_published)
             })
+            return
+
+        elif path == "/api/categories":
+            cats = read_json_file(CATEGORIES_DB_FILE)
+            self.send_json(cats)
             return
 
         elif path == "/api/flagged_ads":
@@ -4153,6 +5381,37 @@ class ControlCenterHandler(BaseHTTPRequestHandler):
                     CURRENTLY_PUBLISHING.discard(ad_identifier)
 
             self.send_json({"success": ok, "message": msg, "api_ok": ok})
+            return
+
+        elif path == "/api/save_ad":
+            ad = req_data.get("ad", {})
+            ad_idx = req_data.get("index")
+            ad_url = (ad.get("ad_url") or "").strip()
+            ad_title = (ad.get("clean_title") or "").strip()
+
+            pending = read_json_file(PENDING_FILE)
+            found_idx = -1
+            if ad_url:
+                for i, p in enumerate(pending):
+                    if p.get("ad_url", "").strip() == ad_url:
+                        found_idx = i
+                        break
+            if found_idx == -1 and ad_title:
+                for i, p in enumerate(pending):
+                    if p.get("clean_title", "").strip() == ad_title:
+                        found_idx = i
+                        break
+            if found_idx == -1 and ad_idx is not None and isinstance(ad_idx, int) and 0 <= ad_idx < len(pending):
+                found_idx = ad_idx
+
+            if found_idx != -1 and found_idx < len(pending):
+                existing = pending[found_idx]
+                existing.update(ad)
+                pending[found_idx] = existing
+                write_json_file(PENDING_FILE, pending)
+                self.send_json({"success": True, "message": "تم حفظ وتحديث بيانات الإعلان بنجاح في سجل المراجعة!", "ad": existing})
+            else:
+                self.send_json({"success": False, "message": "لم يتم العثور على الإعلان المطلوب تحديثه في قائمة المراجعة"})
             return
 
         elif path == "/api/reject":
