@@ -2290,6 +2290,10 @@ HTML_PAGE = r"""<!DOCTYPE html>
     // دوال بوب اب اختيار وتصفح القسم مع بطاقة تفاصيل الإعلان
     // -------------------------------------------------------------------------
     function openCategoryPickerForAd(idx) {
+      if (typeof idx !== 'number' || idx < 0 || idx >= adsData.length) {
+        console.warn("Invalid ad index passed to openCategoryPickerForAd:", idx);
+        return;
+      }
       activePickerAdIndex = idx;
       const ad = adsData[idx];
       if (!ad) return;
@@ -3062,6 +3066,33 @@ HTML_PAGE = r"""<!DOCTYPE html>
 
     let adsLimit = 60;
 
+    function getAdRealIndex(ad, fallbackIdx) {
+      if (!ad) return fallbackIdx;
+      if (typeof ad._rawIndex === 'number' && ad._rawIndex >= 0 && adsData[ad._rawIndex] === ad) {
+        return ad._rawIndex;
+      }
+      const i = adsData.indexOf(ad);
+      if (i !== -1) {
+        ad._rawIndex = i;
+        return i;
+      }
+      if (ad.ad_url) {
+        const found = adsData.findIndex(a => a && a.ad_url === ad.ad_url);
+        if (found !== -1) {
+          ad._rawIndex = found;
+          return found;
+        }
+      }
+      if (ad.clean_title) {
+        const found = adsData.findIndex(a => a && a.clean_title === ad.clean_title);
+        if (found !== -1) {
+          ad._rawIndex = found;
+          return found;
+        }
+      }
+      return fallbackIdx;
+    }
+
     async function loadAllAds(silent = false) {
       const grid = document.getElementById('adsCardsGrid');
       try {
@@ -3072,6 +3103,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         if (!res.ok) throw new Error("تعذر جلب الإعلانات من السيرفر (" + res.status + ")");
         const data = await res.json();
         adsData = Array.isArray(data.pending) ? data.pending : [];
+        adsData.forEach((a, i) => { if (a && typeof a === 'object') a._rawIndex = i; });
         if (Array.isArray(data.published)) {
           publishedAdsData = data.published;
         }
@@ -3142,8 +3174,9 @@ HTML_PAGE = r"""<!DOCTYPE html>
         }
 
         const visibleAds = filtered.slice(0, adsLimit);
-        const cardsHtml = visibleAds.map((ad, idx) => {
+        const cardsHtml = visibleAds.map((ad, vIdx) => {
           if (!ad) return '';
+          const idx = getAdRealIndex(ad, vIdx);
           try {
             const ev = (typeof ad.evaluation === 'object' && ad.evaluation !== null) ? ad.evaluation : {};
             const sp = (typeof ev.specs_details === 'object' && ev.specs_details !== null) ? ev.specs_details : {};
@@ -3613,6 +3646,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         const data = await res.json();
         if (data.success && data.ad) {
           adsData[idx] = data.ad;
+          adsData[idx]._rawIndex = idx;
           renderAdsGrid();
           alert(data.message || 'تمت إعادة الفحص والتصنيف بنجاح! 🤖');
         } else {
@@ -4411,6 +4445,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
         const data = await res.json();
         if (data.success) {
           adsData.splice(idx, 1);
+          adsData.forEach((a, i) => { if (a && typeof a === 'object') a._rawIndex = i; });
           renderAdsGrid();
           loadAllAds();
         } else {
@@ -4560,6 +4595,7 @@ HTML_PAGE = r"""<!DOCTYPE html>
   </script>
 </body>
 </html>
+
 """
 
 # ==============================================================================
